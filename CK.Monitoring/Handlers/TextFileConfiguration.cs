@@ -9,5 +9,17 @@ namespace CK.Monitoring.Handlers
     /// </summary>
     public class TextFileConfiguration : FileConfigurationBase
     {
+        /// <summary>
+        /// Clones this configuration.
+        /// </summary>
+        /// <returns>Clone of this configuration.</returns>
+        public override IHandlerConfiguration Clone()
+        {
+            return new BinaryFileConfiguration()
+            {
+                Path = Path,
+                MaxCountPerFile = MaxCountPerFile
+            };
+        }
     }
 }

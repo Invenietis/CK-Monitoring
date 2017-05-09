@@ -5,11 +5,14 @@ using System.IO;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// Configuration interface marker.
-    /// Handlers must currently be in the same assembly and namespace as the configuration object
-    /// and be named the same without the "Configuration" suffix.
+    /// Configuration interface.
     /// </summary>
     public interface IHandlerConfiguration
     {
+        /// <summary>
+        /// Must return a deep clone of this configuration object.
+        /// </summary>
+        /// <returns>A clone of this object.</returns>
+        IHandlerConfiguration Clone();
     }
 }

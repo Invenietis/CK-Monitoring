@@ -1,13 +1,14 @@
 using System.Xml.Linq;
 using CK.Core;
 using System.IO;
+using System;
 
 namespace CK.Monitoring.Handlers
 {
     /// <summary>
     /// Configuration base object for files.
     /// </summary>
-    public class FileConfigurationBase : IHandlerConfiguration
+    public abstract class FileConfigurationBase : IHandlerConfiguration
     {
         /// <summary>
         /// Initializes a new <see cref="FileConfigurationBase"/>.
@@ -29,5 +30,12 @@ namespace CK.Monitoring.Handlers
         /// Defaults to 20000.
         /// </summary>
         public int MaxCountPerFile { get; set; }
+
+        /// <summary>
+        /// Clones this configuration.
+        /// </summary>
+        /// <returns>Clone of this configuration.</returns>
+        public abstract IHandlerConfiguration Clone();
+
     }
 }

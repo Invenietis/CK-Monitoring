@@ -14,5 +14,19 @@ namespace CK.Monitoring.Handlers
         /// Defaults to false.
         /// </summary>
         public bool UseGzipCompression { get; set; }
+
+        /// <summary>
+        /// Clones this configuration.
+        /// </summary>
+        /// <returns>Clone of this configuration.</returns>
+        public override IHandlerConfiguration Clone()
+        {
+            return new BinaryFileConfiguration()
+            {
+                Path = Path,
+                MaxCountPerFile = MaxCountPerFile,
+                UseGzipCompression = UseGzipCompression
+            };
+        }
     }
 }

@@ -14,10 +14,10 @@ namespace CK.Monitoring
     public class MonitorFileOutputBase : IDisposable
     {
         readonly string _configPath;
-        readonly int _maxCountPerFile;
         readonly string _fileNameSuffix;
         readonly bool _useGzipCompression;
 
+        int _maxCountPerFile;
         string _basePath;
         FileStream _output;
         DateTime _openedTimeUtc;
@@ -84,7 +84,21 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets the maximum number of entries per file.
         /// </summary>
-        public int MaxCountPerFile => _maxCountPerFile; 
+        public int MaxCountPerFile
+        {
+            get => _maxCountPerFile;
+            set
+            {
+                if( _maxCountPerFile != value )
+                {
+                    if (_output != null && _countRemainder > _maxCountPerFile)
+                    {
+                        CloseCurrentFile();
+                    }
+                    _maxCountPerFile = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Checks whether this <see cref="MonitorFileOutputBase"/> is valid: its base path is successfully created.

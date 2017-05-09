@@ -10,7 +10,8 @@ namespace CK.Monitoring.Handlers
     /// </summary>
     public class BinaryFile : IGrandOutputHandler
     {
-        readonly MonitorBinaryFileOutput _file;
+        MonitorBinaryFileOutput _file;
+        BinaryFileConfiguration _config;
 
         /// <summary>
         /// Initializes a new <see cref="BinaryFile"/> bound to its <see cref="BinaryFileConfiguration"/>.
@@ -20,6 +21,7 @@ namespace CK.Monitoring.Handlers
         {
             if (config == null) throw new ArgumentNullException("config");
             _file = new MonitorBinaryFileOutput(config.Path, config.MaxCountPerFile, config.UseGzipCompression);
+            _config = config;
         }
 
         /// <summary>
@@ -50,7 +52,27 @@ namespace CK.Monitoring.Handlers
         public void OnTimer(TimeSpan timerSpan)
         {
         }
-        
+
+        /// <summary>
+        /// Attempts to apply configuration if possible.
+        /// </summary>
+        /// <param name="m">The monitor to use.</param>
+        /// <param name="c">Configuration to apply.</param>
+        /// <returns>True if the configuration applied.</returns>
+        public bool ApplyConfiguration(IActivityMonitor m, IHandlerConfiguration c)
+        {
+            BinaryFileConfiguration cF = c as BinaryFileConfiguration;
+            if (cF == null || cF.Path != _config.Path) return false;
+            if( _config.UseGzipCompression != cF.UseGzipCompression)
+            {
+                _file.Close();
+                _file = new MonitorBinaryFileOutput(_config.Path, _config.MaxCountPerFile, _config.UseGzipCompression);
+            }
+            else _file.MaxCountPerFile = cF.MaxCountPerFile;
+            _config = cF;
+            return true;
+        }
+
         /// <summary>
         /// Closes the file if it is opened.
         /// </summary>

@@ -18,9 +18,7 @@ namespace CK.Monitoring
         readonly long _deltaExternalTicks;
         readonly Action _externalOnTimer;
 
-        IGrandOutputHandler[] _toAdd;
-        IGrandOutputHandler[] _toRemove;
-        IGrandOutputHandler[] _toReplace;
+        GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
         long _deltaTicks;
         long _nextTicks;
@@ -62,47 +60,42 @@ namespace CK.Monitoring
             while (!_queue.IsCompleted || _forceClose)
             {
                 bool hasEvent = _queue.TryTake(out GrandOutputEventInfo e, millisecondsTimeout: 250);
-                #region Process handlers to Replace and Remove.
-                var toReplace = _toReplace;
-                if(toReplace != null)
+                var newConf = _newConf;
+                if( newConf != null && newConf.Length > 0 )
                 {
-                    _toReplace = null;
-                    foreach (var h in _handlers)
+                    Util.InterlockedSet(ref _newConf, t => t.Skip(newConf.Length).ToArray());
+                    var c = newConf[newConf.Length - 1];
+                    TimerDuration = c.TimerDuration;
+                    List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
+                    for (int iConf = 0; iConf < c.Handlers.Count; ++iConf)
+                    {
+                        for (int iHandler = 0; iHandler < _handlers.Count; ++iHandler)
+                        {
+                            if( _handlers[iHandler].ApplyConfiguration(monitor,c.Handlers[iConf]))
+                            {
+                                c.Handlers.RemoveAt(iConf--);
+                                toKeep.Add(_handlers[iHandler]);
+                                _handlers.RemoveAt(iHandler);
+                                break;
+                            }
+                        }
+                    }
+                    foreach( var h in _handlers )
                     {
                         SafeActivateOrDeactivate(monitor, h, false);
                     }
                     _handlers.Clear();
-                    _toRemove = null;
-                    Util.InterlockedSet(ref _toAdd, t => t == null ? toReplace : t.Concat(toReplace).ToArray());
-                }
-                else
-                {
-                    var toRemove = _toRemove;
-                    if (toRemove != null && toRemove.Length > 0)
+                    _handlers.AddRange(toKeep);
+                    foreach( var conf in c.Handlers )
                     {
-                        foreach (var h in toRemove)
-                        {
-                            SafeActivateOrDeactivate(monitor, h, false);
-                            _handlers.Remove(h);
-                        }
-                        Util.InterlockedRemoveAll(ref _toRemove, h => Array.IndexOf(toRemove, h) >= 0);
-                    }
-                }
-                #endregion
-                #region Process handlers to Add.
-                var toAdd = _toAdd;
-                if (toAdd != null && toAdd.Length > 0)
-                {
-                    foreach (var h in toAdd)
-                    {
-                        if (SafeActivateOrDeactivate(monitor, h, true))
+                        var h = GrandOutput.CreateHandler(conf);
+                        if (SafeActivateOrDeactivate(monitor, h, true ))
                         {
                             _handlers.Add(h);
                         }
                     }
-                    Util.InterlockedRemoveAll(ref _toAdd, h => Array.IndexOf(toAdd, h) >= 0);
                 }
-                #endregion
+                List<IGrandOutputHandler> faulty = null;
                 #region Process event if any.
                 if ( hasEvent )
                 {
@@ -116,7 +109,8 @@ namespace CK.Monitoring
                         catch (Exception ex)
                         {
                             monitor.SendLine(LogLevel.Error, h.GetType().FullName+".Handle", ex);
-                            Util.InterlockedAdd(ref _toRemove, h);
+                            if (faulty == null) faulty = new List<IGrandOutputHandler>();
+                            faulty.Add(h);
                         }
                     }
                 }
@@ -134,7 +128,8 @@ namespace CK.Monitoring
                         catch( Exception ex )
                         {
                             monitor.SendLine(LogLevel.Error, h.GetType().FullName + ".OnTimer", ex);
-                            Util.InterlockedAdd(ref _toRemove, h);
+                            if (faulty == null) faulty = new List<IGrandOutputHandler>();
+                            faulty.Add(h);
                         }
                     }
                     _nextTicks = now + _deltaTicks;
@@ -145,6 +140,15 @@ namespace CK.Monitoring
                     }
                 }
                 #endregion
+                if (faulty != null)
+                {
+                    foreach (var h in faulty)
+                    {
+                        SafeActivateOrDeactivate(monitor, h, false);
+                        _handlers.Remove(h);
+                    }
+                    faulty = null;
+                }
             }
             foreach (var h in _handlers) SafeActivateOrDeactivate(monitor, h, false);
             monitor.MonitorEnd();
@@ -176,10 +180,10 @@ namespace CK.Monitoring
 
         public void Handle(GrandOutputEventInfo logEvent) => _queue.Add(logEvent);
 
-        public void AddHandler(IGrandOutputHandler h) => Util.InterlockedAdd( ref _toAdd, h );
-
-        public void RemoveHandler(IGrandOutputHandler h) => Util.InterlockedAdd( ref _toRemove, h );
-
-        public void SetHandlers(IGrandOutputHandler[] handlers) => _toReplace = handlers;
+        public void ApplyConfiguration(GrandOutputConfiguration configuration)
+        {
+            Debug.Assert(configuration.InternalClone);
+            Util.InterlockedAdd( ref _newConf, configuration );
+        }
     }
 }

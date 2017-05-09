@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace CK.Monitoring
@@ -9,6 +10,8 @@ namespace CK.Monitoring
     /// </summary>
     public class GrandOutputConfiguration
     {
+        internal bool InternalClone;
+
         /// <summary>
         /// Gets or sets the timer duration.
         /// Defaults to 500 milliseconds.
@@ -40,6 +43,18 @@ namespace CK.Monitoring
         {
             Handlers.Add(config);
             return this;
+        }
+
+        /// <summary>
+        /// Clones this configuration.
+        /// </summary>
+        /// <returns>Clone of this configuration.</returns>
+        public GrandOutputConfiguration Clone()
+        {
+            var c = new GrandOutputConfiguration();
+            c.TimerDuration = TimerDuration;
+            c.Handlers.AddRange(Handlers.Select(h => h.Clone()));
+            return c;
         }
     }
 }

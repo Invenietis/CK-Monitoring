@@ -15,6 +15,7 @@ namespace CK.Monitoring.Handlers
     public sealed class TextFile : IGrandOutputHandler
     {
         readonly MonitorTextFileOutput _file;
+        TextFileConfiguration _config;
 
         /// <summary>
         /// Initializes a new <see cref="TextFile"/> based on a <see cref="TextFileConfiguration"/>.
@@ -23,6 +24,7 @@ namespace CK.Monitoring.Handlers
         public TextFile( TextFileConfiguration config )
         {
             if( config == null ) throw new ArgumentNullException( nameof(config) );
+            _config = config;
             _file = new MonitorTextFileOutput( config.Path, config.MaxCountPerFile, false );
         }
 
@@ -53,6 +55,21 @@ namespace CK.Monitoring.Handlers
         /// <param name="timerSpan">Indicative timer duration.</param>
         public void OnTimer(TimeSpan timerSpan)
         {
+        }
+
+        /// <summary>
+        /// Attempts to apply configuration if possible.
+        /// </summary>
+        /// <param name="m">The monitor to use.</param>
+        /// <param name="c">Configuration to apply.</param>
+        /// <returns>True if the configuration applied.</returns>
+        public bool ApplyConfiguration(IActivityMonitor m, IHandlerConfiguration c)
+        {
+            TextFileConfiguration cF = c as TextFileConfiguration;
+            if (cF == null || cF.Path != _config.Path) return false;
+            _config = cF;
+            _file.MaxCountPerFile = cF.MaxCountPerFile;
+            return true;
         }
 
         /// <summary>

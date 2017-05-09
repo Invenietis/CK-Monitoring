@@ -51,6 +51,7 @@ namespace CK.Monitoring
                     {
                         configuration = new GrandOutputConfiguration()
                                             .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" });
+                        configuration.InternalClone = true;
                     }
                     _default = new GrandOutput(configuration);
                     ActivityMonitor.AutoConfiguration += m => Default.EnsureGrandOutputClient(m);
@@ -67,17 +68,28 @@ namespace CK.Monitoring
         public void ApplyConfiguration(GrandOutputConfiguration configuration)
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-            _sink.TimerDuration = configuration.TimerDuration;
-            var handlers = configuration.Handlers.Select(c =>
+            if (!configuration.InternalClone)
             {
-                string name = c.GetType().GetTypeInfo().FullName;
-                if (!name.EndsWith("Configuration")) throw new CKException($"Configuration handler type name must end with 'Configuration': {name}.");
-                name = c.GetType().AssemblyQualifiedName.Replace("Configuration,",",");
-                Type t = Type.GetType(name, throwOnError: true);
-                return (IGrandOutputHandler)Activator.CreateInstance(t, new[] { c });
-            }).ToArray();
-            _sink.SetHandlers(handlers);
+                configuration = configuration.Clone();
+                configuration.InternalClone = true;
+            }
+            _sink.ApplyConfiguration(configuration);
         }
+
+        /// <summary>
+        /// Settable factory method for <see cref="IGrandOutputHandler"/>.
+        /// Default implementation relies on Handlers that must be in the same 
+        /// assembly and namespace as their configuration objects and named the 
+        /// same without the "Configuration" suffix.
+        /// </summary>
+        static public Func<IHandlerConfiguration,IGrandOutputHandler> CreateHandler = config =>
+        {
+            string name = config.GetType().GetTypeInfo().FullName;
+            if (!name.EndsWith("Configuration")) throw new CKException($"Configuration handler type name must end with 'Configuration': {name}.");
+            name = config.GetType().AssemblyQualifiedName.Replace("Configuration,", ",");
+            Type t = Type.GetType(name, throwOnError: true);
+            return (IGrandOutputHandler)Activator.CreateInstance(t, new[] { config });
+        };
 
         /// <summary>
         /// Initializes a new <see cref="GrandOutput"/>. 
@@ -111,26 +123,6 @@ namespace CK.Monitoring
         /// Gets the sink.
         /// </summary>
         public IGrandOutputSink Sink => _sink;
-
-        /// <summary>
-        /// Registers a <see cref="IGrandOutputHandler"/>.
-        /// </summary>
-        /// <param name="handler">The handler to register.</param>
-        public void AddHandler( IGrandOutputHandler handler )
-        {
-            if (handler == null) throw new ArgumentNullException(nameof(handler));
-            _sink.AddHandler(handler);
-        }
-
-        /// <summary>
-        /// Unregisters a <see cref="IGrandOutputHandler"/>.
-        /// </summary>
-        /// <param name="handler">The sink to unregister.</param>
-        public void RemoveSink( IGrandOutputHandler handler )
-        {
-            if (handler == null) throw new ArgumentNullException(nameof(handler));
-            _sink.RemoveHandler(handler);
-        }
 
         void DoGarbageDeadClients()
         {

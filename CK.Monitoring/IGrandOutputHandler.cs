@@ -28,6 +28,14 @@ namespace CK.Monitoring
         void OnTimer( TimeSpan timerSpan );
 
         /// <summary>
+        /// Attempts to apply configuration if possible.
+        /// </summary>
+        /// <param name="m">The monitor to use.</param>
+        /// <param name="c">Configuration to apply.</param>
+        /// <returns>True if the configuration applied.</returns>
+        bool ApplyConfiguration(IActivityMonitor m, IHandlerConfiguration c);
+
+        /// <summary>
         /// Closes this handler.
         /// This is called after the handler has been removed.
         /// </summary>
