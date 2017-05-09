@@ -3,7 +3,8 @@
   <Import Project="..\..\Common\Shared.props" />
 
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp1.0;net451</TargetFrameworks>
+    <TargetFramework>netcoreapp1.0</TargetFramework>
+    <TargetFramework>net451</TargetFramework>
     <OutputType Condition=" '$(TargetFramework)' == 'netcoreapp1.0' ">Exe</OutputType>
   </PropertyGroup>
 

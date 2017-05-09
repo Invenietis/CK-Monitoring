@@ -34,7 +34,10 @@ namespace CK.Monitoring
         /// Ensures that the <see cref="Default"/> GrandOutput is created and that any <see cref="ActivityMonitor"/> that will be created in this
         /// application domain will automatically have a <see cref="GrandOutputClient"/> registered for this Default GrandOutput.
         /// </summary>
-        /// <param name="configuration">Configuration to apply to the default GrandOutput.</param>
+        /// <param name="configuration">
+        /// Configuration to apply to the default GrandOutput.
+        /// When null, a default configuration with a <see cref="TextFileConfiguration"/> in a "Text" path is configured.
+        /// </param>
         /// <returns>The Default GrandOutput.</returns>
         /// <remarks>
         /// This method is thread-safe (a simple lock protects it) and uses a <see cref="ActivityMonitor.AutoConfiguration"/> action 
