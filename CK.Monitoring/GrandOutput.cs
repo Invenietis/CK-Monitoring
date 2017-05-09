@@ -36,7 +36,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="configuration">
         /// Configuration to apply to the default GrandOutput.
-        /// When null, a default configuration with a <see cref="TextFileConfiguration"/> in a "Text" path is configured.
+        /// When null, a default configuration with a <see cref="Handlers.TextFileConfiguration"/> in a "Text" path is configured.
         /// </param>
         /// <returns>The Default GrandOutput.</returns>
         /// <remarks>
