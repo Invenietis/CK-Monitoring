@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using CK.Core;
+using System.IO.Compression;
 
 namespace CK.Monitoring
 {
@@ -205,8 +206,15 @@ namespace CK.Monitoring
             {
                 if( _useGzipCompression )
                 {
-                    string newPath = _basePath + FileUtil.FormatTimedUniqueFilePart( _openedTimeUtc ) + _fileNameSuffix;
-                    FileUtil.CompressFileToGzipFile( fName, newPath, true );
+                    const int bufferSize = 64 * 1024;
+                    using (var source = new FileStream(fName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan|FileOptions.DeleteOnClose ))
+                    using (var destination = FileUtil.CreateAndOpenUniqueTimedFile(_basePath, _fileNameSuffix, _openedTimeUtc, FileAccess.Write, FileShare.None, bufferSize, FileOptions.SequentialScan))
+                    {
+                        using (GZipStream gZipStream = new GZipStream(destination, CompressionLevel.Optimal))
+                        {
+                            source.CopyTo(gZipStream, bufferSize);
+                        }
+                    }
                 }
                 else
                 {
