@@ -274,7 +274,8 @@ namespace CK.Monitoring
             }
 
             /// <summary>
-            /// A page gives access to <see cref="Entries"/> by unifying all the raw log files and removing duplicates from them.
+            /// A disposable paged reader that gives access to <see cref="Entries"/> by unifying all the raw log 
+            /// files and removing duplicates from them.
             /// Pages are sequentially accessed from a first page (obtained by <see cref="ReadFirstPage(DateTimeStamp, int)"/>) and the by calling <see cref="ForwardPage"/>.
             /// </summary>
             public sealed class LivePage : IDisposable
@@ -429,7 +430,7 @@ namespace CK.Monitoring
                 public int PageLength => _pageLength;
 
                 /// <summary>
-                /// Loads the next page.
+                /// Loads the next page and returns the number of available entries.
                 /// </summary>
                 /// <returns>The number of entries.</returns>
                 public int ForwardPage()
@@ -482,6 +483,21 @@ namespace CK.Monitoring
                     return new LivePage( _firstDepth, new ParentedLogEntry[pageLength], r, pageLength );
                 }
                 return new LivePage( _firstDepth, Util.Array.Empty<ParentedLogEntry>(), null, pageLength );
+            }
+
+            /// <summary>
+            /// Retrieves all entries for this monitor.
+            /// </summary>
+            /// <param name="pageLength">Page length.</param>
+            /// <returns>All log entries in order for this Monitor.</returns>
+            public IEnumerable<ParentedLogEntry> ReadAllEntries(int pageLength = 1024)
+            {
+                using (var p = ReadFirstPage(pageLength))
+                {
+                    foreach (var e in p.Entries) yield return e;
+                    while (p.ForwardPage() > 0)
+                        foreach (var e in p.Entries) yield return e;
+                }
             }
 
             /// <summary>

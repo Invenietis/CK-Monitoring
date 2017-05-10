@@ -18,35 +18,6 @@ namespace CK.Monitoring.Tests
         public void InitalizePaths() => TestHelper.InitalizePaths();
 
         [Test]
-        public void artificially_generated_missing_log_entries_are_detected()
-        {
-            TestHelper.CleanupFolder(SystemActivityMonitor.RootLogPath + "MissingEntries");
-            var emptyConfig = new GrandOutputConfiguration();
-            var binaryConfig = new GrandOutputConfiguration().AddHandler(new Handlers.BinaryFileConfiguration() { Path = "MissingEntries" });
-
-            using (GrandOutput g = new GrandOutput(emptyConfig))
-            {
-                var m = new ActivityMonitor(false);
-                g.EnsureGrandOutputClient(m);
-                m.Trace().Send("NoShow-1");
-                g.ApplyConfiguration(emptyConfig);
-                m.Trace().Send("NoShow-2");
-                Thread.Sleep(300);
-                g.ApplyConfiguration(binaryConfig);
-                Thread.Sleep(300);
-                m.Trace().Send("Show-1");
-                Thread.Sleep(300);
-                g.ApplyConfiguration(emptyConfig);
-                Thread.Sleep(300);
-                m.Trace().Send("NoShow-3");
-            }
-            var replayed = new ActivityMonitor(false);
-            var c = replayed.Output.RegisterClient(new StupidStringClient());
-            TestHelper.ReplayLogs(new DirectoryInfo(SystemActivityMonitor.RootLogPath + "MissingEntries"), true, mon => replayed, TestHelper.ConsoleMonitor);
-            CollectionAssert.AreEqual(new[] { "<Missing log data>", "Show-1" }, c.Entries.Select(e => e.Text), StringComparer.OrdinalIgnoreCase);
-        }
-
-        [Test]
         public void CKMon_binary_files_can_be_GZip_compressed()
         {
             string rootPath = SystemActivityMonitor.RootLogPath + @"Gzip";
