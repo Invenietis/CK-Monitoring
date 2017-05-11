@@ -22,7 +22,7 @@ namespace CK.Monitoring.Tests.Persistence
         [Test]
         public void artificially_generated_missing_log_entries_are_detected()
         {
-            TestHelper.CleanupFolder(SystemActivityMonitor.RootLogPath + "MissingEntries");
+            var folder = TestHelper.PrepareLogFolder("MissingEntries");
             var emptyConfig = new GrandOutputConfiguration();
             var binaryConfig = new GrandOutputConfiguration().AddHandler(new Handlers.BinaryFileConfiguration() { Path = "MissingEntries" });
 
@@ -44,7 +44,7 @@ namespace CK.Monitoring.Tests.Persistence
             }
             var replayed = new ActivityMonitor(false);
             var c = replayed.Output.RegisterClient(new StupidStringClient());
-            TestHelper.ReplayLogs(new DirectoryInfo(SystemActivityMonitor.RootLogPath + "MissingEntries"), true, mon => replayed, TestHelper.ConsoleMonitor);
+            TestHelper.ReplayLogs(new DirectoryInfo(folder), true, mon => replayed, TestHelper.ConsoleMonitor);
             c.Entries.Select(e => e.Text).ShouldBeEquivalentTo(new[] { "<Missing log data>", "Show-1" }, o => o.WithStrictOrdering());
         }
 
@@ -66,8 +66,7 @@ namespace CK.Monitoring.Tests.Persistence
 
         private static void DuplicateTestWith6Entries( int nbEntries1, int nbEntries2, bool gzip = false )
         {
-            var folder = Path.Combine(TestHelper.TestFolder, "ReadDuplicates" );
-            TestHelper.CleanupFolder( folder );
+            var folder = TestHelper.PrepareLogFolder("ReadDuplicates");
 
             var config = new GrandOutputConfiguration()
                             .AddHandler(new Handlers.BinaryFileConfiguration()

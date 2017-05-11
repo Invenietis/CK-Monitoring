@@ -23,7 +23,7 @@ namespace CK.Monitoring
         long _deltaTicks;
         long _nextTicks;
         long _nextExternalTicks;
-        bool _forceClose;
+        volatile bool _forceClose;
 
         public DispatcherSink(TimeSpan timerDuration, TimeSpan externalTimerDuration, Action externalTimer)
         {
@@ -57,9 +57,9 @@ namespace CK.Monitoring
         {
             int nbEvent = 0;
             IActivityMonitor monitor = new SystemActivityMonitor(applyAutoConfigurations: false, topic: GetType().FullName);
-            while (!_queue.IsCompleted || _forceClose)
+            while (!_queue.IsCompleted && !_forceClose)
             {
-                bool hasEvent = _queue.TryTake(out GrandOutputEventInfo e, millisecondsTimeout: 250);
+                bool hasEvent = _queue.TryTake(out GrandOutputEventInfo e, millisecondsTimeout: 100);
                 var newConf = _newConf;
                 if( newConf != null && newConf.Length > 0 )
                 {

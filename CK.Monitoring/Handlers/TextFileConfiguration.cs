@@ -15,7 +15,7 @@ namespace CK.Monitoring.Handlers
         /// <returns>Clone of this configuration.</returns>
         public override IHandlerConfiguration Clone()
         {
-            return new BinaryFileConfiguration()
+            return new TextFileConfiguration()
             {
                 Path = Path,
                 MaxCountPerFile = MaxCountPerFile

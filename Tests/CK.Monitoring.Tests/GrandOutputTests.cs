@@ -8,6 +8,7 @@ using CK.Core;
 using NUnit.Framework;
 using FluentAssertions;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 namespace CK.Monitoring.Tests
 {
@@ -20,32 +21,31 @@ namespace CK.Monitoring.Tests
         [Test]
         public void CKMon_binary_files_can_be_GZip_compressed()
         {
-            string rootPath = SystemActivityMonitor.RootLogPath + @"Gzip";
-            TestHelper.CleanupFolder( rootPath );
+            string folder = TestHelper.PrepareLogFolder("Gzip");
 
             var c = new GrandOutputConfiguration()
                             .AddHandler(new Handlers.BinaryFileConfiguration()
                             {
-                                Path = rootPath + @"\OutputGzip",
+                                Path = folder + @"\OutputGzip",
                                 UseGzipCompression = true
                             })
                             .AddHandler(new Handlers.BinaryFileConfiguration()
                             {
-                                Path = rootPath + @"\OutputRaw",
+                                Path = folder + @"\OutputRaw",
                                 UseGzipCompression = false
                             });
 
             using( GrandOutput g = new GrandOutput( c ) )
             {
-                var taskA = Task.Factory.StartNew( () => DumpMonitorOutput( CreateMonitorAndRegisterGrandOutput( "Task A", g ) ), TaskCreationOptions.LongRunning);
-                var taskB = Task.Factory.StartNew( () => DumpMonitorOutput( CreateMonitorAndRegisterGrandOutput( "Task B", g ) ), TaskCreationOptions.LongRunning);
-                var taskC = Task.Factory.StartNew( () => DumpMonitorOutput( CreateMonitorAndRegisterGrandOutput( "Task C", g ) ), TaskCreationOptions.LongRunning);
+                var taskA = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task A", g ), 5 ), TaskCreationOptions.LongRunning);
+                var taskB = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5), TaskCreationOptions.LongRunning);
+                var taskC = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5), TaskCreationOptions.LongRunning);
 
                 Task.WaitAll( taskA, taskB, taskC );
             }
 
-            string[] gzipCkmons = TestHelper.WaitForCkmonFilesInDirectory( rootPath + @"\OutputGzip", 1 );
-            string[] rawCkmons = TestHelper.WaitForCkmonFilesInDirectory( rootPath + @"\OutputRaw", 1 );
+            string[] gzipCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputGzip", 1 );
+            string[] rawCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputRaw", 1 );
 
             gzipCkmons.Should().HaveCount( 1 );
             rawCkmons.Should().HaveCount( 1 );
@@ -67,9 +67,9 @@ namespace CK.Monitoring.Tests
             var map = mlr.GetActivityMap();
 
             map.Monitors.Should().HaveCount( 3 );
-            map.Monitors[0].ReadFirstPage(6000).Entries.Should().HaveCount(5410);
-            map.Monitors[1].ReadFirstPage(6000).Entries.Should().HaveCount(5410);
-            map.Monitors[2].ReadFirstPage(6000).Entries.Should().HaveCount(5410);
+            map.Monitors[0].ReadFirstPage(6000).Entries.Should().HaveCount(5415);
+            map.Monitors[1].ReadFirstPage(6000).Entries.Should().HaveCount(5415);
+            map.Monitors[2].ReadFirstPage(6000).Entries.Should().HaveCount(5415);
         }
 
         static IActivityMonitor CreateMonitorAndRegisterGrandOutput( string topic, GrandOutput go )
@@ -79,7 +79,57 @@ namespace CK.Monitoring.Tests
             return m;
         }
 
-        static void DumpMonitorOutput( IActivityMonitor monitor )
+        [Test]
+        public void disposing_GrandOutput_waits_for_termination()
+        {
+            string logPath = TestHelper.PrepareLogFolder( "Termination" );
+            var c = new GrandOutputConfiguration()
+                            .AddHandler(new Handlers.TextFileConfiguration() { Path = logPath })
+                            .AddHandler(new Handlers.BinaryFileConfiguration() { Path = logPath });
+            using (var g = new GrandOutput(c))
+            {
+                var m = new ActivityMonitor(applyAutoConfigurations: false);
+                g.EnsureGrandOutputClient(m);
+                DumpMonitor1082Entries(m,200);
+            }
+            // All tempoary files have been closed.
+            var fileNames = Directory.EnumerateFiles(logPath).ToList();
+            fileNames.Should().NotContain(s => s.EndsWith(".tmp"));
+            // The 200 "~~~~~FINAL TRACE~~~~~" appear in text logs.
+            fileNames
+                .Where(n => n.EndsWith(".txt"))
+                .Select( n => File.ReadAllText( n ) )
+                .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~").Count )
+                .Sum()
+                .Should().Be( 200 );
+        }
+
+        [Test]
+        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_quick_but_logs_are_lost()
+        {
+            string logPath = TestHelper.PrepareLogFolder("Termination");
+            var c = new GrandOutputConfiguration()
+                            .AddHandler(new Handlers.TextFileConfiguration() { Path = logPath });
+            using (var g = new GrandOutput(c))
+            {
+                var m = new ActivityMonitor(applyAutoConfigurations: false);
+                g.EnsureGrandOutputClient(m);
+                DumpMonitor1082Entries(m, 200);
+                g.Dispose(TestHelper.ConsoleMonitor, 0);
+            }
+            // All tempoary files have been closed.
+            var fileNames = Directory.EnumerateFiles(logPath).ToList();
+            fileNames.Should().NotContain(s => s.EndsWith(".tmp"));
+            // There is less that the normal 200 "~~~~~FINAL TRACE~~~~~" in text logs.
+            fileNames
+                .Where(n => n.EndsWith(".txt"))
+                .Select(n => File.ReadAllText(n))
+                .Select(t => Regex.Matches(t, "~~~~~FINAL TRACE~~~~~").Count)
+                .Sum()
+                .Should().BeLessThan(200);
+        }
+
+        static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )
         {
             Exception exception1;
             Exception exception2;
@@ -102,18 +152,17 @@ namespace CK.Monitoring.Tests
                 exception2 = e;
             }
             const int nbLoop = 180;
-            // Entry count:
-            // 5 * (OpenTrace + Closer) = 10
-            // 5 * nbLoop * 6 = 5400
-            // => 5410
-            // Since there is 3 parallel activities this fits into the 
-            // default per file count of 20000.
-            for (int i = 0; i < 5; i++)
+            // Entry count per count = 3 + 180 * 6 = 1083
+            // Entry count (for count parameter = 5): 5415
+            //      Since there is 3 parallel activities this fits into the 
+            //      default per file count of 20000.
+            for (int i = 0; i < count; i++)
             {
                 using (monitor.OpenTrace().Send("Dump output loop {0}", i))
                 {
                     for (int j = 0; j < nbLoop; j++)
                     {
+                        // Debug is not sent.
                         monitor.Debug().Send("Debug log! {0}", j);
                         monitor.Trace().Send("Trace log! {0}", j);
                         monitor.Info().Send("Info log! {0}", j);
@@ -123,6 +172,7 @@ namespace CK.Monitoring.Tests
                         monitor.Error().Send(exception2, "Exception log! {0}", j);
                     }
                 }
+                monitor.Info().Send("~~~~~FINAL TRACE~~~~~");
             }
         }
 

@@ -5,13 +5,13 @@ using System.Linq;
 using System.Threading;
 using CK.Core;
 using System.Runtime.CompilerServices;
+using NUnit.Framework;
 
 namespace CK.Monitoring.Tests
 {
 
     static class TestHelper
     {
-        static string _testFolder;
         static string _solutionFolder;
         
         static IActivityMonitor _monitor;
@@ -37,21 +37,21 @@ namespace CK.Monitoring.Tests
             }
         }
 
-        public static string TestFolder
-        {
-            get
-            {
-                if( _testFolder == null ) InitalizePaths();
-                return _testFolder;
-            }
-        }
-
         public static string SolutionFolder
         {
             get
             {
                 if( _solutionFolder == null ) InitalizePaths();
                 return _solutionFolder;
+            }
+        }
+
+        public static string CriticalErrorsFolder
+        {
+            get
+            {
+                if (_solutionFolder == null) InitalizePaths();
+                return SystemActivityMonitor.RootLogPath + "CriticalErrors";
             }
         }
 
@@ -121,12 +121,14 @@ namespace CK.Monitoring.Tests
             }
         }
 
-        public static void CleanupTestFolder()
+        public static string PrepareLogFolder( string subfolder )
         {
-            CleanupFolder( TestFolder );
+            string p = SystemActivityMonitor.RootLogPath + subfolder;
+            CleanupFolder( p );
+            return p;
         }
 
-        public static void CleanupFolder( string folder )
+        static void CleanupFolder( string folder )
         {
             int tryCount = 0;
             for( ; ; )
@@ -152,12 +154,12 @@ namespace CK.Monitoring.Tests
         {
             if(_solutionFolder == null)
             {
-                _solutionFolder = Path.GetDirectoryName(Path.GetDirectoryName(GetProjectPath()));
-                _testFolder = Path.Combine(SolutionFolder, "Tests", "CK.Monitoring.Tests", "TestFolder");
-                SystemActivityMonitor.RootLogPath = Path.Combine(_testFolder, "RootLogPath");
-                ConsoleMonitor.Info().Send($"SolutionFolder is: {_solutionFolder}\r\nTestFolder is: {_testFolder}\r\nRootLogPath is: {SystemActivityMonitor.RootLogPath}");
-                CleanupTestFolder();
+                var projectFolder = GetProjectPath();
+                _solutionFolder = Path.GetDirectoryName(Path.GetDirectoryName(projectFolder));
+                SystemActivityMonitor.RootLogPath = Path.Combine(projectFolder, "RootLogPath");
+                ConsoleMonitor.Info().Send($"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {SystemActivityMonitor.RootLogPath}");
             }
+            Assert.That( Directory.Exists(CriticalErrorsFolder) );
         }
 
         static string GetProjectPath([CallerFilePath]string path = null) => Path.GetDirectoryName(path);

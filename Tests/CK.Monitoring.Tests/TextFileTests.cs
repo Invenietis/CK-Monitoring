@@ -20,7 +20,7 @@ namespace CK.Monitoring.Tests
         [Test]
         public void dumping_text_file_with_multiple_monitors()
         {
-            TestHelper.CleanupFolder(SystemActivityMonitor.RootLogPath + "TextFileMulti");
+            string folder = TestHelper.PrepareLogFolder("TextFileMulti");
             Random r = new Random();
             GrandOutputConfiguration config = new GrandOutputConfiguration()
                                                     .AddHandler(new Handlers.TextFileConfiguration() { Path = "TextFileMulti" });
@@ -56,7 +56,7 @@ namespace CK.Monitoring.Tests
         [Test]
         public void dumping_text_file()
         {
-            TestHelper.CleanupFolder(SystemActivityMonitor.RootLogPath + "TextFile");
+            string folder = TestHelper.PrepareLogFolder("TextFile");
             Random r = new Random();
             GrandOutputConfiguration config = new GrandOutputConfiguration()
                                                     .AddHandler(new Handlers.TextFileConfiguration() { Path = "TextFile" });

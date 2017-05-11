@@ -180,9 +180,9 @@ namespace CK.Monitoring
         protected override void CloseCurrentFile()
         {
             _writer.Flush();
-            base.CloseCurrentFile();
             _writer.Dispose();
             _writer = null;
+            base.CloseCurrentFile();
         }
     }
 }
