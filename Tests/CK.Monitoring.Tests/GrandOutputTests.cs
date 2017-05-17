@@ -105,7 +105,7 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
-        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_quick_but_logs_are_lost()
+        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost()
         {
             string logPath = TestHelper.PrepareLogFolder("Termination");
             var c = new GrandOutputConfiguration()
