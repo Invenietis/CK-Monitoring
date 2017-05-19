@@ -36,14 +36,14 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Cake.Common, Version=0.19.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Cake.Common.0.19.4\lib\net45\Cake.Common.dll</HintPath>
+    <Reference Include="Cake.Common, Version=0.19.5.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Cake.Common.0.19.5\lib\net45\Cake.Common.dll</HintPath>
     </Reference>
-    <Reference Include="Cake.Core, Version=0.19.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Cake.Core.0.19.4\lib\net45\Cake.Core.dll</HintPath>
+    <Reference Include="Cake.Core, Version=0.19.5.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Cake.Core.0.19.5\lib\net45\Cake.Core.dll</HintPath>
     </Reference>
     <Reference Include="CK.Core, Version=7.0.0.0, Culture=neutral, PublicKeyToken=731c291b31fb8d27, processorArchitecture=MSIL">
-      <HintPath>..\packages\CK.Core.7.0.0-a\lib\net451\CK.Core.dll</HintPath>
+      <HintPath>..\packages\CK.Core.7.0.0\lib\net451\CK.Core.dll</HintPath>
     </Reference>
     <Reference Include="CK.Text, Version=5.2.0.0, Culture=neutral, PublicKeyToken=731c291b31fb8d27, processorArchitecture=MSIL">
       <HintPath>..\packages\CK.Text.5.2.0\lib\net451\CK.Text.dll</HintPath>
