@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -90,18 +90,18 @@ namespace CK.Monitoring.Tests
             {
                 var m = new ActivityMonitor(applyAutoConfigurations: false);
                 g.EnsureGrandOutputClient(m);
-                DumpMonitor1082Entries(m,200);
+                DumpMonitor1082Entries(m,300);
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles(logPath).ToList();
             fileNames.Should().NotContain(s => s.EndsWith(".tmp"));
-            // The 200 "~~~~~FINAL TRACE~~~~~" appear in text logs.
+            // The 300 "~~~~~FINAL TRACE~~~~~" appear in text logs.
             fileNames
                 .Where(n => n.EndsWith(".txt"))
                 .Select( n => File.ReadAllText( n ) )
                 .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~").Count )
                 .Sum()
-                .Should().Be( 200 );
+                .Should().Be( 300 );
         }
 
         [Test]
@@ -114,19 +114,19 @@ namespace CK.Monitoring.Tests
             {
                 var m = new ActivityMonitor(applyAutoConfigurations: false);
                 g.EnsureGrandOutputClient(m);
-                DumpMonitor1082Entries(m, 200);
+                DumpMonitor1082Entries(m, 300);
                 g.Dispose(TestHelper.ConsoleMonitor, 0);
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles(logPath).ToList();
             fileNames.Should().NotContain(s => s.EndsWith(".tmp"));
-            // There is less that the normal 200 "~~~~~FINAL TRACE~~~~~" in text logs.
+            // There is less that the normal 300 "~~~~~FINAL TRACE~~~~~" in text logs.
             fileNames
                 .Where(n => n.EndsWith(".txt"))
                 .Select(n => File.ReadAllText(n))
                 .Select(t => Regex.Matches(t, "~~~~~FINAL TRACE~~~~~").Count)
                 .Sum()
-                .Should().BeLessThan(200);
+                .Should().BeLessThan(300);
         }
 
         static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )
