@@ -180,7 +180,7 @@ namespace CK.Monitoring
             return false;
         }
 
-        public void Finalize( int millisecondsBeforeForceClose = 500 )
+        public void Finalize( int millisecondsBeforeForceClose )
         {
             if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
             _task.Wait();

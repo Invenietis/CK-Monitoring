@@ -16,7 +16,13 @@ namespace CK.Monitoring.Tests
     public class GrandOutputTests
     {
         [SetUp]
-        public void InitalizePaths() => TestHelper.InitalizePaths();
+        public void InitalizePaths()
+        {
+            TestHelper.InitalizePaths();
+            TestHelper.PrepareLogFolder( "Gzip" );
+            TestHelper.PrepareLogFolder( "Termination" );
+            TestHelper.PrepareLogFolder( "TerminationLost" );
+        }
 
         [Test]
         public void CKMon_binary_files_can_be_GZip_compressed()
@@ -79,11 +85,51 @@ namespace CK.Monitoring.Tests
             return m;
         }
 
+        public class SlowSinkHandlerConfiguration : IHandlerConfiguration
+        {
+            public int Delay { get; set; }
+
+            public IHandlerConfiguration Clone() => new SlowSinkHandlerConfiguration() { Delay = Delay };
+        }
+
+        public class SlowSinkHandler : IGrandOutputHandler
+        {
+            int _delay;
+
+            public SlowSinkHandler( SlowSinkHandlerConfiguration c )
+            {
+            }
+
+            public bool Activate( IActivityMonitor m )
+            {
+                return true;
+            }
+
+            public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+            {
+                _delay = ((SlowSinkHandlerConfiguration)c).Delay;
+                return true;
+            }
+
+            public void Deactivate( IActivityMonitor m )
+            {
+            }
+
+            public void Handle( GrandOutputEventInfo logEvent ) => Thread.Sleep( _delay );
+
+            public void OnTimer( TimeSpan timerSpan )
+            {
+            }
+        }
+
+
+
         [Test]
         public void disposing_GrandOutput_waits_for_termination()
         {
             string logPath = TestHelper.PrepareLogFolder( "Termination" );
             var c = new GrandOutputConfiguration()
+                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 1 } )
                             .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } )
                             .AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } );
             using( var g = new GrandOutput( c ) )
@@ -107,9 +153,10 @@ namespace CK.Monitoring.Tests
         [Test]
         public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost()
         {
-            string logPath = TestHelper.PrepareLogFolder( "Termination" );
+            string logPath = TestHelper.PrepareLogFolder( "TerminationLost" );
             var c = new GrandOutputConfiguration()
-                            .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } );
+                           .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 10 } )
+                           .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } );
             using( var g = new GrandOutput( c ) )
             {
                 var m = new ActivityMonitor( applyAutoConfigurations: false );
