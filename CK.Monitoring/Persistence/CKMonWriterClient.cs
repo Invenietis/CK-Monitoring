@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -17,12 +17,12 @@ namespace CK.Monitoring
         readonly string _path;
         readonly int _maxCountPerFile;
         readonly LogFilter _minimalFilter;
-        readonly bool _useGzipCompression;
         IActivityMonitorImpl _source;
         MonitorBinaryFileOutput _file;
         int _currentGroupDepth;
         LogEntryType _prevLogType;
         DateTimeStamp _prevlogTime;
+        readonly bool _useGzipCompression;
 
         /// <summary>
         /// Initializes a new instance of <see cref="CKMonWriterClient"/> that can be registered to write uncompressed .ckmon file for this monitor.
@@ -47,10 +47,14 @@ namespace CK.Monitoring
             _minimalFilter = minimalFilter;
             _useGzipCompression = useGzipCompression;
         }
+
         /// <summary>
         /// Gets the minimal filter set by the constructor.
         /// </summary>
-        public LogFilter MinimalFilter { get { return _minimalFilter; } }
+        public LogFilter MinimalFilter => _minimalFilter;
+
+        bool IActivityMonitorBoundClient.IsDead => false;
+
         void IActivityMonitorBoundClient.SetMonitor( IActivityMonitorImpl source, bool forceBuggyRemove )
         {
             if( source != null && _source != null ) throw ActivityMonitorClient.CreateMultipleRegisterOnBoundClientException( this );
@@ -124,10 +128,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets whether this writer is opened.
         /// </summary>
-        public bool IsOpened
-        {
-            get { return _file != null; }
-        }
+        public bool IsOpened => _file != null; 
 
         #region Auto implementation of IMulticastLogInfo to call UnicastWrite on file.
         Guid IMulticastLogInfo.MonitorId

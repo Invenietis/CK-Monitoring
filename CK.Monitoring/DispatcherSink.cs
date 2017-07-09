@@ -23,13 +23,14 @@ namespace CK.Monitoring
         long _deltaTicks;
         long _nextTicks;
         long _nextExternalTicks;
+        int _stopFlag;
         volatile bool _forceClose;
 
-        public DispatcherSink(TimeSpan timerDuration, TimeSpan externalTimerDuration, Action externalTimer)
+        public DispatcherSink( TimeSpan timerDuration, TimeSpan externalTimerDuration, Action externalTimer )
         {
             _queue = new BlockingCollection<GrandOutputEventInfo>();
             _handlers = new List<IGrandOutputHandler>();
-            _task = new Task(Process, TaskCreationOptions.LongRunning);
+            _task = new Task( Process, TaskCreationOptions.LongRunning );
             _timerDuration = timerDuration;
             _deltaTicks = timerDuration.Ticks;
             _deltaExternalTicks = externalTimerDuration.Ticks;
@@ -56,68 +57,68 @@ namespace CK.Monitoring
         void Process()
         {
             int nbEvent = 0;
-            IActivityMonitor monitor = new SystemActivityMonitor(applyAutoConfigurations: false, topic: GetType().FullName);
-            while (!_queue.IsCompleted && !_forceClose)
+            IActivityMonitor monitor = new SystemActivityMonitor( applyAutoConfigurations: false, topic: GetType().FullName );
+            while( !_queue.IsCompleted && !_forceClose )
             {
-                bool hasEvent = _queue.TryTake(out GrandOutputEventInfo e, millisecondsTimeout: 100);
+                bool hasEvent = _queue.TryTake( out GrandOutputEventInfo e, millisecondsTimeout: 100 );
                 var newConf = _newConf;
                 if( newConf != null && newConf.Length > 0 )
                 {
-                    Util.InterlockedSet(ref _newConf, t => t.Skip(newConf.Length).ToArray());
+                    Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
                     var c = newConf[newConf.Length - 1];
                     TimerDuration = c.TimerDuration;
                     List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
-                    for (int iConf = 0; iConf < c.Handlers.Count; ++iConf)
+                    for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
                     {
-                        for (int iHandler = 0; iHandler < _handlers.Count; ++iHandler)
+                        for( int iHandler = 0; iHandler < _handlers.Count; ++iHandler )
                         {
-                            if( _handlers[iHandler].ApplyConfiguration(monitor,c.Handlers[iConf]))
+                            if( _handlers[iHandler].ApplyConfiguration( monitor, c.Handlers[iConf] ) )
                             {
-                                c.Handlers.RemoveAt(iConf--);
-                                toKeep.Add(_handlers[iHandler]);
-                                _handlers.RemoveAt(iHandler);
+                                c.Handlers.RemoveAt( iConf-- );
+                                toKeep.Add( _handlers[iHandler] );
+                                _handlers.RemoveAt( iHandler );
                                 break;
                             }
                         }
                     }
                     foreach( var h in _handlers )
                     {
-                        SafeActivateOrDeactivate(monitor, h, false);
+                        SafeActivateOrDeactivate( monitor, h, false );
                     }
                     _handlers.Clear();
-                    _handlers.AddRange(toKeep);
+                    _handlers.AddRange( toKeep );
                     foreach( var conf in c.Handlers )
                     {
-                        var h = GrandOutput.CreateHandler(conf);
-                        if (SafeActivateOrDeactivate(monitor, h, true ))
+                        var h = GrandOutput.CreateHandler( conf );
+                        if( SafeActivateOrDeactivate( monitor, h, true ) )
                         {
-                            _handlers.Add(h);
+                            _handlers.Add( h );
                         }
                     }
                 }
                 List<IGrandOutputHandler> faulty = null;
                 #region Process event if any.
-                if ( hasEvent )
+                if( hasEvent )
                 {
                     ++nbEvent;
-                    foreach (var h in _handlers)
+                    foreach( var h in _handlers )
                     {
                         try
                         {
-                            h.Handle(e);
+                            h.Handle( e );
                         }
-                        catch (Exception ex)
+                        catch( Exception ex )
                         {
-                            monitor.SendLine(LogLevel.Error, h.GetType().FullName+".Handle", ex);
-                            if (faulty == null) faulty = new List<IGrandOutputHandler>();
-                            faulty.Add(h);
+                            monitor.SendLine( LogLevel.Error, h.GetType().FullName + ".Handle", ex );
+                            if( faulty == null ) faulty = new List<IGrandOutputHandler>();
+                            faulty.Add( h );
                         }
                     }
                 }
                 #endregion
                 #region Process OnTimer
                 long now = DateTime.UtcNow.Ticks;
-                if(now >= _nextTicks )
+                if( now >= _nextTicks )
                 {
                     foreach( var h in _handlers )
                     {
@@ -127,30 +128,30 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            monitor.SendLine(LogLevel.Error, h.GetType().FullName + ".OnTimer", ex);
-                            if (faulty == null) faulty = new List<IGrandOutputHandler>();
-                            faulty.Add(h);
+                            monitor.SendLine( LogLevel.Error, h.GetType().FullName + ".OnTimer", ex );
+                            if( faulty == null ) faulty = new List<IGrandOutputHandler>();
+                            faulty.Add( h );
                         }
                     }
                     _nextTicks = now + _deltaTicks;
-                    if (now >= _nextExternalTicks)
+                    if( now >= _nextExternalTicks )
                     {
                         _externalOnTimer();
                         _nextExternalTicks = now + _deltaExternalTicks;
                     }
                 }
                 #endregion
-                if (faulty != null)
+                if( faulty != null )
                 {
-                    foreach (var h in faulty)
+                    foreach( var h in faulty )
                     {
-                        SafeActivateOrDeactivate(monitor, h, false);
-                        _handlers.Remove(h);
+                        SafeActivateOrDeactivate( monitor, h, false );
+                        _handlers.Remove( h );
                     }
                     faulty = null;
                 }
             }
-            foreach (var h in _handlers) SafeActivateOrDeactivate(monitor, h, false);
+            foreach( var h in _handlers ) SafeActivateOrDeactivate( monitor, h, false );
             monitor.MonitorEnd();
         }
 
@@ -158,31 +159,41 @@ namespace CK.Monitoring
         {
             try
             {
-                if (activate) return h.Activate(monitor);
-                else h.Deactivate(monitor);
+                if( activate ) return h.Activate( monitor );
+                else h.Deactivate( monitor );
             }
-            catch (Exception ex)
+            catch( Exception ex )
             {
-                monitor.SendLine(LogLevel.Error, h.GetType().FullName, ex);
+                monitor.SendLine( LogLevel.Error, h.GetType().FullName, ex );
                 return false;
             }
             return true;
         }
 
-        public void Stop(int millisecondsBeforeForceClose = 500)
+        public bool Stop()
         {
-            _queue.CompleteAdding();
-            if( !_task.Wait(millisecondsBeforeForceClose) ) _forceClose = true;
-            _task.Wait();
+            if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
+            {
+                _queue.CompleteAdding();
+                return true;
+            }
+            return false;
         }
 
-        public bool IsRunning => !_task.IsCompleted;
-
-        public void Handle(GrandOutputEventInfo logEvent) => _queue.Add(logEvent);
-
-        public void ApplyConfiguration(GrandOutputConfiguration configuration)
+        public void Finalize( int millisecondsBeforeForceClose = 500 )
         {
-            Debug.Assert(configuration.InternalClone);
+            if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
+            _task.Wait();
+            _queue.Dispose();
+        }
+
+        public bool IsRunning => _stopFlag == 0;
+
+        public void Handle( GrandOutputEventInfo logEvent ) => _queue.Add( logEvent );
+
+        public void ApplyConfiguration( GrandOutputConfiguration configuration )
+        {
+            Debug.Assert( configuration.InternalClone );
             Util.InterlockedAdd( ref _newConf, configuration );
         }
     }
