@@ -120,7 +120,7 @@ namespace CodeCake
                                  new
                              {
                                  ProjectPath = p.Path.GetDirectory(),
-                                 NetCoreAppDll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/netcoreapp1.0/" + p.Name + ".dll" ),
+                                 NetCoreAppDll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/netcoreapp1.1/" + p.Name + ".dll" ),
                                  Net451Dll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/net451/" + p.Name + ".dll" ),
                              } );
 
@@ -128,14 +128,14 @@ namespace CodeCake
                      {
                          using( Cake.Environment.SetWorkingDirectory( test.ProjectPath ) )
                          {
+                             Cake.Information( "Testing: {0}", test.NetCoreAppDll );
+                             Cake.DotNetCoreExecute( test.NetCoreAppDll );
                              Cake.Information( "Testing: {0}", test.Net451Dll );
                              Cake.NUnit( test.Net451Dll.FullPath, new NUnitSettings()
                              {
                                  Framework = "v4.5",
                                  ResultsFile = test.ProjectPath.CombineWithFilePath( "TestResult.Net451.xml" )
                              } );
-                             Cake.Information( "Testing: {0}", test.NetCoreAppDll );
-                             Cake.DotNetCoreExecute( test.NetCoreAppDll );
                          }
                      }
                  } );

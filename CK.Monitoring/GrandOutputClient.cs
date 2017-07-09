@@ -66,8 +66,7 @@ namespace CK.Monitoring
 
         internal void OnCentralDisposed()
         {
-            var s = _monitorSource;
-            if( s != null ) s.SignalChange();
+            _monitorSource?.SignalChange();
         }
 
         void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )

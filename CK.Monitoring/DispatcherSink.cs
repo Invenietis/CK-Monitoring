@@ -23,7 +23,7 @@ namespace CK.Monitoring
         long _deltaTicks;
         long _nextTicks;
         long _nextExternalTicks;
-        int _stopFlag;
+        volatile int _stopFlag;
         volatile bool _forceClose;
 
         public DispatcherSink( TimeSpan timerDuration, TimeSpan externalTimerDuration, Action externalTimer )
