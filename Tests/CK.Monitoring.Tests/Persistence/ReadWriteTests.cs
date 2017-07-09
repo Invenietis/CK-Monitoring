@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,7 +20,7 @@ namespace CK.Monitoring.Tests.Persistence
             var exInner = new CKExceptionData( "message", "typeof(exception)", "assemblyQualifiedName", "stackTrace", null, "fileName", "fusionLog", null, null );
             var ex2 = new CKExceptionData( "message2", "typeof(exception2)", "assemblyQualifiedName2", "stackTrace2", exInner, "fileName2", "fusionLog2", null, null );
             var exL = new CKExceptionData( "loader-message", "typeof(loader-exception)", "loader-assemblyQualifiedName", "loader-stackTrace", null, "loader-fileName", "loader-fusionLog", null, null );
-            var exAgg = new CKExceptionData( "agg-message", "typeof(agg-exception)", "agg-assemblyQualifiedName", "agg-stackTrace", ex2, "fileName", "fusionLog", null, new[]{ ex2, exL } );
+            var exAgg = new CKExceptionData( "agg-message", "typeof(agg-exception)", "agg-assemblyQualifiedName", "agg-stackTrace", ex2, "fileName", "fusionLog", null, new[] { ex2, exL } );
 
             var prevLog = DateTimeStamp.UtcNow;
             ILogEntry e1 = LogEntry.CreateLog( "Text1", new DateTimeStamp( DateTime.UtcNow, 42 ), LogLevel.Info, "c:\\test.cs", 3712, ActivityMonitor.Tags.CreateDependentActivity, exAgg );
@@ -60,7 +60,7 @@ namespace CK.Monitoring.Tests.Persistence
                     reader.Current.LineNumber.Should().Be( 0, "Since no file name is set, line number is 0." );
                     reader.Current.Exception.ExceptionTypeAssemblyQualifiedName.Should().Be( e2.Exception.ExceptionTypeAssemblyQualifiedName );
                     reader.Current.Exception.ToString().Should().Be( e2.Exception.ToString() );
-                    
+
                     reader.MoveNext().Should().BeFalse();
                     reader.BadEndOfFileMarker.Should().BeFalse();
                 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,7 +13,7 @@ namespace CK.Monitoring.Tests
     static class TestHelper
     {
         static string _solutionFolder;
-        
+
         static IActivityMonitor _monitor;
         static ActivityMonitorConsoleClient _console;
 
@@ -25,7 +25,7 @@ namespace CK.Monitoring.Tests
             _console = new ActivityMonitorConsoleClient();
         }
 
-        public static IActivityMonitor ConsoleMonitor => _monitor; 
+        public static IActivityMonitor ConsoleMonitor => _monitor;
 
         public static bool LogsToConsole
         {
@@ -50,7 +50,7 @@ namespace CK.Monitoring.Tests
         {
             get
             {
-                if (_solutionFolder == null) InitalizePaths();
+                if( _solutionFolder == null ) InitalizePaths();
                 return SystemActivityMonitor.RootLogPath + "CriticalErrors";
             }
         }
@@ -70,7 +70,7 @@ namespace CK.Monitoring.Tests
         public static string[] WaitForCkmonFilesInDirectory( string directoryPath, int minFileCount )
         {
             string[] files;
-            for( ; ; )
+            for( ;;)
             {
                 files = Directory.GetFiles( directoryPath, "*.ckmon", SearchOption.TopDirectoryOnly );
                 if( files.Length >= minFileCount ) break;
@@ -89,28 +89,28 @@ namespace CK.Monitoring.Tests
         public static void ReplayLogs( DirectoryInfo directory, bool recurse, Func<MultiLogReader.Monitor, ActivityMonitor> monitorProvider, IActivityMonitor m = null )
         {
             var reader = new MultiLogReader();
-            using( m != null ? m.OpenTrace().Send( "Reading files from '{0}' {1}.", directory.FullName, recurse ? "(recursive)" : null ) : null )
+            using( m != null ? m.OpenTrace( $"Reading files from '{directory.FullName}' {(recurse ? "(recursive)" : null)}." ) : null )
             {
                 var files = reader.Add( directory.EnumerateFiles( "*.ckmon", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly ).Select( f => f.FullName ) );
                 if( files.Count == 0 )
                 {
-                    if( m != null ) m.Warn().Send( "No *.ckmon files found!" );
+                    if( m != null ) m.Warn( "No *.ckmon files found!" );
                 }
                 else
                 {
                     var monitors = reader.GetActivityMap().Monitors;
                     if( m != null )
                     {
-                        m.Trace().Send( String.Join( Environment.NewLine, files ) );
-                        m.CloseGroup( String.Format( "Found {0} file(s) containing {1} monitor(s).", files.Count, monitors.Count ) );
-                        m.OpenTrace().Send( "Extracting entries." );
+                        m.Trace( String.Join( Environment.NewLine, files ) );
+                        m.CloseGroup( $"Found {files.Count} file(s) containing {monitors.Count} monitor(s)." );
+                        m.OpenTrace( "Extracting entries." );
                     }
                     foreach( var mon in monitors )
                     {
                         var replay = monitorProvider( mon );
                         if( replay == null )
                         {
-                            if( m != null ) m.Info().Send( "Skipping activity from '{0}'.", mon.MonitorId );
+                            if( m != null ) m.Info( $"Skipping activity from '{mon.MonitorId}'." );
                         }
                         else
                         {
@@ -131,7 +131,7 @@ namespace CK.Monitoring.Tests
         static void CleanupFolder( string folder )
         {
             int tryCount = 0;
-            for( ; ; )
+            for( ;;)
             {
                 try
                 {
@@ -144,25 +144,25 @@ namespace CK.Monitoring.Tests
                 catch( Exception ex )
                 {
                     if( ++tryCount == 20 ) throw;
-                    ConsoleMonitor.Info().Send( ex, "While cleaning up test directory. Retrying." );
-                    System.Threading.Thread.Sleep( 100 );
+                    ConsoleMonitor.Info( "While cleaning up test directory. Retrying.", ex );
+                    Thread.Sleep( 100 );
                 }
             }
         }
 
         static public void InitalizePaths()
         {
-            if(_solutionFolder == null)
+            if( _solutionFolder == null )
             {
                 var projectFolder = GetProjectPath();
-                _solutionFolder = Path.GetDirectoryName(Path.GetDirectoryName(projectFolder));
-                SystemActivityMonitor.RootLogPath = Path.Combine(projectFolder, "RootLogPath");
-                ConsoleMonitor.Info().Send($"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {SystemActivityMonitor.RootLogPath}");
+                _solutionFolder = Path.GetDirectoryName( Path.GetDirectoryName( projectFolder ) );
+                SystemActivityMonitor.RootLogPath = Path.Combine( projectFolder, "RootLogPath" );
+                ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {SystemActivityMonitor.RootLogPath}" );
             }
-            Assert.That( Directory.Exists(CriticalErrorsFolder) );
+            Assert.That( Directory.Exists( CriticalErrorsFolder ) );
         }
 
-        static string GetProjectPath([CallerFilePath]string path = null) => Path.GetDirectoryName(path);
+        static string GetProjectPath( [CallerFilePath]string path = null ) => Path.GetDirectoryName( path );
 
     }
 }
