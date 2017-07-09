@@ -195,7 +195,7 @@ namespace CK.Monitoring
                     for( int i = 0; i < _clients.Count; ++i )
                     {
                         GrandOutputClient cw;
-                        if( !_clients[i].TryGetTarget( out cw ) || !cw.IsBoundToMonitor )
+                        if( _clients[i].TryGetTarget( out cw ) && cw.IsBoundToMonitor )
                         {
                             cw.OnCentralDisposed();
                         }
