@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -24,7 +24,7 @@ namespace CK.Monitoring.Tests
                 Exception = d.Exception;
                 LogTime = d.LogTime;
             }
-            
+
             public Entry( IActivityLogGroup d )
             {
                 Level = d.GroupLevel;
@@ -90,7 +90,7 @@ namespace CK.Monitoring.Tests
             Writer.Write( new String( '-', g.Depth ) );
             if( WriteConclusionTraits )
             {
-                Writer.Write( String.Join( ", ", conclusions.Select( c => c.Text + "-/[/"+ c.Tag.ToString() +"/]/" ) ) );
+                Writer.Write( String.Join( ", ", conclusions.Select( c => c.Text + "-/[/" + c.Tag.ToString() + "/]/" ) ) );
             }
             else
             {
@@ -102,7 +102,7 @@ namespace CK.Monitoring.Tests
         {
             return Writer.ToString();
         }
-        
+
         public override string ToString()
         {
             return String.Join( Environment.NewLine, Entries );

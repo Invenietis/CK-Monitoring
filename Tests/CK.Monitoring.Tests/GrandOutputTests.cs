@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -8,73 +8,76 @@ using CK.Core;
 using NUnit.Framework;
 using FluentAssertions;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 namespace CK.Monitoring.Tests
 {
     [TestFixture]
     public class GrandOutputTests
     {
-        [SetUp]
-        public void InitalizePaths() => TestHelper.InitalizePaths();
+        static readonly Exception _exception1;
+        static readonly Exception _exception2;
 
-        [Test]
-        public void artificially_generated_missing_log_entries_are_detected()
+        // Uses static initialization once for all.
+        // On netcoreapp1.1, seems that throw/catch has heavy performance issues.
+        static GrandOutputTests()
         {
-            TestHelper.CleanupFolder(SystemActivityMonitor.RootLogPath + "MissingEntries");
-            var emptyConfig = new GrandOutputConfiguration();
-            var binaryConfig = new GrandOutputConfiguration().AddHandler(new Handlers.BinaryFileConfiguration() { Path = "MissingEntries" });
-
-            using (GrandOutput g = new GrandOutput(emptyConfig))
+            try
             {
-                var m = new ActivityMonitor(false);
-                g.EnsureGrandOutputClient(m);
-                m.Trace().Send("NoShow-1");
-                g.ApplyConfiguration(emptyConfig);
-                m.Trace().Send("NoShow-2");
-                Thread.Sleep(300);
-                g.ApplyConfiguration(binaryConfig);
-                Thread.Sleep(300);
-                m.Trace().Send("Show-1");
-                Thread.Sleep(300);
-                g.ApplyConfiguration(emptyConfig);
-                Thread.Sleep(300);
-                m.Trace().Send("NoShow-3");
+                throw new InvalidOperationException( "Exception!" );
             }
-            var replayed = new ActivityMonitor(false);
-            var c = replayed.Output.RegisterClient(new StupidStringClient());
-            TestHelper.ReplayLogs(new DirectoryInfo(SystemActivityMonitor.RootLogPath + "MissingEntries"), true, mon => replayed, TestHelper.ConsoleMonitor);
-            CollectionAssert.AreEqual(new[] { "<Missing log data>", "Show-1" }, c.Entries.Select(e => e.Text), StringComparer.OrdinalIgnoreCase);
+            catch( Exception e )
+            {
+                _exception1 = e;
+            }
+
+            try
+            {
+                throw new InvalidOperationException( "Inception!", _exception1 );
+            }
+            catch( Exception e )
+            {
+                _exception2 = e;
+            }
+        }
+
+        [SetUp]
+        public void InitalizePaths()
+        {
+            TestHelper.InitalizePaths();
+            TestHelper.PrepareLogFolder( "Gzip" );
+            TestHelper.PrepareLogFolder( "Termination" );
+            TestHelper.PrepareLogFolder( "TerminationLost" );
         }
 
         [Test]
         public void CKMon_binary_files_can_be_GZip_compressed()
         {
-            string rootPath = SystemActivityMonitor.RootLogPath + @"Gzip";
-            TestHelper.CleanupFolder( rootPath );
+            string folder = TestHelper.PrepareLogFolder( "Gzip" );
 
             var c = new GrandOutputConfiguration()
-                            .AddHandler(new Handlers.BinaryFileConfiguration()
+                            .AddHandler( new Handlers.BinaryFileConfiguration()
                             {
-                                Path = rootPath + @"\OutputGzip",
+                                Path = folder + @"\OutputGzip",
                                 UseGzipCompression = true
-                            })
-                            .AddHandler(new Handlers.BinaryFileConfiguration()
+                            } )
+                            .AddHandler( new Handlers.BinaryFileConfiguration()
                             {
-                                Path = rootPath + @"\OutputRaw",
+                                Path = folder + @"\OutputRaw",
                                 UseGzipCompression = false
-                            });
+                            } );
 
             using( GrandOutput g = new GrandOutput( c ) )
             {
-                var taskA = Task.Factory.StartNew( () => DumpMonitorOutput( CreateMonitorAndRegisterGrandOutput( "Task A", g ) ), TaskCreationOptions.LongRunning);
-                var taskB = Task.Factory.StartNew( () => DumpMonitorOutput( CreateMonitorAndRegisterGrandOutput( "Task B", g ) ), TaskCreationOptions.LongRunning);
-                var taskC = Task.Factory.StartNew( () => DumpMonitorOutput( CreateMonitorAndRegisterGrandOutput( "Task C", g ) ), TaskCreationOptions.LongRunning);
+                var taskA = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task A", g ), 5 ), TaskCreationOptions.LongRunning );
+                var taskB = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5 ), TaskCreationOptions.LongRunning );
+                var taskC = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5 ), TaskCreationOptions.LongRunning );
 
                 Task.WaitAll( taskA, taskB, taskC );
             }
 
-            string[] gzipCkmons = TestHelper.WaitForCkmonFilesInDirectory( rootPath + @"\OutputGzip", 1 );
-            string[] rawCkmons = TestHelper.WaitForCkmonFilesInDirectory( rootPath + @"\OutputRaw", 1 );
+            string[] gzipCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputGzip", 1 );
+            string[] rawCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputRaw", 1 );
 
             gzipCkmons.Should().HaveCount( 1 );
             rawCkmons.Should().HaveCount( 1 );
@@ -96,62 +99,133 @@ namespace CK.Monitoring.Tests
             var map = mlr.GetActivityMap();
 
             map.Monitors.Should().HaveCount( 3 );
-            map.Monitors[0].ReadFirstPage(6000).Entries.Should().HaveCount(5410);
-            map.Monitors[1].ReadFirstPage(6000).Entries.Should().HaveCount(5410);
-            map.Monitors[2].ReadFirstPage(6000).Entries.Should().HaveCount(5410);
+            map.Monitors[0].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            map.Monitors[1].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            map.Monitors[2].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
         }
 
         static IActivityMonitor CreateMonitorAndRegisterGrandOutput( string topic, GrandOutput go )
         {
-            var m = new ActivityMonitor( applyAutoConfigurations:false, topic: topic );
+            var m = new ActivityMonitor( applyAutoConfigurations: false, topic: topic );
             go.EnsureGrandOutputClient( m );
             return m;
         }
 
-        static void DumpMonitorOutput( IActivityMonitor monitor )
+        public class SlowSinkHandlerConfiguration : IHandlerConfiguration
         {
-            Exception exception1;
-            Exception exception2;
+            public int Delay { get; set; }
 
-            try
+            public IHandlerConfiguration Clone() => new SlowSinkHandlerConfiguration() { Delay = Delay };
+        }
+
+        public class SlowSinkHandler : IGrandOutputHandler
+        {
+            int _delay;
+
+            public SlowSinkHandler( SlowSinkHandlerConfiguration c )
             {
-                throw new InvalidOperationException( "Exception!" );
-            }
-            catch( Exception e )
-            {
-                exception1 = e;
             }
 
-            try
+            public bool Activate( IActivityMonitor m )
             {
-                throw new InvalidOperationException( "Inception!", exception1 );
+                return true;
             }
-            catch( Exception e )
+
+            public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
             {
-                exception2 = e;
+                _delay = ((SlowSinkHandlerConfiguration)c).Delay;
+                return true;
             }
+
+            public void Deactivate( IActivityMonitor m )
+            {
+            }
+
+            public void Handle( GrandOutputEventInfo logEvent ) => Thread.Sleep( _delay );
+
+            public void OnTimer( TimeSpan timerSpan )
+            {
+            }
+        }
+
+
+
+        [Test]
+        public void disposing_GrandOutput_waits_for_termination()
+        {
+            string logPath = TestHelper.PrepareLogFolder( "Termination" );
+            var c = new GrandOutputConfiguration()
+                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 1 } )
+                            .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } )
+                            .AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } );
+            using( var g = new GrandOutput( c ) )
+            {
+                var m = new ActivityMonitor( applyAutoConfigurations: false );
+                g.EnsureGrandOutputClient( m );
+                DumpMonitor1082Entries( m, 300 );
+            }
+            // All tempoary files have been closed.
+            var fileNames = Directory.EnumerateFiles( logPath ).ToList();
+            fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
+            // The 300 "~~~~~FINAL TRACE~~~~~" appear in text logs.
+            fileNames
+                .Where( n => n.EndsWith( ".txt" ) )
+                .Select( n => File.ReadAllText( n ) )
+                .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
+                .Sum()
+                .Should().Be( 300 );
+        }
+
+        [Test]
+        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost()
+        {
+            string logPath = TestHelper.PrepareLogFolder( "TerminationLost" );
+            var c = new GrandOutputConfiguration()
+                           .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 10 } )
+                           .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } );
+            using( var g = new GrandOutput( c ) )
+            {
+                var m = new ActivityMonitor( applyAutoConfigurations: false );
+                g.EnsureGrandOutputClient( m );
+                DumpMonitor1082Entries( m, 300 );
+                g.Dispose( TestHelper.ConsoleMonitor, 0 );
+            }
+            // All tempoary files have been closed.
+            var fileNames = Directory.EnumerateFiles( logPath ).ToList();
+            fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
+            // There is less that the normal 300 "~~~~~FINAL TRACE~~~~~" in text logs.
+            fileNames
+                .Where( n => n.EndsWith( ".txt" ) )
+                .Select( n => File.ReadAllText( n ) )
+                .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
+                .Sum()
+                .Should().BeLessThan( 300 );
+        }
+
+        static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )
+        {
             const int nbLoop = 180;
-            // Entry count:
-            // 5 * (OpenTrace + Closer) = 10
-            // 5 * nbLoop * 6 = 5400
-            // => 5410
-            // Since there is 3 parallel activities this fits into the 
-            // default per file count of 20000.
-            for (int i = 0; i < 5; i++)
+            // Entry count per count = 3 + 180 * 6 = 1083
+            // Entry count (for count parameter = 5): 5415
+            //      Since there is 3 parallel activities this fits into the 
+            //      default per file count of 20000.
+            for( int i = 0; i < count; i++ )
             {
-                using (monitor.OpenTrace().Send("Dump output loop {0}", i))
+                using( monitor.OpenTrace( $"Dump output loop {i}" ) )
                 {
-                    for (int j = 0; j < nbLoop; j++)
+                    for( int j = 0; j < nbLoop; j++ )
                     {
-                        monitor.Debug().Send("Debug log! {0}", j);
-                        monitor.Trace().Send("Trace log! {0}", j);
-                        monitor.Info().Send("Info log! {0}", j);
-                        monitor.Warn().Send("Warn log! {0}", j);
-                        monitor.Error().Send("Error log! {0}", j);
-                        monitor.Error().Send("Fatal log! {0}", j);
-                        monitor.Error().Send(exception2, "Exception log! {0}", j);
+                        // Debug is not sent.
+                        monitor.Debug( $"Debug log! {j}" );
+                        monitor.Trace( $"Trace log! {j}" );
+                        monitor.Info( $"Info log! {j}" );
+                        monitor.Warn( $"Warn log! {j}" );
+                        monitor.Error( $"Error log! {j}" );
+                        monitor.Error( $"Fatal log! {j}" );
+                        monitor.Error( "Exception log! {j}", _exception2 );
                     }
                 }
+                monitor.Info( "~~~~~FINAL TRACE~~~~~" );
             }
         }
 

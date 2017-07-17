@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -60,10 +60,18 @@ namespace CK.Monitoring
 
         LogFilter IActivityMonitorBoundClient.MinimalFilter => LogFilter.Undefined;
 
+        bool IActivityMonitorBoundClient.IsDead => _central.IsDisposed;
+
         internal bool IsBoundToMonitor => _monitorSource != null; 
+
+        internal void OnCentralDisposed()
+        {
+            _monitorSource?.SignalChange();
+        }
 
         void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
         {
+            if( _central.IsDisposed ) return;
             IMulticastLogEntry e = LogEntry.CreateMulticastLog( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, data.Text, data.LogTime, data.Level, data.FileName, data.LineNumber, data.Tags, data.EnsureExceptionData() );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             _prevlogTime = data.LogTime;
@@ -72,6 +80,7 @@ namespace CK.Monitoring
 
         void IActivityMonitorClient.OnOpenGroup( IActivityLogGroup group )
         {
+            if( _central.IsDisposed ) return;
             IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.GroupText, group.LogTime, group.GroupLevel, group.FileName, group.LineNumber, group.GroupTags, group.EnsureExceptionData() );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             ++_currentGroupDepth;
@@ -85,6 +94,7 @@ namespace CK.Monitoring
 
         void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
         {
+            if( _central.IsDisposed ) return;
             IMulticastLogEntry e = LogEntry.CreateMulticastCloseGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.CloseLogTime, group.GroupLevel, conclusions );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             --_currentGroupDepth;

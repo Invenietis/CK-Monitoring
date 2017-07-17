@@ -406,7 +406,7 @@ namespace CK.Monitoring
             if( level != 0 )
             {
                 if( level >= (1 << (int)LogLevel.NumberOfBits) ) throw new InvalidDataException();
-                if (streamVersion < 7) ++level;
+                if (streamVersion < 7) level <<= 1;
                 l = (LogLevel)level;
 
                 ushort type = r.ReadUInt16();

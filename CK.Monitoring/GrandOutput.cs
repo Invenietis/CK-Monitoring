@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -26,22 +26,30 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
-        /// Note that <see cref="EnsureActiveDefault"/> must have been called, otherwise this static property is null.
+        /// Note that <see cref="EnsureActiveDefault"/> must have been called, otherwise this static property is null
+        /// and that this Default can be <see cref="Dispose()"/> at any time (this static property will be set back to null).
         /// </summary>
         public static GrandOutput Default => _default;
 
         /// <summary>
         /// Ensures that the <see cref="Default"/> GrandOutput is created and that any <see cref="ActivityMonitor"/> that will be created in this
         /// application domain will automatically have a <see cref="GrandOutputClient"/> registered for this Default GrandOutput.
+        /// If the Default is already initialized, the <paramref name="configuration"/> is applied.
         /// </summary>
         /// <param name="configuration">
         /// Configuration to apply to the default GrandOutput.
-        /// When null, a default configuration with a <see cref="TextFileConfiguration"/> in a "Text" path is configured.
+        /// When null, a default configuration with a <see cref="Handlers.TextFileConfiguration"/> in a "Text" path is configured.
         /// </param>
         /// <returns>The Default GrandOutput.</returns>
         /// <remarks>
+        /// <para>
         /// This method is thread-safe (a simple lock protects it) and uses a <see cref="ActivityMonitor.AutoConfiguration"/> action 
         /// that uses <see cref="EnsureGrandOutputClient(IActivityMonitor)"/> on newly created ActivityMonitor.
+        /// </para>
+        /// <para>
+        /// The Default GrandOutput can safely be <see cref="Dispose()"/> at any time: disposing the Default 
+        /// sets it to null.
+        /// </para>
         /// </remarks>
         static public GrandOutput EnsureActiveDefault( GrandOutputConfiguration configuration )
         {
@@ -57,15 +65,21 @@ namespace CK.Monitoring
                         configuration.InternalClone = true;
                     }
                     _default = new GrandOutput(configuration);
-                    ActivityMonitor.AutoConfiguration += m => Default.EnsureGrandOutputClient(m);
+                    ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                 }
                 else if(configuration != null) _default.ApplyConfiguration(configuration);
             }
             return _default;
         }
 
+        static void AutoRegisterDefault( IActivityMonitor m )
+        {
+            Default?.EnsureGrandOutputClient( m );
+        }
+
         /// <summary>
         /// Applies a configuration.
+        /// This is thread safe and can be called at any moment.
         /// </summary>
         /// <param name="configuration">The configuration to apply.</param>
         public void ApplyConfiguration(GrandOutputConfiguration configuration)
@@ -97,6 +111,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Initializes a new <see cref="GrandOutput"/>. 
         /// </summary>
+        /// <param name="config">The configuration.</param>
         public GrandOutput( GrandOutputConfiguration config )
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
@@ -107,16 +122,24 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Ensures that a client for this GrandOutput is registered on a monitor.
+        /// There is no need to call this method for the <see cref="Default"/> GrandOutput since
+        /// clients are automatically registered for newly created <see cref="ActivityMonitor"/> (thanks
+        /// to a <see cref="ActivityMonitor.AutoConfiguration"/> hook).
         /// </summary>
         /// <param name="monitor">The monitor onto which a <see cref="GrandOutputClient"/> must be registered.</param>
         /// <returns>A newly created client or the already existing one.</returns>
         public GrandOutputClient EnsureGrandOutputClient( IActivityMonitor monitor )
         {
-            if( monitor == null ) throw new ArgumentNullException( "monitor" );
+            if( IsDisposed ) throw new ObjectDisposedException( nameof(GrandOutput) );
+            if( monitor == null ) throw new ArgumentNullException( nameof(monitor) );
             Func<GrandOutputClient> reg = () =>
                 {
                     var c = new GrandOutputClient( this );
-                    lock( _clients ) _clients.Add( new WeakReference<GrandOutputClient>( c ) ); 
+                    lock( _clients )
+                    {
+                        if( IsDisposed ) c = null;
+                        else _clients.Add( new WeakReference<GrandOutputClient>( c ) );
+                    }
                     return c;
                 };
             return monitor.Output.RegisterUniqueClient( b => b.Central == this, reg );
@@ -131,14 +154,12 @@ namespace CK.Monitoring
         {
             lock (_clients)
             {
-                int count = 0;
                 for (int i = 0; i < _clients.Count; ++i)
                 {
                     GrandOutputClient cw;
                     if (!_clients[i].TryGetTarget(out cw) || !cw.IsBoundToMonitor)
                     {
                         _clients.RemoveAt(i--);
-                        ++count;
                     }
                 }
             }
@@ -152,21 +173,42 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Closes this <see cref="GrandOutput"/>.
+        /// If this is the default one that is disposed, <see cref="Default"/> is set to null.
         /// </summary>
         /// <param name="monitor">Monitor that will be used. Must not be null.</param>
         /// <param name="millisecondsBeforeForceClose">Maximal time to wait.</param>
         public void Dispose( IActivityMonitor monitor, int millisecondsBeforeForceClose = Timeout.Infinite )
         {
-            if( monitor == null ) throw new ArgumentNullException( nameof(monitor) );
-            if(_sink.IsRunning)
+            if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
+            if( _sink.Stop() )
             {
-                _sink.Stop(millisecondsBeforeForceClose);
+                lock( _defaultLock )
+                {
+                    if( _default == this )
+                    {
+                        ActivityMonitor.AutoConfiguration -= AutoRegisterDefault;
+                        _default = null;
+                    }
+                }
+                lock( _clients )
+                {
+                    for( int i = 0; i < _clients.Count; ++i )
+                    {
+                        GrandOutputClient cw;
+                        if( _clients[i].TryGetTarget( out cw ) && cw.IsBoundToMonitor )
+                        {
+                            cw.OnCentralDisposed();
+                        }
+                    }
+                }
+                _sink.Finalize( millisecondsBeforeForceClose );
             }
         }
 
         /// <summary>
         /// Calls <see cref="Dispose(IActivityMonitor,int)"/> with a <see cref="SystemActivityMonitor"/> 
-        /// and <see cref="Timeout.Infinite"/>.
+        /// and <see cref="Timeout.Infinite"/> (<c>new SystemActivityMonitor(applyAutoConfigurations: false, topic: null )</c>).
+        /// If this is the default one that is disposed, <see cref="Default"/> is set to null.
         /// </summary>
         public void Dispose()
         {

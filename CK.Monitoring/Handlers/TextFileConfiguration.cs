@@ -1,8 +1,4 @@
-using System.Xml.Linq;
-using CK.Core;
-using System.IO;
-
-namespace CK.Monitoring.Handlers
+﻿namespace CK.Monitoring.Handlers
 {
     /// <summary>
     /// Configuration object for <see cref="TextFile"/>.
@@ -15,7 +11,7 @@ namespace CK.Monitoring.Handlers
         /// <returns>Clone of this configuration.</returns>
         public override IHandlerConfiguration Clone()
         {
-            return new BinaryFileConfiguration()
+            return new TextFileConfiguration()
             {
                 Path = Path,
                 MaxCountPerFile = MaxCountPerFile

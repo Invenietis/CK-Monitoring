@@ -3,9 +3,8 @@
   <Import Project="..\..\Common\Shared.props" />
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.0</TargetFramework>
-    <TargetFramework>net451</TargetFramework>
-    <OutputType Condition=" '$(TargetFramework)' == 'netcoreapp1.0' ">Exe</OutputType>
+    <TargetFrameworks>net451;netcoreapp1.1</TargetFrameworks>
+    <OutputType Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,10 +13,10 @@
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="4.19.2" />
-    <PackageReference Include="CK.ActivityMonitor.StandardSender" Version="7.0.0" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="8.0.0" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.0' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">
     <PackageReference Include="nunit" Version="3.6.1" />
     <PackageReference Include="nunitlite" Version="3.6.1" />
   </ItemGroup>
@@ -26,10 +25,6 @@
     <PackageReference Include="NUnit" Version="[2.6.4]" />
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="TestFolder\" />
   </ItemGroup>
 
 </Project>
