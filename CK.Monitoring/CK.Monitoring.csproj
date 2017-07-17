@@ -4,11 +4,11 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard1.3;net451</TargetFrameworks>
-    <Description>Extends CK.ActivityMonitor with outputs.</Description>
+    <Description>Extends CK.ActivityMonitor with outputs and events serialization. GrandOutput collects centralized logs and dispatch them in configurable sinks.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.ActivityMonitor" Version="8.0.0-p" />
+    <PackageReference Include="CK.ActivityMonitor" Version="8.0.0" />
   </ItemGroup>
   
 
