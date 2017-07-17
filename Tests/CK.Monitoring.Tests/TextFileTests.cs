@@ -13,6 +13,39 @@ namespace CK.Monitoring.Tests
     [TestFixture]
     public class TextFileTests
     {
+        static readonly Exception _exceptionWithInner;
+        static readonly Exception _exceptionWithInnerLoader;
+
+        static TextFileTests()
+        {
+            _exceptionWithInner = ThrowExceptionWithInner( false );
+            _exceptionWithInnerLoader = ThrowExceptionWithInner( true );
+        }
+
+        static Exception ThrowExceptionWithInner( bool loaderException = false )
+        {
+            Exception e;
+            try { throw new Exception( "Outer", loaderException ? ThrowLoaderException() : ThrowSimpleException( "Inner" ) ); }
+            catch( Exception ex ) { e = ex; }
+            return e;
+        }
+
+        static Exception ThrowSimpleException( string message )
+        {
+            Exception e;
+            try { throw new Exception( message ); }
+            catch( Exception ex ) { e = ex; }
+            return e;
+        }
+
+        static Exception ThrowLoaderException()
+        {
+            Exception e = null;
+            try { Type.GetType( "A.Type, An.Unexisting.Assembly", true ); }
+            catch( Exception ex ) { e = ex; }
+            return e;
+        }
+
         [SetUp]
         public void InitializePath() => TestHelper.InitalizePaths();
 
@@ -104,7 +137,7 @@ namespace CK.Monitoring.Tests
             var m = new ActivityMonitor( false );
             g.EnsureGrandOutputClient( m );
 
-            m.Fatal( "An error occured", ThrowExceptionWithInner( false ) );
+            m.Fatal( "An error occured", _exceptionWithInner );
             m.SetTopic( "This is a topic..." );
             m.Trace( "a trace" );
             m.Trace( "another one" );
@@ -122,7 +155,7 @@ This MUST be correctly indented!" ) )
                 {
                     m.Info( "Info in info group." );
                     m.Info( "Another info in info group." );
-                    m.Error( "An error.", ThrowExceptionWithInner( true ) );
+                    m.Error( "An error.", _exceptionWithInnerLoader );
                     m.Warn( "A warning." );
                     m.Trace( "Something must be said." );
                     m.CloseGroup( "Everything is in place." );
@@ -146,28 +179,5 @@ and this is fine!" )
             m.Trace( "This is the final trace." );
         }
 
-        static Exception ThrowExceptionWithInner( bool loaderException = false )
-        {
-            Exception e;
-            try { throw new Exception( "Outer", loaderException ? ThrowLoaderException() : ThrowSimpleException( "Inner" ) ); }
-            catch( Exception ex ) { e = ex; }
-            return e;
-        }
-
-        static Exception ThrowSimpleException( string message )
-        {
-            Exception e;
-            try { throw new Exception( message ); }
-            catch( Exception ex ) { e = ex; }
-            return e;
-        }
-
-        static Exception ThrowLoaderException()
-        {
-            Exception e = null;
-            try { Type.GetType( "A.Type, An.Unexisting.Assembly", true ); }
-            catch( Exception ex ) { e = ex; }
-            return e;
-        }
     }
 }

@@ -15,6 +15,32 @@ namespace CK.Monitoring.Tests
     [TestFixture]
     public class GrandOutputTests
     {
+        static readonly Exception _exception1;
+        static readonly Exception _exception2;
+
+        // Uses static initialization once for all.
+        // On netcoreapp1.1, seems that throw/catch has heavy performance issues.
+        static GrandOutputTests()
+        {
+            try
+            {
+                throw new InvalidOperationException( "Exception!" );
+            }
+            catch( Exception e )
+            {
+                _exception1 = e;
+            }
+
+            try
+            {
+                throw new InvalidOperationException( "Inception!", _exception1 );
+            }
+            catch( Exception e )
+            {
+                _exception2 = e;
+            }
+        }
+
         [SetUp]
         public void InitalizePaths()
         {
@@ -178,26 +204,6 @@ namespace CK.Monitoring.Tests
 
         static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )
         {
-            Exception exception1;
-            Exception exception2;
-
-            try
-            {
-                throw new InvalidOperationException( "Exception!" );
-            }
-            catch( Exception e )
-            {
-                exception1 = e;
-            }
-
-            try
-            {
-                throw new InvalidOperationException( "Inception!", exception1 );
-            }
-            catch( Exception e )
-            {
-                exception2 = e;
-            }
             const int nbLoop = 180;
             // Entry count per count = 3 + 180 * 6 = 1083
             // Entry count (for count parameter = 5): 5415
@@ -216,7 +222,7 @@ namespace CK.Monitoring.Tests
                         monitor.Warn( $"Warn log! {j}" );
                         monitor.Error( $"Error log! {j}" );
                         monitor.Error( $"Fatal log! {j}" );
-                        monitor.Error( "Exception log! {j}", exception2 );
+                        monitor.Error( "Exception log! {j}", _exception2 );
                     }
                 }
                 monitor.Info( "~~~~~FINAL TRACE~~~~~" );
