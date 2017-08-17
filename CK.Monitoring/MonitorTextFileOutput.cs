@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using System.IO;
 
 namespace CK.Monitoring
@@ -12,6 +12,7 @@ namespace CK.Monitoring
     {
         readonly MulticastLogEntryTextBuilder _builder;
         StreamWriter _writer;
+        bool _canFlush;
 
         /// <summary>
         /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.
@@ -35,8 +36,21 @@ namespace CK.Monitoring
             BeforeWriteEntry();
             _builder.AppendEntry( e );
             _writer.Write( _builder.Builder.ToString() );
-            AfterWriteEntry();
+            _canFlush = true;
             _builder.Builder.Clear();
+            AfterWriteEntry();
+        }
+
+        /// <summary>
+        /// Flushes the file content if needed.
+        /// </summary>
+        public void Flush()
+        {
+            if( _canFlush )
+            {
+                _writer.Flush();
+                _canFlush = false;
+            }
         }
 
         /// <summary>
@@ -59,6 +73,7 @@ namespace CK.Monitoring
             _writer.Flush();
             _writer.Dispose();
             _writer = null;
+            _canFlush = false;
             base.CloseCurrentFile();
         }
     }
