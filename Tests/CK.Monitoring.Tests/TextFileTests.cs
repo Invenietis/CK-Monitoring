@@ -56,11 +56,13 @@ namespace CK.Monitoring.Tests
         public void text_file_auto_flush_and_reconfiguration()
         {
             string folder = TestHelper.PrepareLogFolder( "AutoFlush" );
-            GrandOutputConfiguration config = new GrandOutputConfiguration()
-                                                    .AddHandler( new Handlers.TextFileConfiguration()
-                                                    {
-                                                        Path = "AutoFlush"
-                                                    } );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "AutoFlush" };
+            textConf.AutoFlushRate.Should().Be( 6, "Default AutoFlushRate configuration." );
+
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            config.TimerDuration.Should().Be( TimeSpan.FromMilliseconds( 500 ), "Default timer congiguration." );
+
             using( GrandOutput g = new GrandOutput( config ) )
             {
                 var m = new ActivityMonitor( false );
@@ -73,17 +75,15 @@ namespace CK.Monitoring.Tests
                 Thread.Sleep( 3200 - 700 );
                 TestHelper.FileReadAllText( tempFile ).Should().Contain( "Must wait 3 seconds..." );
 
-                var reConf = new Handlers.TextFileConfiguration()
-                {
-                    Path = "AutoFlush",
-                    AutoFlushRate = 1
-                };
+                textConf.AutoFlushRate = 1;
                 m.Info( "Reconfiguration triggers a flush..." );
-                g.ApplyConfiguration( new GrandOutputConfiguration().AddHandler( reConf ), waitForApplication: true );
+                Thread.Sleep( 10 );
+                g.ApplyConfiguration( new GrandOutputConfiguration().AddHandler( textConf ), waitForApplication: true );
                 TestHelper.FileReadAllText( tempFile ).Should().Contain( "Reconfiguration triggers a flush..." );
                 m.Info( "Wait only approx 500ms..." );
                 Thread.Sleep( 700 );
-                TestHelper.FileReadAllText( tempFile ).Should().Contain( "Wait only approx 500ms" );
+                string final = TestHelper.FileReadAllText( tempFile );
+                final.Should().Contain( "Wait only approx 500ms" );
             }
         }
 

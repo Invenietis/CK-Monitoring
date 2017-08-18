@@ -58,7 +58,6 @@ namespace CK.Monitoring
 
         void Process()
         {
-            int nbEvent = 0;
             IActivityMonitor monitor = new SystemActivityMonitor( applyAutoConfigurations: false, topic: GetType().FullName );
             while( !_queue.IsCompleted && !_forceClose )
             {
@@ -104,7 +103,6 @@ namespace CK.Monitoring
                 #region Process event if any.
                 if( hasEvent )
                 {
-                    ++nbEvent;
                     foreach( var h in _handlers )
                     {
                         try
