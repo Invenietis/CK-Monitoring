@@ -67,6 +67,9 @@ namespace CK.Monitoring.Handlers
 
         /// <summary>
         /// Attempts to apply configuration if possible.
+        /// The key is the <see cref="FileConfigurationBase.Path"/>: the <paramref name="c"/>
+        /// must be a <see cref="TextFileConfiguration"/> with the exact same path
+        /// for this reconfiguration to be applied.
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="c">Configuration to apply.</param>

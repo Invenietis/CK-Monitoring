@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,6 +7,7 @@ using CK.Core;
 using NUnit.Framework;
 using System.Threading.Tasks;
 using FluentAssertions;
+using System.Threading;
 
 namespace CK.Monitoring.Tests
 {
@@ -16,6 +17,7 @@ namespace CK.Monitoring.Tests
         static readonly Exception _exceptionWithInner;
         static readonly Exception _exceptionWithInnerLoader;
 
+        #region static initialization of exceptions
         static TextFileTests()
         {
             _exceptionWithInner = ThrowExceptionWithInner( false );
@@ -45,9 +47,45 @@ namespace CK.Monitoring.Tests
             catch( Exception ex ) { e = ex; }
             return e;
         }
+        #endregion
 
         [SetUp]
         public void InitializePath() => TestHelper.InitalizePaths();
+
+        [Test]
+        public void text_file_auto_flush_and_reconfiguration()
+        {
+            string folder = TestHelper.PrepareLogFolder( "AutoFlush" );
+            GrandOutputConfiguration config = new GrandOutputConfiguration()
+                                                    .AddHandler( new Handlers.TextFileConfiguration()
+                                                    {
+                                                        Path = "AutoFlush"
+                                                    } );
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                var m = new ActivityMonitor( false );
+                g.EnsureGrandOutputClient( m );
+                Thread.Sleep( 5 );
+                m.Info( "Must wait 3 seconds..." );
+                Thread.Sleep( 700 );
+                string tempFile = Directory.EnumerateFiles( folder ).Single();
+                TestHelper.FileReadAllText( tempFile ).Should().BeEmpty();
+                Thread.Sleep( 3200 - 700 );
+                TestHelper.FileReadAllText( tempFile ).Should().Contain( "Must wait 3 seconds..." );
+
+                var reConf = new Handlers.TextFileConfiguration()
+                {
+                    Path = "AutoFlush",
+                    AutoFlushRate = 1
+                };
+                m.Info( "Reconfiguration triggers a flush..." );
+                g.ApplyConfiguration( new GrandOutputConfiguration().AddHandler( reConf ), waitForApplication: true );
+                TestHelper.FileReadAllText( tempFile ).Should().Contain( "Reconfiguration triggers a flush..." );
+                m.Info( "Wait only approx 500ms..." );
+                Thread.Sleep( 700 );
+                TestHelper.FileReadAllText( tempFile ).Should().Contain( "Wait only approx 500ms" );
+            }
+        }
 
         [Explicit]
         [Test]

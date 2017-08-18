@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -82,7 +82,12 @@ namespace CK.Monitoring
         /// This is thread safe and can be called at any moment.
         /// </summary>
         /// <param name="configuration">The configuration to apply.</param>
-        public void ApplyConfiguration( GrandOutputConfiguration configuration )
+        /// <param name="waitForApplication">
+        /// True to block until this configuration has been applied.
+        /// Note that another (new) configuration may have already replaced the given configuration
+        /// once this call ends.
+        /// </param>
+        public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication = false )
         {
             if( configuration == null ) throw new ArgumentNullException( nameof( configuration ) );
             if( !configuration.InternalClone )
@@ -90,7 +95,7 @@ namespace CK.Monitoring
                 configuration = configuration.Clone();
                 configuration.InternalClone = true;
             }
-            _sink.ApplyConfiguration( configuration );
+            _sink.ApplyConfiguration( configuration, waitForApplication );
         }
 
         /// <summary>
@@ -117,7 +122,7 @@ namespace CK.Monitoring
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
             _clients = new List<WeakReference<GrandOutputClient>>();
             _sink = new DispatcherSink( config.TimerDuration, TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients );
-            ApplyConfiguration( config );
+            ApplyConfiguration( config, waitForApplication: true );
         }
 
         /// <summary>
