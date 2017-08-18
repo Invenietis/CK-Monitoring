@@ -16,6 +16,7 @@ namespace CK.Monitoring.Handlers
     {
         readonly MonitorTextFileOutput _file;
         TextFileConfiguration _config;
+        int _countFlush;
 
         /// <summary>
         /// Initializes a new <see cref="TextFile"/> based on a <see cref="TextFileConfiguration"/>.
@@ -23,9 +24,10 @@ namespace CK.Monitoring.Handlers
         /// <param name="config">The configuration.</param>
         public TextFile( TextFileConfiguration config )
         {
-            if( config == null ) throw new ArgumentNullException( nameof(config) );
+            if( config == null ) throw new ArgumentNullException( nameof( config ) );
             _config = config;
             _file = new MonitorTextFileOutput( config.Path, config.MaxCountPerFile, false );
+            _countFlush = _config.AutoFlushRate;
         }
 
         /// <summary>
@@ -53,8 +55,14 @@ namespace CK.Monitoring.Handlers
         /// Does nothing since files are automatically managed (relies on <see cref="FileConfigurationBase.MaxCountPerFile"/>).
         /// </summary>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        public void OnTimer(TimeSpan timerSpan)
+        public void OnTimer( TimeSpan timerSpan )
         {
+            // Don't really care of the overflow here.
+            if( --_countFlush == 0 )
+            {
+                _file.Flush();
+                _countFlush = _config.AutoFlushRate;
+            }
         }
 
         /// <summary>
@@ -63,12 +71,14 @@ namespace CK.Monitoring.Handlers
         /// <param name="m">The monitor to use.</param>
         /// <param name="c">Configuration to apply.</param>
         /// <returns>True if the configuration applied.</returns>
-        public bool ApplyConfiguration(IActivityMonitor m, IHandlerConfiguration c)
+        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
             TextFileConfiguration cF = c as TextFileConfiguration;
-            if (cF == null || cF.Path != _config.Path) return false;
+            if( cF == null || cF.Path != _config.Path ) return false;
             _config = cF;
             _file.MaxCountPerFile = cF.MaxCountPerFile;
+            _file.Flush();
+            _countFlush = _config.AutoFlushRate;
             return true;
         }
 

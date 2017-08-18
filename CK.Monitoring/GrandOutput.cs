@@ -55,19 +55,19 @@ namespace CK.Monitoring
         {
             lock( _defaultLock )
             {
-                if (_default == null)
+                if( _default == null )
                 {
                     SystemActivityMonitor.EnsureStaticInitialization();
-                    if (configuration == null)
+                    if( configuration == null )
                     {
                         configuration = new GrandOutputConfiguration()
-                                            .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" });
+                                            .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
                         configuration.InternalClone = true;
                     }
-                    _default = new GrandOutput(configuration);
+                    _default = new GrandOutput( configuration );
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                 }
-                else if(configuration != null) _default.ApplyConfiguration(configuration);
+                else if( configuration != null ) _default.ApplyConfiguration( configuration );
             }
             return _default;
         }
@@ -82,15 +82,15 @@ namespace CK.Monitoring
         /// This is thread safe and can be called at any moment.
         /// </summary>
         /// <param name="configuration">The configuration to apply.</param>
-        public void ApplyConfiguration(GrandOutputConfiguration configuration)
+        public void ApplyConfiguration( GrandOutputConfiguration configuration )
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-            if (!configuration.InternalClone)
+            if( configuration == null ) throw new ArgumentNullException( nameof( configuration ) );
+            if( !configuration.InternalClone )
             {
                 configuration = configuration.Clone();
                 configuration.InternalClone = true;
             }
-            _sink.ApplyConfiguration(configuration);
+            _sink.ApplyConfiguration( configuration );
         }
 
         /// <summary>
@@ -99,14 +99,14 @@ namespace CK.Monitoring
         /// assembly and namespace as their configuration objects and named the 
         /// same without the "Configuration" suffix.
         /// </summary>
-        static public Func<IHandlerConfiguration,IGrandOutputHandler> CreateHandler = config =>
-        {
-            string name = config.GetType().GetTypeInfo().FullName;
-            if (!name.EndsWith("Configuration")) throw new CKException($"Configuration handler type name must end with 'Configuration': {name}.");
-            name = config.GetType().AssemblyQualifiedName.Replace("Configuration,", ",");
-            Type t = Type.GetType(name, throwOnError: true);
-            return (IGrandOutputHandler)Activator.CreateInstance(t, new[] { config });
-        };
+        static public Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler = config =>
+         {
+             string name = config.GetType().GetTypeInfo().FullName;
+             if( !name.EndsWith( "Configuration" ) ) throw new CKException( $"Configuration handler type name must end with 'Configuration': {name}." );
+             name = config.GetType().AssemblyQualifiedName.Replace( "Configuration,", "," );
+             Type t = Type.GetType( name, throwOnError: true );
+             return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } );
+         };
 
         /// <summary>
         /// Initializes a new <see cref="GrandOutput"/>. 
@@ -114,10 +114,10 @@ namespace CK.Monitoring
         /// <param name="config">The configuration.</param>
         public GrandOutput( GrandOutputConfiguration config )
         {
-            if (config == null) throw new ArgumentNullException(nameof(config));
+            if( config == null ) throw new ArgumentNullException( nameof( config ) );
             _clients = new List<WeakReference<GrandOutputClient>>();
-            _sink = new DispatcherSink(config.TimerDuration, TimeSpan.FromMinutes(5), DoGarbageDeadClients );
-            ApplyConfiguration(config);
+            _sink = new DispatcherSink( config.TimerDuration, TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients );
+            ApplyConfiguration( config );
         }
 
         /// <summary>
@@ -130,8 +130,8 @@ namespace CK.Monitoring
         /// <returns>A newly created client or the already existing one.</returns>
         public GrandOutputClient EnsureGrandOutputClient( IActivityMonitor monitor )
         {
-            if( IsDisposed ) throw new ObjectDisposedException( nameof(GrandOutput) );
-            if( monitor == null ) throw new ArgumentNullException( nameof(monitor) );
+            if( IsDisposed ) throw new ObjectDisposedException( nameof( GrandOutput ) );
+            if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
             Func<GrandOutputClient> reg = () =>
                 {
                     var c = new GrandOutputClient( this );
@@ -152,14 +152,14 @@ namespace CK.Monitoring
 
         void DoGarbageDeadClients()
         {
-            lock (_clients)
+            lock( _clients )
             {
-                for (int i = 0; i < _clients.Count; ++i)
+                for( int i = 0; i < _clients.Count; ++i )
                 {
                     GrandOutputClient cw;
-                    if (!_clients[i].TryGetTarget(out cw) || !cw.IsBoundToMonitor)
+                    if( !_clients[i].TryGetTarget( out cw ) || !cw.IsBoundToMonitor )
                     {
-                        _clients.RemoveAt(i--);
+                        _clients.RemoveAt( i-- );
                     }
                 }
             }
@@ -212,7 +212,7 @@ namespace CK.Monitoring
         /// </summary>
         public void Dispose()
         {
-            Dispose(new SystemActivityMonitor(applyAutoConfigurations: false, topic: null ), Timeout.Infinite );
+            Dispose( new SystemActivityMonitor( applyAutoConfigurations: false, topic: null ), Timeout.Infinite );
         }
 
 
