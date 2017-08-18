@@ -87,6 +87,124 @@ namespace CK.Monitoring.Tests
             }
         }
 
+        [Test]
+        public void external_logs_quick_test()
+        {
+            string folder = TestHelper.PrepareLogFolder( "ExternalLogsQuickTest" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsQuickTest" };
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                Task.Run( () => g.ExternalLog( LogLevel.Info, "Async started." ) ).Wait();
+                var m = new ActivityMonitor( false );
+                g.EnsureGrandOutputClient( m );
+                m.Info( "Normal monitor starts." );
+                Task t = Task.Run( () =>
+                {
+                    for( int i = 0; i < 10; ++i ) g.ExternalLog( LogLevel.Info, $"Async n°{i}." );
+                } );
+                m.MonitorEnd( "This is the end." );
+                t.Wait();
+            }
+            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
+            textLogged.Should()
+                        .Contain( "Normal monitor starts." )
+                        .And.Contain( "Async started." )
+                        .And.Contain( "Async n°0." )
+                        .And.Contain( "Async n°9." )
+                        .And.Contain( "This is the end." );
+        }
+
+        [Test]
+        public void external_logs_stress_test()
+        {
+            string folder = TestHelper.PrepareLogFolder( "ExternalLogsStressTest" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsStressTest" };
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            int taskCount = 20;
+            int logCount = 10;
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                var tasks = Enumerable.Range( 0, taskCount ).Select( c => Task.Run( () =>
+                 {
+                     for( int i = 0; i < logCount; ++i )
+                     {
+                         Thread.Sleep( 2 );
+                         g.ExternalLog( LogLevel.Info, $"{c} n°{i}." );
+                     }
+                 } ) ).ToArray();
+                Task.WaitAll( tasks );
+            }
+            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
+            for( int c = 0; c < taskCount; ++c )
+                for( int i = 0; i < logCount; ++i )
+                    textLogged.Should()
+                        .Contain( $"{c} n°{i}." );
+        }
+
+        [Test]
+        public void external_logs_filtering()
+        {
+            string folder = TestHelper.PrepareLogFolder( "ExternalLogsFiltering" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsFiltering" };
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            ActivityMonitor.DefaultFilter.Line.Should().Be( LogLevelFilter.Trace );
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, "SHOW 0" );
+                g.ExternalLogFilter = LogLevelFilter.Debug;
+                g.ExternalLog( LogLevel.Debug, "SHOW 1" );
+                g.ExternalLogFilter = LogLevelFilter.Error;
+                g.ExternalLog( LogLevel.Warn, "NOSHOW" );
+                g.ExternalLog( LogLevel.Error, "SHOW 2" );
+                g.ExternalLog( LogLevel.Fatal, "SHOW 3" );
+                g.ExternalLog( LogLevel.Trace|LogLevel.IsFiltered, "SHOW 4" );
+                g.ExternalLogFilter = LogLevelFilter.None;
+                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, "SHOW 4" );
+            }
+            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
+            textLogged.Should()
+                        .Contain( "SHOW 0" )
+                        .And.Contain( "SHOW 1" )
+                        .And.Contain( "SHOW 2" )
+                        .And.Contain( "SHOW 3" )
+                        .And.Contain( "SHOW 4" )
+                        .And.NotContain( "NOSHOW" );
+        }
+
+        [Test]
+        public void HandleCriticalErrors_quick_test()
+        {
+            string folder = TestHelper.PrepareLogFolder( "CriticalErrorsQuickTest" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "CriticalErrorsQuickTest" };
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                g.HandleCriticalErrors.Should().BeFalse();
+                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "NOSHOW" ), null );
+                ActivityMonitor.CriticalErrorCollector.WaitOnErrorFromBackgroundThreadsPending();
+                g.HandleCriticalErrors = true;
+                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "SHOW 1" ), null );
+                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "SHOW 2" ), "...with comment..." );
+                ActivityMonitor.CriticalErrorCollector.WaitOnErrorFromBackgroundThreadsPending();
+                g.HandleCriticalErrors = false;
+                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "NOSHOW" ), null );
+                ActivityMonitor.CriticalErrorCollector.WaitOnErrorFromBackgroundThreadsPending();
+            }
+            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
+            textLogged.Should()
+                        .Contain( "SHOW 1" )
+                        .And.Contain( "SHOW 2" )
+                        .And.Contain( "...with comment..." )
+                        .And.NotContain( "NOSHOW" );
+        }
+
         [Explicit]
         [Test]
         public void dumping_text_file_with_multiple_monitors()

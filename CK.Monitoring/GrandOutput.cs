@@ -20,9 +20,19 @@ namespace CK.Monitoring
     {
         readonly List<WeakReference<GrandOutputClient>> _clients;
         readonly DispatcherSink _sink;
+        readonly object _externalLogLock;
+        DateTimeStamp _externalLogLastTime;
+        int _handleCriticalErrors;
+
 
         static GrandOutput _default;
         static readonly object _defaultLock = new object();
+
+        /// <summary>
+        /// The tag that marks all external log entry sent when <see cref="HandleCriticalErrors"/>
+        /// is true.
+        /// </summary>
+        public static CKTrait CriticalErrorTag = ActivityMonitor.Tags.Context.FindOrCreate( "CriticalError" );
 
         /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
@@ -65,6 +75,7 @@ namespace CK.Monitoring
                         configuration.InternalClone = true;
                     }
                     _default = new GrandOutput( configuration );
+                    _default.HandleCriticalErrors = true;
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                 }
                 else if( configuration != null ) _default.ApplyConfiguration( configuration );
@@ -122,6 +133,8 @@ namespace CK.Monitoring
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
             _clients = new List<WeakReference<GrandOutputClient>>();
             _sink = new DispatcherSink( config.TimerDuration, TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients );
+            _externalLogLock = new object();
+            _externalLogLastTime = DateTimeStamp.MinValue;
             ApplyConfiguration( config, waitForApplication: true );
         }
 
@@ -151,9 +164,111 @@ namespace CK.Monitoring
         }
 
         /// <summary>
+        /// Gets or sets the filter for <see cref="ExternalLog"/>.
+        /// Defaults to <see cref="LogLevelFilter.None"/>: <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see>
+        /// is used.
+        /// </summary>
+        public LogLevelFilter ExternalLogFilter { get; set; }
+
+        /// <summary>
+        /// Logs an entry from any contextless source.
+        /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
+        /// </summary>
+        /// <remarks>
+        /// We consider that as long has the log level has <see cref="LogLevel.IsFiltered"/> bit set, the
+        /// decision has already being taken and here we do our job: dispatching of the log.
+        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>.
+        /// </remarks>
+        /// <param name="level">Log level.</param>
+        /// <param name="message">String message.</param>
+        /// <param name="ex">Optional exception.</param>
+        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
+        public void ExternalLog( LogLevel level, string message, Exception ex = null, CKTrait tags = null )
+        {
+            LogLevelFilter filter = ExternalLogFilter;
+            if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
+            if( (level & LogLevel.IsFiltered) == 0 )
+            {
+                if( (int)filter > (int)(level & LogLevel.Mask) ) return;
+            }
+            DateTimeStamp prevLogTime;
+            DateTimeStamp logTime;
+            lock( _externalLogLock )
+            {
+                prevLogTime = _externalLogLastTime;
+                _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
+            }
+            var e = LogEntry.CreateMulticastLog(
+                        Guid.Empty,
+                        LogEntryType.Line,
+                        prevLogTime,
+                        depth: 0,
+                        text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
+                        t: logTime,
+                        level: level,
+                        fileName: null,
+                        lineNumber: 0,
+                        tags: tags,
+                        ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
+            _sink.Handle( new GrandOutputEventInfo( e, String.Empty ) );
+        }
+
+        /// <summary>
+        /// Logs an entry from any contextless source.
+        /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
+        /// </summary>
+        /// <remarks>
+        /// We consider that as long has the log level has <see cref="LogLevel.IsFiltered"/> bit set, the
+        /// decision has already being taken and here we do our job: dispatching of the log.
+        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>.
+        /// </remarks>
+        /// <param name="level">Log level.</param>
+        /// <param name="message">String message.</param>
+        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
+        public void ExternalLog( LogLevel level, string message, CKTrait tags ) => ExternalLog( level, message, null, tags );
+
+        /// <summary>
         /// Gets the sink.
         /// </summary>
         public IGrandOutputSink Sink => _sink;
+
+        /// <summary>
+        /// Gets or sets whether this GrandOutput subscribes to <see cref="ActivityMonitor.CriticalErrorCollector"/>
+        /// events and sends them by calling <see cref="ExternalLog(LogLevel, string, Exception, CKTrait)"/>
+        /// with a <see cref="CriticalErrorTag"/> tag.
+        /// Defaults to true for the <see cref="Default"/> GrandOutput, false otherwise.
+        /// </summary>
+        public bool HandleCriticalErrors
+        {
+            get { return _handleCriticalErrors != 0; }
+            set
+            {
+                if( value )
+                {
+                    if( Interlocked.Exchange( ref _handleCriticalErrors, 1 ) == 0 )
+                    {
+                        ActivityMonitor.CriticalErrorCollector.OnErrorFromBackgroundThreads += CriticalErrorCollector_OnErrorFromBackgroundThreads;
+                    }
+                }
+                else
+                {
+                    if( Interlocked.Exchange( ref _handleCriticalErrors, 0 ) == 1 )
+                    {
+                        ActivityMonitor.CriticalErrorCollector.OnErrorFromBackgroundThreads -= CriticalErrorCollector_OnErrorFromBackgroundThreads;
+                    }
+                }
+            }
+        }
+
+        void CriticalErrorCollector_OnErrorFromBackgroundThreads( object sender, CriticalErrorCollector.ErrorEventArgs e )
+        {
+            int c = e.LoggingErrors.Count;
+            while( --c >= 0 )
+            {
+                var err = e.LoggingErrors[c];
+                ExternalLog( LogLevel.Fatal, err.Comment, err.Exception, CriticalErrorTag );
+            }
+        }
 
         void DoGarbageDeadClients()
         {
@@ -187,6 +302,7 @@ namespace CK.Monitoring
             if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
             if( _sink.Stop() )
             {
+                HandleCriticalErrors = false;
                 lock( _defaultLock )
                 {
                     if( _default == this )

@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using CK.Text;
 using System;
 using System.Collections.Generic;
@@ -54,7 +54,11 @@ namespace CK.Monitoring
             string prefix = _prefixBuilder.ToString();
             _prefixBuilder.Clear();
             // MonitorId (if needed) on one line.
-            if( _currentMonitorId == e.MonitorId )
+            if( e.MonitorId == Guid.Empty )
+            {
+                _builder.Append('-').Append( ' ', _nameLen );
+            }
+            else if( _currentMonitorId == e.MonitorId )
             {
                 _builder.Append( ' ', _nameLen + 1 );
             }
