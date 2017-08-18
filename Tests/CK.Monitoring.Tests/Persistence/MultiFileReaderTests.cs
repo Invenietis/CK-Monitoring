@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -115,8 +115,9 @@ namespace CK.Monitoring.Tests.Persistence
                     }
                     while( pageReader.ForwardPage() > 0 );
                 }
-                allEntries.Select( e => e.Entry.Text ).ShouldBeEquivalentTo(
-                    new[] { "Trace 1", "OpenTrace 1", "Trace 1.1", "Trace 1.2", null, "Trace 2" }, o => o.WithStrictOrdering() );
+                allEntries.Select( e => e.Entry.Text )
+                          .SequenceEqual( new[] { "Trace 1", "OpenTrace 1", "Trace 1.1", "Trace 1.2", null, "Trace 2" } )
+                          .Should().BeTrue();
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -124,6 +124,7 @@ namespace CK.Monitoring.Tests
 
             public SlowSinkHandler( SlowSinkHandlerConfiguration c )
             {
+                _delay = c.Delay;
             }
 
             public bool Activate( IActivityMonitor m )
@@ -150,8 +151,8 @@ namespace CK.Monitoring.Tests
 
 
 
-        [Test]
-        public void disposing_GrandOutput_waits_for_termination()
+        [TestCase( 1 )]
+        public void disposing_GrandOutput_waits_for_termination( int loop )
         {
             string logPath = TestHelper.PrepareLogFolder( "Termination" );
             var c = new GrandOutputConfiguration()
@@ -162,22 +163,22 @@ namespace CK.Monitoring.Tests
             {
                 var m = new ActivityMonitor( applyAutoConfigurations: false );
                 g.EnsureGrandOutputClient( m );
-                DumpMonitor1082Entries( m, 300 );
+                DumpMonitor1082Entries( m, loop );
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
-            // The 300 "~~~~~FINAL TRACE~~~~~" appear in text logs.
+            // The {loop} "~~~~~FINAL TRACE~~~~~" appear in text logs.
             fileNames
                 .Where( n => n.EndsWith( ".txt" ) )
                 .Select( n => File.ReadAllText( n ) )
                 .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
                 .Sum()
-                .Should().Be( 300 );
+                .Should().Be( loop );
         }
 
-        [Test]
-        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost()
+        [TestCase(1)]
+        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost( int loop )
         {
             string logPath = TestHelper.PrepareLogFolder( "TerminationLost" );
             var c = new GrandOutputConfiguration()
@@ -187,19 +188,19 @@ namespace CK.Monitoring.Tests
             {
                 var m = new ActivityMonitor( applyAutoConfigurations: false );
                 g.EnsureGrandOutputClient( m );
-                DumpMonitor1082Entries( m, 300 );
+                DumpMonitor1082Entries( m, loop );
                 g.Dispose( TestHelper.ConsoleMonitor, 0 );
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
-            // There is less that the normal 300 "~~~~~FINAL TRACE~~~~~" in text logs.
+            // There is less that the normal {loop} "~~~~~FINAL TRACE~~~~~" in text logs.
             fileNames
                 .Where( n => n.EndsWith( ".txt" ) )
                 .Select( n => File.ReadAllText( n ) )
                 .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
                 .Sum()
-                .Should().BeLessThan( 300 );
+                .Should().BeLessThan( loop );
         }
 
         static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )
