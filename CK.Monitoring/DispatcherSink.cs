@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -17,6 +17,7 @@ namespace CK.Monitoring
         readonly List<IGrandOutputHandler> _handlers;
         readonly long _deltaExternalTicks;
         readonly Action _externalOnTimer;
+        readonly object _confTrigger;
 
         GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
@@ -31,6 +32,7 @@ namespace CK.Monitoring
             _queue = new BlockingCollection<GrandOutputEventInfo>();
             _handlers = new List<IGrandOutputHandler>();
             _task = new Task( Process, TaskCreationOptions.LongRunning );
+            _confTrigger = new object();
             _timerDuration = timerDuration;
             _deltaTicks = timerDuration.Ticks;
             _deltaExternalTicks = externalTimerDuration.Ticks;
@@ -95,6 +97,8 @@ namespace CK.Monitoring
                             _handlers.Add( h );
                         }
                     }
+                    lock( _confTrigger )
+                        Monitor.PulseAll( _confTrigger );
                 }
                 List<IGrandOutputHandler> faulty = null;
                 #region Process event if any.
@@ -170,6 +174,13 @@ namespace CK.Monitoring
             return true;
         }
 
+        /// <summary>
+        /// Starts stopping this sink, returning true iif this call
+        /// actually stopped it.
+        /// </summary>
+        /// <returns>
+        /// True if this call stopped this sink, false if it has been already been stopped by another thread.
+        /// </returns>
         public bool Stop()
         {
             if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
@@ -191,10 +202,19 @@ namespace CK.Monitoring
 
         public void Handle( GrandOutputEventInfo logEvent ) => _queue.Add( logEvent );
 
-        public void ApplyConfiguration( GrandOutputConfiguration configuration )
+        public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
             Debug.Assert( configuration.InternalClone );
             Util.InterlockedAdd( ref _newConf, configuration );
+            if( waitForApplication )
+            {
+                lock( _confTrigger )
+                {
+                    GrandOutputConfiguration[] newConf;
+                    while( _stopFlag == 0 && (newConf = _newConf) != null && newConf.Contains( configuration ) )
+                        Monitor.Wait( _confTrigger );
+                }
+            }
         }
     }
 }
