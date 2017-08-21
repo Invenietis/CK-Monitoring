@@ -17,10 +17,10 @@ namespace CK.Monitoring.Handlers
         /// Initializes a new <see cref="BinaryFile"/> bound to its <see cref="BinaryFileConfiguration"/>.
         /// </summary>
         /// <param name="config">The configuration.</param>
-        public BinaryFile(BinaryFileConfiguration config)
+        public BinaryFile( BinaryFileConfiguration config )
         {
-            if (config == null) throw new ArgumentNullException("config");
-            _file = new MonitorBinaryFileOutput(config.Path, config.MaxCountPerFile, config.UseGzipCompression);
+            if( config == null ) throw new ArgumentNullException( "config" );
+            _file = new MonitorBinaryFileOutput( config.Path, config.MaxCountPerFile, config.UseGzipCompression );
             _config = config;
         }
 
@@ -28,11 +28,11 @@ namespace CK.Monitoring.Handlers
         /// Initialization of the handler: computes the path.
         /// </summary>
         /// <param name="m"></param>
-        public bool Activate(IActivityMonitor m)
+        public bool Activate( IActivityMonitor m )
         {
-            using (m.OpenGroup(LogLevel.Trace, $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile}).", null))
+            using( m.OpenGroup( LogLevel.Trace, $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile}).", null ) )
             {
-                return _file.Initialize(m);
+                return _file.Initialize( m );
             }
         }
 
@@ -40,16 +40,16 @@ namespace CK.Monitoring.Handlers
         /// Writes a log entry.
         /// </summary>
         /// <param name="logEvent">The log entry.</param>
-        public void Handle(GrandOutputEventInfo logEvent)
+        public void Handle( GrandOutputEventInfo logEvent )
         {
-            _file.Write(logEvent.Entry);
+            _file.Write( logEvent.Entry );
         }
 
         /// <summary>
         /// Does nothing since files are automatically managed (relies on <see cref="FileConfigurationBase.MaxCountPerFile"/>).
         /// </summary>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        public void OnTimer(TimeSpan timerSpan)
+        public void OnTimer( TimeSpan timerSpan )
         {
         }
 
@@ -59,14 +59,14 @@ namespace CK.Monitoring.Handlers
         /// <param name="m">The monitor to use.</param>
         /// <param name="c">Configuration to apply.</param>
         /// <returns>True if the configuration applied.</returns>
-        public bool ApplyConfiguration(IActivityMonitor m, IHandlerConfiguration c)
+        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
             BinaryFileConfiguration cF = c as BinaryFileConfiguration;
-            if (cF == null || cF.Path != _config.Path) return false;
-            if( _config.UseGzipCompression != cF.UseGzipCompression)
+            if( cF == null || cF.Path != _config.Path ) return false;
+            if( _config.UseGzipCompression != cF.UseGzipCompression )
             {
                 _file.Close();
-                _file = new MonitorBinaryFileOutput(_config.Path, _config.MaxCountPerFile, _config.UseGzipCompression);
+                _file = new MonitorBinaryFileOutput( _config.Path, _config.MaxCountPerFile, _config.UseGzipCompression );
             }
             else _file.MaxCountPerFile = cF.MaxCountPerFile;
             _config = cF;
@@ -77,9 +77,9 @@ namespace CK.Monitoring.Handlers
         /// Closes the file if it is opened.
         /// </summary>
         /// <param name="m">The monitor to use to track activity.</param>
-        public void Deactivate(IActivityMonitor m)
+        public void Deactivate( IActivityMonitor m )
         {
-            m.SendLine(LogLevel.Info, "Closing file for BinaryFile handler.", null);
+            m.SendLine( LogLevel.Info, "Closing file for BinaryFile handler.", null );
             _file.Close();
         }
 

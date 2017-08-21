@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,7 +9,6 @@ using NUnit.Framework;
 
 namespace CK.Monitoring.Tests
 {
-
     static class TestHelper
     {
         static string _solutionFolder;
@@ -34,6 +33,15 @@ namespace CK.Monitoring.Tests
             {
                 if( value ) _monitor.Output.RegisterUniqueClient( c => c == _console, () => _console );
                 else _monitor.Output.UnregisterClient( _console );
+            }
+        }
+
+        public static string FileReadAllText( string path )
+        {
+            using( Stream s = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.SequentialScan ) )
+            using( StreamReader r = new StreamReader( s ) )
+            {
+                return r.ReadToEnd();
             }
         }
 

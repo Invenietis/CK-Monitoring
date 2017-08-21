@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+VisualStudioVersion = 15.0.26730.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C51E8D11-FC45-4D5B-85DC-68A7EEB83601}"
 	ProjectSection(SolutionItems) = preProject
@@ -17,11 +17,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{1E041F87
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.Monitoring", "CK.Monitoring\CK.Monitoring.csproj", "{4A4EAEFF-2A8B-4308-A178-3FFEE94CC009}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Monitoring.Tests", "Tests\CK.Monitoring.Tests\CK.Monitoring.Tests.csproj", "{D9AC45A9-A7F9-4070-8AB4-50D76C688912}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.Monitoring.Tests", "Tests\CK.Monitoring.Tests\CK.Monitoring.Tests.csproj", "{D9AC45A9-A7F9-4070-8AB4-50D76C688912}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeCakeBuilder", "CodeCakeBuilder\CodeCakeBuilder.csproj", "{FD4817B6-3CD7-4E74-AA10-7CA95FDFCF2D}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -45,5 +48,8 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D9AC45A9-A7F9-4070-8AB4-50D76C688912} = {1E041F87-872B-43D0-B107-2D998F7AEE38}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0AA77C05-08ED-458A-A69D-43B7D4CD5324}
 	EndGlobalSection
 EndGlobal

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,6 +7,7 @@ using CK.Core;
 using NUnit.Framework;
 using System.Threading.Tasks;
 using FluentAssertions;
+using System.Threading;
 
 namespace CK.Monitoring.Tests
 {
@@ -16,6 +17,7 @@ namespace CK.Monitoring.Tests
         static readonly Exception _exceptionWithInner;
         static readonly Exception _exceptionWithInnerLoader;
 
+        #region static initialization of exceptions
         static TextFileTests()
         {
             _exceptionWithInner = ThrowExceptionWithInner( false );
@@ -45,9 +47,135 @@ namespace CK.Monitoring.Tests
             catch( Exception ex ) { e = ex; }
             return e;
         }
+        #endregion
 
         [SetUp]
         public void InitializePath() => TestHelper.InitalizePaths();
+
+        [Test]
+        public void text_file_auto_flush_and_reconfiguration()
+        {
+            string folder = TestHelper.PrepareLogFolder( "AutoFlush" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "AutoFlush" };
+            textConf.AutoFlushRate.Should().Be( 6, "Default AutoFlushRate configuration." );
+
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            config.TimerDuration.Should().Be( TimeSpan.FromMilliseconds( 500 ), "Default timer congiguration." );
+
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                var m = new ActivityMonitor( false );
+                g.EnsureGrandOutputClient( m );
+                Thread.Sleep( 5 );
+                m.Info( "Must wait 3 seconds..." );
+                Thread.Sleep( 700 );
+                string tempFile = Directory.EnumerateFiles( folder ).Single();
+                TestHelper.FileReadAllText( tempFile ).Should().BeEmpty();
+                Thread.Sleep( 3000 );
+                TestHelper.FileReadAllText( tempFile ).Should().Contain( "Must wait 3 seconds..." );
+
+                textConf.AutoFlushRate = 1;
+                m.Info( "Reconfiguration triggers a flush..." );
+                Thread.Sleep( 10 );
+                g.ApplyConfiguration( new GrandOutputConfiguration().AddHandler( textConf ), waitForApplication: true );
+                TestHelper.FileReadAllText( tempFile ).Should().Contain( "Reconfiguration triggers a flush..." );
+                m.Info( "Wait only approx 500ms..." );
+                Thread.Sleep( 700 );
+                string final = TestHelper.FileReadAllText( tempFile );
+                final.Should().Contain( "Wait only approx 500ms" );
+            }
+        }
+
+        [Test]
+        public void external_logs_quick_test()
+        {
+            string folder = TestHelper.PrepareLogFolder( "ExternalLogsQuickTest" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsQuickTest" };
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                Task.Run( () => g.ExternalLog( LogLevel.Info, "Async started." ) ).Wait();
+                var m = new ActivityMonitor( false );
+                g.EnsureGrandOutputClient( m );
+                m.Info( "Normal monitor starts." );
+                Task t = Task.Run( () =>
+                {
+                    for( int i = 0; i < 10; ++i ) g.ExternalLog( LogLevel.Info, $"Async n°{i}." );
+                } );
+                m.MonitorEnd( "This is the end." );
+                t.Wait();
+            }
+            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
+            textLogged.Should()
+                        .Contain( "Normal monitor starts." )
+                        .And.Contain( "Async started." )
+                        .And.Contain( "Async n°0." )
+                        .And.Contain( "Async n°9." )
+                        .And.Contain( "This is the end." );
+        }
+
+        [Test]
+        public void external_logs_stress_test()
+        {
+            string folder = TestHelper.PrepareLogFolder( "ExternalLogsStressTest" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsStressTest" };
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            int taskCount = 20;
+            int logCount = 10;
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                var tasks = Enumerable.Range( 0, taskCount ).Select( c => Task.Run( () =>
+                 {
+                     for( int i = 0; i < logCount; ++i )
+                     {
+                         Thread.Sleep( 2 );
+                         g.ExternalLog( LogLevel.Info, $"{c} n°{i}." );
+                     }
+                 } ) ).ToArray();
+                Task.WaitAll( tasks );
+            }
+            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
+            for( int c = 0; c < taskCount; ++c )
+                for( int i = 0; i < logCount; ++i )
+                    textLogged.Should()
+                        .Contain( $"{c} n°{i}." );
+        }
+
+        [Test]
+        public void external_logs_filtering()
+        {
+            string folder = TestHelper.PrepareLogFolder( "ExternalLogsFiltering" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsFiltering" };
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+            ActivityMonitor.DefaultFilter.Line.Should().Be( LogLevelFilter.Trace );
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, "SHOW 0" );
+                g.ExternalLogFilter = LogLevelFilter.Debug;
+                g.ExternalLog( LogLevel.Debug, "SHOW 1" );
+                g.ExternalLogFilter = LogLevelFilter.Error;
+                g.ExternalLog( LogLevel.Warn, "NOSHOW" );
+                g.ExternalLog( LogLevel.Error, "SHOW 2" );
+                g.ExternalLog( LogLevel.Fatal, "SHOW 3" );
+                g.ExternalLog( LogLevel.Trace|LogLevel.IsFiltered, "SHOW 4" );
+                g.ExternalLogFilter = LogLevelFilter.None;
+                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, "SHOW 4" );
+            }
+            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
+            textLogged.Should()
+                        .Contain( "SHOW 0" )
+                        .And.Contain( "SHOW 1" )
+                        .And.Contain( "SHOW 2" )
+                        .And.Contain( "SHOW 3" )
+                        .And.Contain( "SHOW 4" )
+                        .And.NotContain( "NOSHOW" );
+        }
 
         [Explicit]
         [Test]

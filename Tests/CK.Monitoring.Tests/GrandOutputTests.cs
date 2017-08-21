@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -98,10 +98,13 @@ namespace CK.Monitoring.Tests
 
             var map = mlr.GetActivityMap();
 
-            map.Monitors.Should().HaveCount( 3 );
-            map.Monitors[0].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
-            map.Monitors[1].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
-            map.Monitors[2].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            map.Monitors.Should().HaveCount( 4 );
+            // The DispatcherSink monitor define its Topic: CK.Monitoring.DispatcherSink
+            // Others do not have any topic.
+            var notDispatcherSinkMonitors = map.Monitors.Where( m => !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) );
+            notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            notDispatcherSinkMonitors.ElementAt( 1 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
         }
 
         static IActivityMonitor CreateMonitorAndRegisterGrandOutput( string topic, GrandOutput go )
@@ -118,40 +121,89 @@ namespace CK.Monitoring.Tests
             public IHandlerConfiguration Clone() => new SlowSinkHandlerConfiguration() { Delay = Delay };
         }
 
+
         public class SlowSinkHandler : IGrandOutputHandler
         {
             int _delay;
+            public static volatile int ActivatedDelay;
 
             public SlowSinkHandler( SlowSinkHandlerConfiguration c )
             {
+                _delay = c.Delay;
             }
 
             public bool Activate( IActivityMonitor m )
             {
+                ActivatedDelay = _delay;
                 return true;
             }
 
             public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
             {
-                _delay = ((SlowSinkHandlerConfiguration)c).Delay;
-                return true;
+                var conf = c as SlowSinkHandlerConfiguration;
+                if( conf != null )
+                {
+                    _delay = conf.Delay;
+                    ActivatedDelay = _delay;
+                    return true;
+                }
+                return false;
             }
 
             public void Deactivate( IActivityMonitor m )
             {
+                ActivatedDelay = -1;
             }
 
-            public void Handle( GrandOutputEventInfo logEvent ) => Thread.Sleep( _delay );
+            public void Handle( GrandOutputEventInfo logEvent )
+            {
+                _delay.Should().BeGreaterOrEqualTo( 0 );
+                _delay.Should().BeLessThan( 1000 );
+                Thread.Sleep( _delay );
+            }
 
             public void OnTimer( TimeSpan timerSpan )
             {
             }
         }
 
-
-
         [Test]
-        public void disposing_GrandOutput_waits_for_termination()
+        public void ApplyConfiguration_can_wait()
+        {
+            var c100 = new GrandOutputConfiguration()
+                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 100 } );
+            var c0 = new GrandOutputConfiguration()
+                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 0 } );
+            SlowSinkHandler.ActivatedDelay = -1;
+            using( var g = new GrandOutput( c100 ) )
+            {
+                SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
+                // Without waiting, we must be able to find an apply that
+                // did not succeed in at least 11 tries.
+                int i;
+                for( i = 0; i <= 10; ++i )
+                {
+                    SlowSinkHandler.ActivatedDelay = -1;
+                    g.ApplyConfiguration( c0, waitForApplication: false );
+                    if( SlowSinkHandler.ActivatedDelay == -1 ) break;
+                }
+                i.Should().BeLessThan( 10 );
+                // With wait for application:
+                // ...Artificially adding multiple configurations with 0 delay.
+                for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c0, waitForApplication: false );
+                // ...Applying 100 is effective.
+                g.ApplyConfiguration( c100, waitForApplication: true );
+                SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
+                // ...Artificially adding multiple configurations with 100 delay.
+                for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );
+                // ...Applying 0 is effective.
+                g.ApplyConfiguration( c0, waitForApplication: true );
+                SlowSinkHandler.ActivatedDelay.Should().Be( 0 );
+            }
+        }
+
+        [TestCase( 1 )]
+        public void disposing_GrandOutput_waits_for_termination( int loop )
         {
             string logPath = TestHelper.PrepareLogFolder( "Termination" );
             var c = new GrandOutputConfiguration()
@@ -162,22 +214,22 @@ namespace CK.Monitoring.Tests
             {
                 var m = new ActivityMonitor( applyAutoConfigurations: false );
                 g.EnsureGrandOutputClient( m );
-                DumpMonitor1082Entries( m, 300 );
+                DumpMonitor1082Entries( m, loop );
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
-            // The 300 "~~~~~FINAL TRACE~~~~~" appear in text logs.
+            // The {loop} "~~~~~FINAL TRACE~~~~~" appear in text logs.
             fileNames
                 .Where( n => n.EndsWith( ".txt" ) )
                 .Select( n => File.ReadAllText( n ) )
                 .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
                 .Sum()
-                .Should().Be( 300 );
+                .Should().Be( loop );
         }
 
-        [Test]
-        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost()
+        [TestCase(1)]
+        public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost( int loop )
         {
             string logPath = TestHelper.PrepareLogFolder( "TerminationLost" );
             var c = new GrandOutputConfiguration()
@@ -187,19 +239,19 @@ namespace CK.Monitoring.Tests
             {
                 var m = new ActivityMonitor( applyAutoConfigurations: false );
                 g.EnsureGrandOutputClient( m );
-                DumpMonitor1082Entries( m, 300 );
-                g.Dispose( TestHelper.ConsoleMonitor, 0 );
+                DumpMonitor1082Entries( m, loop );
+                g.Dispose( 0 );
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
-            // There is less that the normal 300 "~~~~~FINAL TRACE~~~~~" in text logs.
+            // There is less that the normal {loop} "~~~~~FINAL TRACE~~~~~" in text logs.
             fileNames
                 .Where( n => n.EndsWith( ".txt" ) )
                 .Select( n => File.ReadAllText( n ) )
                 .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
                 .Sum()
-                .Should().BeLessThan( 300 );
+                .Should().BeLessThan( loop );
         }
 
         static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )

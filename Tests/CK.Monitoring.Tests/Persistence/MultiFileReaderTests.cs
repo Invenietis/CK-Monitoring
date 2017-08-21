@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,6 +10,7 @@ using CK.Core;
 using NUnit.Framework;
 using FluentAssertions;
 using System.Threading;
+using CK.Text;
 
 namespace CK.Monitoring.Tests.Persistence
 {
@@ -31,21 +32,26 @@ namespace CK.Monitoring.Tests.Persistence
                 var m = new ActivityMonitor( false );
                 g.EnsureGrandOutputClient( m );
                 m.Trace( "NoShow-1" );
-                g.ApplyConfiguration( emptyConfig );
+                g.ApplyConfiguration( emptyConfig, true );
                 m.Trace( "NoShow-2" );
-                Thread.Sleep( 300 );
-                g.ApplyConfiguration( binaryConfig );
-                Thread.Sleep( 300 );
+                // We must let the trace to be handled by the previous configuration:
+                // entries are not processed before a change of the config since
+                // we want to apply the new configuration as soon as possible.
+                Thread.Sleep( emptyConfig.TimerDuration + emptyConfig.TimerDuration );
+                g.ApplyConfiguration( binaryConfig, true );
                 m.Trace( "Show-1" );
-                Thread.Sleep( 300 );
-                g.ApplyConfiguration( emptyConfig );
-                Thread.Sleep( 300 );
+                Thread.Sleep( emptyConfig.TimerDuration + emptyConfig.TimerDuration );
+                g.ApplyConfiguration( emptyConfig, true );
                 m.Trace( "NoShow-3" );
             }
             var replayed = new ActivityMonitor( false );
             var c = replayed.Output.RegisterClient( new StupidStringClient() );
             TestHelper.ReplayLogs( new DirectoryInfo( folder ), true, mon => replayed, TestHelper.ConsoleMonitor );
-            c.Entries.Select( e => e.Text ).ShouldBeEquivalentTo( new[] { "<Missing log data>", "Show-1" }, o => o.WithStrictOrdering() );
+            var entries = c.Entries.Select( e => e.Text ).Concatenate( "|" );
+            // We may have "<Missing log data>|Initializing..." followe by "<Missing log data>|Show-1" or the opposite.
+
+            entries.Should().Contain( "<Missing log data>|Initializing BinaryFile handler (MaxCountPerFile = 20000)." )
+                            .And.Contain( "<Missing log data>|Show-1" );
         }
 
 
@@ -103,20 +109,18 @@ namespace CK.Monitoring.Tests.Persistence
                 reader.Add( files );
                 var map = reader.GetActivityMap();
                 map.ValidFiles.All( rawFile => rawFile.IsValidFile ).Should().BeTrue( "All files are correctly closed with the final 0 byte and no exception occurred while reading them." );
+                map.Monitors.Should().HaveCount( 2 );
 
-                var readMonitor = map.Monitors.Single();
+                var allEntries1 = map.Monitors[0].ReadAllEntries().ToList();
+                var allEntries2 = map.Monitors[1].ReadAllEntries().ToList();
 
-                List<ParentedLogEntry> allEntries = new List<ParentedLogEntry>();
-                using( var pageReader = readMonitor.ReadFirstPage( pageReadLength ) )
-                {
-                    do
-                    {
-                        allEntries.AddRange( pageReader.Entries );
-                    }
-                    while( pageReader.ForwardPage() > 0 );
-                }
-                allEntries.Select( e => e.Entry.Text ).ShouldBeEquivalentTo(
-                    new[] { "Trace 1", "OpenTrace 1", "Trace 1.1", "Trace 1.2", null, "Trace 2" }, o => o.WithStrictOrdering() );
+                var allEntries = allEntries1.Any( e => e.Entry.Text == "Topic: CK.Monitoring.DispatcherSink" )
+                                    ? allEntries2
+                                    : allEntries1;
+
+                allEntries.Select( e => e.Entry.Text )
+                          .SequenceEqual( new[] { "Trace 1", "OpenTrace 1", "Trace 1.1", "Trace 1.2", null, "Trace 2" } )
+                          .Should().BeTrue();
             }
         }
 

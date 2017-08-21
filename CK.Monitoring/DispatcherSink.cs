@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -17,6 +17,8 @@ namespace CK.Monitoring
         readonly List<IGrandOutputHandler> _handlers;
         readonly long _deltaExternalTicks;
         readonly Action _externalOnTimer;
+        readonly object _confTrigger;
+        readonly Action<IActivityMonitor> _initialRegister;
 
         GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
@@ -26,11 +28,13 @@ namespace CK.Monitoring
         volatile int _stopFlag;
         volatile bool _forceClose;
 
-        public DispatcherSink( TimeSpan timerDuration, TimeSpan externalTimerDuration, Action externalTimer )
+        public DispatcherSink( Action<IActivityMonitor> initialRegister, TimeSpan timerDuration, TimeSpan externalTimerDuration, Action externalTimer )
         {
+            _initialRegister = initialRegister;
             _queue = new BlockingCollection<GrandOutputEventInfo>();
             _handlers = new List<IGrandOutputHandler>();
             _task = new Task( Process, TaskCreationOptions.LongRunning );
+            _confTrigger = new object();
             _timerDuration = timerDuration;
             _deltaTicks = timerDuration.Ticks;
             _deltaExternalTicks = externalTimerDuration.Ticks;
@@ -56,51 +60,26 @@ namespace CK.Monitoring
 
         void Process()
         {
-            int nbEvent = 0;
-            IActivityMonitor monitor = new SystemActivityMonitor( applyAutoConfigurations: false, topic: GetType().FullName );
+            var monitor = new ActivityMonitor( applyAutoConfigurations: false );
+            // Simple pooling for initial configuration.
+            GrandOutputConfiguration[] newConf = _newConf;
+            while( newConf == null )
+            {
+                Thread.Sleep( 0 );
+                newConf = _newConf;
+            }
+            _initialRegister( monitor );
+            monitor.SetTopic( GetType().FullName );
+            DoConfigure( monitor, newConf );
             while( !_queue.IsCompleted && !_forceClose )
             {
                 bool hasEvent = _queue.TryTake( out GrandOutputEventInfo e, millisecondsTimeout: 100 );
-                var newConf = _newConf;
-                if( newConf != null && newConf.Length > 0 )
-                {
-                    Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
-                    var c = newConf[newConf.Length - 1];
-                    TimerDuration = c.TimerDuration;
-                    List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
-                    for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
-                    {
-                        for( int iHandler = 0; iHandler < _handlers.Count; ++iHandler )
-                        {
-                            if( _handlers[iHandler].ApplyConfiguration( monitor, c.Handlers[iConf] ) )
-                            {
-                                c.Handlers.RemoveAt( iConf-- );
-                                toKeep.Add( _handlers[iHandler] );
-                                _handlers.RemoveAt( iHandler );
-                                break;
-                            }
-                        }
-                    }
-                    foreach( var h in _handlers )
-                    {
-                        SafeActivateOrDeactivate( monitor, h, false );
-                    }
-                    _handlers.Clear();
-                    _handlers.AddRange( toKeep );
-                    foreach( var conf in c.Handlers )
-                    {
-                        var h = GrandOutput.CreateHandler( conf );
-                        if( SafeActivateOrDeactivate( monitor, h, true ) )
-                        {
-                            _handlers.Add( h );
-                        }
-                    }
-                }
+                newConf = _newConf;
+                if( newConf.Length > 0 ) DoConfigure( monitor, newConf );
                 List<IGrandOutputHandler> faulty = null;
                 #region Process event if any.
                 if( hasEvent )
                 {
-                    ++nbEvent;
                     foreach( var h in _handlers )
                     {
                         try
@@ -109,7 +88,9 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            monitor.SendLine( LogLevel.Error, h.GetType().FullName + ".Handle", ex );
+                            var msg = $"{h.GetType().FullName}.Handle() crashed.";
+                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                            monitor.SendLine( LogLevel.Fatal, msg, ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -128,7 +109,9 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            monitor.SendLine( LogLevel.Error, h.GetType().FullName + ".OnTimer", ex );
+                            var msg = $"{h.GetType().FullName}.OnTimer() crashed.";
+                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                            monitor.SendLine( LogLevel.Fatal, msg, ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -155,6 +138,71 @@ namespace CK.Monitoring
             monitor.MonitorEnd();
         }
 
+        private void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
+        {
+            Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
+            var c = newConf[newConf.Length - 1];
+            TimerDuration = c.TimerDuration;
+            List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
+            for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
+            {
+                for( int iHandler = 0; iHandler < _handlers.Count; ++iHandler )
+                {
+                    try
+                    {
+                        if( _handlers[iHandler].ApplyConfiguration( monitor, c.Handlers[iConf] ) )
+                        {
+                            // Existing _handlers[iHandler] accepted the new c.Handlers[iConf].
+                            c.Handlers.RemoveAt( iConf-- );
+                            toKeep.Add( _handlers[iHandler] );
+                            _handlers.RemoveAt( iHandler );
+                            break;
+                        }
+                    }
+                    catch( Exception ex )
+                    {
+                        var h = _handlers[iHandler];
+                        // Existing _handlers[iHandler] crashed with the proposed c.Handlers[iConf].
+                        var msg = $"Existing {h.GetType().FullName} crashed with the configuration {c.Handlers[iConf].GetType().FullName}.";
+                        ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                        monitor.SendLine( LogLevel.Fatal, msg, ex );
+                        // Since the handler can be compromised, we skip it from any subsequent
+                        // attempt to reconfigure it and deactivate it.
+                        _handlers.RemoveAt( iHandler-- );
+                        SafeActivateOrDeactivate( monitor, h, false );
+                    }
+                }
+            }
+            // Deactivate and get rid of remaining handlers.
+            foreach( var h in _handlers )
+            {
+                SafeActivateOrDeactivate( monitor, h, false );
+            }
+            _handlers.Clear();
+            // Restores reconfigured handlers.
+            _handlers.AddRange( toKeep );
+            // Creates and activates new handlers.
+            foreach( var conf in c.Handlers )
+            {
+                try
+                {
+                    var h = GrandOutput.CreateHandler( conf );
+                    if( SafeActivateOrDeactivate( monitor, h, true ) )
+                    {
+                        _handlers.Add( h );
+                    }
+                }
+                catch( Exception ex )
+                {
+                    var msg = $"While creating handler for {conf.GetType().FullName}.";
+                    ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                    monitor.SendLine( LogLevel.Fatal, msg, ex );
+                }
+            }
+            lock( _confTrigger )
+                Monitor.PulseAll( _confTrigger );
+        }
+
         bool SafeActivateOrDeactivate( IActivityMonitor monitor, IGrandOutputHandler h, bool activate )
         {
             try
@@ -164,12 +212,21 @@ namespace CK.Monitoring
             }
             catch( Exception ex )
             {
-                monitor.SendLine( LogLevel.Error, h.GetType().FullName, ex );
+                var msg = $"Handler {h.GetType().FullName} crashed during {(activate?"activation":"de-activation")}.";
+                ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                monitor.SendLine( LogLevel.Fatal, msg, ex );
                 return false;
             }
             return true;
         }
 
+        /// <summary>
+        /// Starts stopping this sink, returning true iif this call
+        /// actually stopped it.
+        /// </summary>
+        /// <returns>
+        /// True if this call stopped this sink, false if it has been already been stopped by another thread.
+        /// </returns>
         public bool Stop()
         {
             if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
@@ -191,10 +248,19 @@ namespace CK.Monitoring
 
         public void Handle( GrandOutputEventInfo logEvent ) => _queue.Add( logEvent );
 
-        public void ApplyConfiguration( GrandOutputConfiguration configuration )
+        public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
             Debug.Assert( configuration.InternalClone );
             Util.InterlockedAdd( ref _newConf, configuration );
+            if( waitForApplication )
+            {
+                lock( _confTrigger )
+                {
+                    GrandOutputConfiguration[] newConf;
+                    while( _stopFlag == 0 && (newConf = _newConf) != null && newConf.Contains( configuration ) )
+                        Monitor.Wait( _confTrigger );
+                }
+            }
         }
     }
 }
