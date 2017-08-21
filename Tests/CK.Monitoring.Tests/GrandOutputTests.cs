@@ -98,10 +98,13 @@ namespace CK.Monitoring.Tests
 
             var map = mlr.GetActivityMap();
 
-            map.Monitors.Should().HaveCount( 3 );
-            map.Monitors[0].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
-            map.Monitors[1].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
-            map.Monitors[2].ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            map.Monitors.Should().HaveCount( 4 );
+            // The DispatcherSink monitor define its Topic: CK.Monitoring.DispatcherSink
+            // Others do not have any topic.
+            var notDispatcherSinkMonitors = map.Monitors.Where( m => !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) );
+            notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            notDispatcherSinkMonitors.ElementAt( 1 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
         }
 
         static IActivityMonitor CreateMonitorAndRegisterGrandOutput( string topic, GrandOutput go )
@@ -237,7 +240,7 @@ namespace CK.Monitoring.Tests
                 var m = new ActivityMonitor( applyAutoConfigurations: false );
                 g.EnsureGrandOutputClient( m );
                 DumpMonitor1082Entries( m, loop );
-                g.Dispose( TestHelper.ConsoleMonitor, 0 );
+                g.Dispose( 0 );
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();

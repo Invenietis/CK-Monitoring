@@ -177,34 +177,6 @@ namespace CK.Monitoring.Tests
                         .And.NotContain( "NOSHOW" );
         }
 
-        [Test]
-        public void HandleCriticalErrors_quick_test()
-        {
-            string folder = TestHelper.PrepareLogFolder( "CriticalErrorsQuickTest" );
-
-            var textConf = new Handlers.TextFileConfiguration() { Path = "CriticalErrorsQuickTest" };
-            var config = new GrandOutputConfiguration().AddHandler( textConf );
-            using( GrandOutput g = new GrandOutput( config ) )
-            {
-                g.HandleCriticalErrors.Should().BeFalse();
-                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "NOSHOW" ), null );
-                ActivityMonitor.CriticalErrorCollector.WaitOnErrorFromBackgroundThreadsPending();
-                g.HandleCriticalErrors = true;
-                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "SHOW 1" ), null );
-                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "SHOW 2" ), "...with comment..." );
-                ActivityMonitor.CriticalErrorCollector.WaitOnErrorFromBackgroundThreadsPending();
-                g.HandleCriticalErrors = false;
-                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "NOSHOW" ), null );
-                ActivityMonitor.CriticalErrorCollector.WaitOnErrorFromBackgroundThreadsPending();
-            }
-            string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
-            textLogged.Should()
-                        .Contain( "SHOW 1" )
-                        .And.Contain( "SHOW 2" )
-                        .And.Contain( "...with comment..." )
-                        .And.NotContain( "NOSHOW" );
-        }
-
         [Explicit]
         [Test]
         public void dumping_text_file_with_multiple_monitors()

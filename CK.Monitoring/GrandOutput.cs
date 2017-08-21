@@ -74,8 +74,7 @@ namespace CK.Monitoring
                                             .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
                         configuration.InternalClone = true;
                     }
-                    _default = new GrandOutput( configuration );
-                    _default.HandleCriticalErrors = true;
+                    _default = new GrandOutput( configuration, true );
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                 }
                 else if( configuration != null ) _default.ApplyConfiguration( configuration );
@@ -128,13 +127,18 @@ namespace CK.Monitoring
         /// Initializes a new <see cref="GrandOutput"/>. 
         /// </summary>
         /// <param name="config">The configuration.</param>
-        public GrandOutput( GrandOutputConfiguration config )
+        /// <param name="handleCriticalErrors">True to handle critical errors.</param>
+        public GrandOutput( GrandOutputConfiguration config, bool handleCriticalErrors = false )
         {
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
+            // Creates the client list first.
             _clients = new List<WeakReference<GrandOutputClient>>();
-            _sink = new DispatcherSink( config.TimerDuration, TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients );
+            // Starts the pump thread. Its monitor will be registered
+            // in this GrandOutput.
+            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ), config.TimerDuration, TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients );
             _externalLogLock = new object();
             _externalLogLastTime = DateTimeStamp.MinValue;
+            HandleCriticalErrors = handleCriticalErrors;
             ApplyConfiguration( config, waitForApplication: true );
         }
 
@@ -150,21 +154,26 @@ namespace CK.Monitoring
         {
             if( IsDisposed ) throw new ObjectDisposedException( nameof( GrandOutput ) );
             if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
+            return DoEnsureGrandOutputClient( monitor );
+        }
+
+        GrandOutputClient DoEnsureGrandOutputClient( IActivityMonitor monitor )
+        {
             Func<GrandOutputClient> reg = () =>
+            {
+                var c = new GrandOutputClient( this );
+                lock( _clients )
                 {
-                    var c = new GrandOutputClient( this );
-                    lock( _clients )
-                    {
-                        if( IsDisposed ) c = null;
-                        else _clients.Add( new WeakReference<GrandOutputClient>( c ) );
-                    }
-                    return c;
-                };
+                    if( IsDisposed ) c = null;
+                    else _clients.Add( new WeakReference<GrandOutputClient>( c ) );
+                }
+                return c;
+            };
             return monitor.Output.RegisterUniqueClient( b => b.Central == this, reg );
         }
 
         /// <summary>
-        /// Gets or sets the filter for <see cref="ExternalLog"/>.
+        /// Gets or sets the filter for ExternalLog methods.
         /// Defaults to <see cref="LogLevelFilter.None"/>: <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see>
         /// is used.
         /// </summary>
@@ -295,11 +304,9 @@ namespace CK.Monitoring
         /// Closes this <see cref="GrandOutput"/>.
         /// If this is the default one that is disposed, <see cref="Default"/> is set to null.
         /// </summary>
-        /// <param name="monitor">Monitor that will be used. Must not be null.</param>
         /// <param name="millisecondsBeforeForceClose">Maximal time to wait.</param>
-        public void Dispose( IActivityMonitor monitor, int millisecondsBeforeForceClose = Timeout.Infinite )
+        public void Dispose( int millisecondsBeforeForceClose = Timeout.Infinite )
         {
-            if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
             if( _sink.Stop() )
             {
                 HandleCriticalErrors = false;
@@ -327,13 +334,12 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Calls <see cref="Dispose(IActivityMonitor,int)"/> with a <see cref="SystemActivityMonitor"/> 
-        /// and <see cref="Timeout.Infinite"/> (<c>new SystemActivityMonitor(applyAutoConfigurations: false, topic: null )</c>).
+        /// Calls <see cref="Dispose(int)"/> with <see cref="Timeout.Infinite"/>.
         /// If this is the default one that is disposed, <see cref="Default"/> is set to null.
         /// </summary>
         public void Dispose()
         {
-            Dispose( new SystemActivityMonitor( applyAutoConfigurations: false, topic: null ), Timeout.Infinite );
+            Dispose( Timeout.Infinite );
         }
 
 
