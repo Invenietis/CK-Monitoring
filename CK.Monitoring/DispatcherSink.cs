@@ -194,7 +194,7 @@ namespace CK.Monitoring
                 }
                 catch( Exception ex )
                 {
-                    var msg = $"While creating Sink handler for {conf.GetType().FullName}.";
+                    var msg = $"While creating handler for {conf.GetType().FullName}.";
                     ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
                     monitor.SendLine( LogLevel.Fatal, msg, ex );
                 }

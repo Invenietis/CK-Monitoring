@@ -103,7 +103,7 @@ namespace CK.Monitoring.Tests
                         .Contain( "SHOW 1" )
                         .And.Contain( "SHOW 2" )
                         .And.Contain( "...with comment..." )
-                        .And.Contain( "While creating Sink handler for CK.Monitoring.Tests.CriticalErrorsTests+KExistePasConfiguration" );
+                        .And.Contain( "While creating handler for CK.Monitoring.Tests.CriticalErrorsTests+KExistePasConfiguration." );
         }
 
 
