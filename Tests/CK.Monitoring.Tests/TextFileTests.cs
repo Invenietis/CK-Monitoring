@@ -72,7 +72,7 @@ namespace CK.Monitoring.Tests
                 Thread.Sleep( 700 );
                 string tempFile = Directory.EnumerateFiles( folder ).Single();
                 TestHelper.FileReadAllText( tempFile ).Should().BeEmpty();
-                Thread.Sleep( 3200 - 700 );
+                Thread.Sleep( 3000 );
                 TestHelper.FileReadAllText( tempFile ).Should().Contain( "Must wait 3 seconds..." );
 
                 textConf.AutoFlushRate = 1;
