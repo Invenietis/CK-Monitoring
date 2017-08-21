@@ -88,7 +88,9 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            monitor.SendLine( LogLevel.Error, h.GetType().FullName + ".Handle", ex );
+                            var msg = $"{h.GetType().FullName}.Handle() crashed.";
+                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                            monitor.SendLine( LogLevel.Fatal, msg, ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -107,7 +109,9 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            monitor.SendLine( LogLevel.Error, h.GetType().FullName + ".OnTimer", ex );
+                            var msg = $"{h.GetType().FullName}.OnTimer() crashed.";
+                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                            monitor.SendLine( LogLevel.Fatal, msg, ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -144,21 +148,40 @@ namespace CK.Monitoring
             {
                 for( int iHandler = 0; iHandler < _handlers.Count; ++iHandler )
                 {
-                    if( _handlers[iHandler].ApplyConfiguration( monitor, c.Handlers[iConf] ) )
+                    try
                     {
-                        c.Handlers.RemoveAt( iConf-- );
-                        toKeep.Add( _handlers[iHandler] );
-                        _handlers.RemoveAt( iHandler );
-                        break;
+                        if( _handlers[iHandler].ApplyConfiguration( monitor, c.Handlers[iConf] ) )
+                        {
+                            // Existing _handlers[iHandler] accepted the new c.Handlers[iConf].
+                            c.Handlers.RemoveAt( iConf-- );
+                            toKeep.Add( _handlers[iHandler] );
+                            _handlers.RemoveAt( iHandler );
+                            break;
+                        }
+                    }
+                    catch( Exception ex )
+                    {
+                        var h = _handlers[iHandler];
+                        // Existing _handlers[iHandler] crashed with the proposed c.Handlers[iConf].
+                        var msg = $"Existing {h.GetType().FullName} crashed with the configuration {c.Handlers[iConf].GetType().FullName}.";
+                        ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                        monitor.SendLine( LogLevel.Fatal, msg, ex );
+                        // Since the handler can be compromised, we skip it from any subsequent
+                        // attempt to reconfigure it and deactivate it.
+                        _handlers.RemoveAt( iHandler-- );
+                        SafeActivateOrDeactivate( monitor, h, false );
                     }
                 }
             }
+            // Deactivate and get rid of remaining handlers.
             foreach( var h in _handlers )
             {
                 SafeActivateOrDeactivate( monitor, h, false );
             }
             _handlers.Clear();
+            // Restores reconfigured handlers.
             _handlers.AddRange( toKeep );
+            // Creates and activates new handlers.
             foreach( var conf in c.Handlers )
             {
                 try
@@ -171,7 +194,9 @@ namespace CK.Monitoring
                 }
                 catch( Exception ex )
                 {
-                    monitor.SendLine( LogLevel.Fatal, $"While creating Sink handler for {conf.GetType().FullName}.", ex );
+                    var msg = $"While creating Sink handler for {conf.GetType().FullName}.";
+                    ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                    monitor.SendLine( LogLevel.Fatal, msg, ex );
                 }
             }
             lock( _confTrigger )
@@ -187,7 +212,9 @@ namespace CK.Monitoring
             }
             catch( Exception ex )
             {
-                monitor.SendLine( LogLevel.Error, h.GetType().FullName, ex );
+                var msg = $"Handler {h.GetType().FullName} crashed during {(activate?"activation":"de-activation")}.";
+                ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
+                monitor.SendLine( LogLevel.Fatal, msg, ex );
                 return false;
             }
             return true;
