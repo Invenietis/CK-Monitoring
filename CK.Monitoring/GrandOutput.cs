@@ -180,6 +180,26 @@ namespace CK.Monitoring
         public LogLevelFilter ExternalLogFilter { get; set; }
 
         /// <summary>
+        /// Gets whether a log level should be emitted.
+        /// We consider that as long has the log level has <see cref="LogLevel.IsFiltered"/> bit set, the
+        /// decision has already being taken and we return true.
+        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>
+        /// (and if it is <see cref="LogLevelFilter.None"/>, the static <see cref="ActivityMonitor.DefaultFilter"/>).
+        /// </summary>
+        /// <param name="level">Log level to test.</param>
+        /// <returns>True if this level should be logged otherwise false.</returns>
+        public bool IsExternalLogEnabled( LogLevel level )
+        {
+            LogLevelFilter filter = ExternalLogFilter;
+            if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
+            if( (level & LogLevel.IsFiltered) == 0 )
+            {
+                if( (int)filter > (int)(level & LogLevel.Mask) ) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Logs an entry from any contextless source.
         /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
         /// </summary>
