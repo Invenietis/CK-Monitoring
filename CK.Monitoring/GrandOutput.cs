@@ -67,7 +67,7 @@ namespace CK.Monitoring
             {
                 if( _default == null )
                 {
-                    SystemActivityMonitor.EnsureStaticInitialization();
+                    bool ensureStaticIntialization = LogFile.TrackActivityMonitorLoggingError;
                     if( configuration == null )
                     {
                         configuration = new GrandOutputConfiguration()
@@ -117,7 +117,7 @@ namespace CK.Monitoring
         static public Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler = config =>
          {
              string name = config.GetType().GetTypeInfo().FullName;
-             if( !name.EndsWith( "Configuration" ) ) throw new CKException( $"Configuration handler type name must end with 'Configuration': {name}." );
+             if( !name.EndsWith( "Configuration" ) ) throw new Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
              name = config.GetType().AssemblyQualifiedName.Replace( "Configuration,", "," );
              Type t = Type.GetType( name, throwOnError: true );
              return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } );
@@ -291,10 +291,10 @@ namespace CK.Monitoring
 
         void CriticalErrorCollector_OnErrorFromBackgroundThreads( object sender, CriticalErrorCollector.ErrorEventArgs e )
         {
-            int c = e.LoggingErrors.Count;
+            int c = e.Errors.Count;
             while( --c >= 0 )
             {
-                var err = e.LoggingErrors[c];
+                var err = e.Errors[c];
                 ExternalLog( LogLevel.Fatal, err.Comment, err.Exception, CriticalErrorTag );
             }
         }

@@ -20,7 +20,7 @@ namespace CK.Monitoring
         /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.
         /// You must call <see cref="MonitorFileOutputBase.Initialize">Initialize</see> before actually using this object.
         /// </summary>
-        /// <param name="configuredPath">The path: it can be absolute and when relative, it will be under <see cref="SystemActivityMonitor.RootLogPath"/> (that must be set).</param>
+        /// <param name="configuredPath">The path: it can be absolute and when relative, it will be under <see cref="LogFile.RootLogPath"/> (that must be set).</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="useGzipCompression">True to gzip the file.</param>
         public MonitorBinaryFileOutput( string configuredPath, int maxCountPerFile, bool useGzipCompression )
@@ -34,7 +34,7 @@ namespace CK.Monitoring
         /// hyphens, enclosed in braces) of the monitor.
         /// You must call <see cref="MonitorFileOutputBase.Initialize">Initialize</see> before actually using this object.
         /// </summary>
-        /// <param name="configuredPath">The path. Can be absolute. When relative, it will be under <see cref="SystemActivityMonitor.RootLogPath"/> that must be set.</param>
+        /// <param name="configuredPath">The path. Can be absolute. When relative, it will be under <see cref="LogFile.RootLogPath"/> that must be set.</param>
         /// <param name="monitorId">Monitor identifier.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="useGzipCompression">True to gzip the file.</param>

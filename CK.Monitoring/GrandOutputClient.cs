@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -72,7 +72,7 @@ namespace CK.Monitoring
         void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
         {
             if( _central.IsDisposed ) return;
-            IMulticastLogEntry e = LogEntry.CreateMulticastLog( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, data.Text, data.LogTime, data.Level, data.FileName, data.LineNumber, data.Tags, data.EnsureExceptionData() );
+            IMulticastLogEntry e = LogEntry.CreateMulticastLog( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, data.Text, data.LogTime, data.Level, data.FileName, data.LineNumber, data.Tags, data.ExceptionData );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             _prevlogTime = data.LogTime;
             _prevLogType = LogEntryType.Line;
@@ -81,7 +81,7 @@ namespace CK.Monitoring
         void IActivityMonitorClient.OnOpenGroup( IActivityLogGroup group )
         {
             if( _central.IsDisposed ) return;
-            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.GroupText, group.LogTime, group.GroupLevel, group.FileName, group.LineNumber, group.GroupTags, group.EnsureExceptionData() );
+            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.GroupText, group.LogTime, group.GroupLevel, group.FileName, group.LineNumber, group.GroupTags, group.ExceptionData );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             ++_currentGroupDepth;
             _prevlogTime = group.LogTime;
