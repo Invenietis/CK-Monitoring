@@ -3,12 +3,12 @@
   <Import Project="..\Common\Shared.props" />
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Extends CK.ActivityMonitor with outputs and events serialization. GrandOutput collects centralized logs and dispatch them in configurable sinks.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.ActivityMonitor" Version="8.0.1-Cdevelop-0005" />
+    <PackageReference Include="CK.ActivityMonitor" Version="9.0.0-a00-00-develop-0003" />
   </ItemGroup>
 
   <ItemGroup>

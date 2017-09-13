@@ -84,7 +84,7 @@ namespace CK.Monitoring
                     {
                         try
                         {
-                            h.Handle( e );
+                            h.Handle( monitor, e );
                         }
                         catch( Exception ex )
                         {
@@ -105,7 +105,7 @@ namespace CK.Monitoring
                     {
                         try
                         {
-                            h.OnTimer( _timerDuration );
+                            h.OnTimer( monitor, _timerDuration );
                         }
                         catch( Exception ex )
                         {

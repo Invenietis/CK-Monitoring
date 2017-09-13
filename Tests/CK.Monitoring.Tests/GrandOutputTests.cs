@@ -155,14 +155,14 @@ namespace CK.Monitoring.Tests
                 ActivatedDelay = -1;
             }
 
-            public void Handle( GrandOutputEventInfo logEvent )
+            public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
             {
                 _delay.Should().BeGreaterOrEqualTo( 0 );
                 _delay.Should().BeLessThan( 1000 );
                 Thread.Sleep( _delay );
             }
 
-            public void OnTimer( TimeSpan timerSpan )
+            public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
             {
             }
         }

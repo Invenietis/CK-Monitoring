@@ -8,7 +8,7 @@ using CK.Core;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// Basic log event handler interface.
+    /// Root log event handler interface.
     /// </summary>
     public interface IGrandOutputSink
     {

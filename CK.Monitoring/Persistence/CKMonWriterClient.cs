@@ -75,7 +75,7 @@ namespace CK.Monitoring
                     // work (the error will appear in the Critical errors) but this avoids
                     // an exception to be thrown here.
                     var f = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
-                    if( f.Initialize( source ) )
+                    if( f.Initialize( source.InternalMonitor ) )
                     {
                         var g = _source.CurrentGroup;
                         _currentGroupDepth = g != null ? g.Depth : 0;
@@ -98,7 +98,7 @@ namespace CK.Monitoring
                 _file = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
                 _prevLogType = LogEntryType.None;
                 _prevlogTime = DateTimeStamp.Unknown;
-                if( _file.Initialize( _source ) )
+                if( _file.Initialize( _source.InternalMonitor ) )
                 {
                     var g = _source.CurrentGroup;
                     _currentGroupDepth = g != null ? g.Depth : 0;

@@ -33,7 +33,7 @@ namespace CK.Monitoring.Handlers
         /// <summary>
         /// Initialization of the handler: computes the path.
         /// </summary>
-        /// <param name="m"></param>
+        /// <param name="m">The monitor to use.</param>
         public bool Activate( IActivityMonitor m )
         {
             using( m.OpenGroup( LogLevel.Trace, $"Initializing TextFile handler (MaxCountPerFile = {_file.MaxCountPerFile}).", null ) )
@@ -45,8 +45,9 @@ namespace CK.Monitoring.Handlers
         /// <summary>
         /// Writes a log entry.
         /// </summary>
+        /// <param name="m">The monitor to use.</param>
         /// <param name="logEvent">The log entry.</param>
-        public void Handle( GrandOutputEventInfo logEvent )
+        public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
         {
             _file.Write( logEvent.Entry );
         }
@@ -54,8 +55,9 @@ namespace CK.Monitoring.Handlers
         /// <summary>
         /// Does nothing since files are automatically managed (relies on <see cref="FileConfigurationBase.MaxCountPerFile"/>).
         /// </summary>
+        /// <param name="m">The monitor to use.</param>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        public void OnTimer( TimeSpan timerSpan )
+        public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
         {
             // Don't really care of the overflow here.
             if( --_countFlush == 0 )
