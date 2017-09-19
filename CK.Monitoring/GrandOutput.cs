@@ -181,8 +181,8 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Gets whether a log level should be emitted.
-        /// We consider that as long has the log level has <see cref="LogLevel.IsFiltered"/> bit set, the
-        /// decision has already being taken and we return true.
+        /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
+        /// bit set, the decision has already being taken and we return true.
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>
         /// (and if it is <see cref="LogLevelFilter.None"/>, the static <see cref="ActivityMonitor.DefaultFilter"/>).
         /// </summary>
@@ -204,8 +204,8 @@ namespace CK.Monitoring
         /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
         /// </summary>
         /// <remarks>
-        /// We consider that as long has the log level has <see cref="LogLevel.IsFiltered"/> bit set, the
-        /// decision has already being taken and here we do our job: dispatching of the log.
+        /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see> bit
+        /// set, the decision has already being taken and here we do our job: dispatching of the log.
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>
@@ -247,8 +247,8 @@ namespace CK.Monitoring
         /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
         /// </summary>
         /// <remarks>
-        /// We consider that as long has the log level has <see cref="LogLevel.IsFiltered"/> bit set, the
-        /// decision has already being taken and here we do our job: dispatching of the log.
+        /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
+        /// bit set, the decision has already being taken and here we do our job: dispatching of the log.
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>
@@ -263,7 +263,7 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Gets or sets whether this GrandOutput subscribes to <see cref="ActivityMonitor.CriticalErrorCollector"/>
-        /// events and sends them by calling <see cref="ExternalLog(LogLevel, string, Exception, CKTrait)"/>
+        /// events and sends them by calling <see cref="ExternalLog(CK.Core.LogLevel, string, Exception, CKTrait)">ExternalLog</see>
         /// with a <see cref="CriticalErrorTag"/> tag.
         /// Defaults to true for the <see cref="Default"/> GrandOutput, false otherwise.
         /// </summary>
