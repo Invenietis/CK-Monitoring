@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -27,7 +27,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Initializes a new instance of <see cref="CKMonWriterClient"/> that can be registered to write uncompressed .ckmon file for this monitor.
         /// </summary>
-        /// <param name="path">The path. Can be absolute. When relative, it will be under <see cref="SystemActivityMonitor.RootLogPath"/> that must be set.</param>
+        /// <param name="path">The path. Can be absolute. When relative, it will be under <see cref="LogFile.RootLogPath"/> that must be set.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         public CKMonWriterClient( string path, int maxCountPerFile )
             : this( path, maxCountPerFile, LogFilter.Undefined, false )
@@ -36,7 +36,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Initializes a new instance of <see cref="CKMonWriterClient"/> that can be registered to write compressed or uncompressed .ckmon file for this monitor.
         /// </summary>
-        /// <param name="path">The path. Can be absolute. When relative, it will be under <see cref="SystemActivityMonitor.RootLogPath"/> that must be set.</param>
+        /// <param name="path">The path. Can be absolute. When relative, it will be under <see cref="LogFile.RootLogPath"/> that must be set.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="minimalFilter">Minimal filter for this client.</param>
         /// <param name="useGzipCompression">Whether to output compressed .ckmon files. Defaults to false (do not compress).</param>
@@ -74,8 +74,8 @@ namespace CK.Monitoring
                     // If initialization failed, we let the file null: this monitor will not
                     // work (the error will appear in the Critical errors) but this avoids
                     // an exception to be thrown here.
-                    var f = new MonitorBinaryFileOutput( _path, ((IUniqueId)_source).UniqueId, _maxCountPerFile, _useGzipCompression );
-                    if( f.Initialize( new SystemActivityMonitor( false, null ) ) )
+                    var f = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
+                    if( f.Initialize( source.InternalMonitor ) )
                     {
                         var g = _source.CurrentGroup;
                         _currentGroupDepth = g != null ? g.Depth : 0;
@@ -84,6 +84,7 @@ namespace CK.Monitoring
                 }
             }
         }
+
         /// <summary>
         /// Opens this writer if it is not already opened.
         /// </summary>
@@ -97,18 +98,12 @@ namespace CK.Monitoring
                 _file = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
                 _prevLogType = LogEntryType.None;
                 _prevlogTime = DateTimeStamp.Unknown;
-            }
-            using( SystemActivityMonitor.EnsureSystemClient( _source ) )
-            {
-                using( _source.ReentrancyAndConcurrencyLock() )
+                if( _file.Initialize( _source.InternalMonitor ) )
                 {
-                    if( _file.Initialize( _source ) )
-                    {
-                        var g = _source.CurrentGroup;
-                        _currentGroupDepth = g != null ? g.Depth : 0;
-                    }
-                    else _file = null;
+                    var g = _source.CurrentGroup;
+                    _currentGroupDepth = g != null ? g.Depth : 0;
                 }
+                else _file = null;
             }
             return _file != null;
         }
@@ -125,6 +120,7 @@ namespace CK.Monitoring
                 _file = null;
             }
         }
+
         /// <summary>
         /// Gets whether this writer is opened.
         /// </summary>

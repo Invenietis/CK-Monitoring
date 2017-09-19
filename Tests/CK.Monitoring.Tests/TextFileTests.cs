@@ -209,7 +209,7 @@ namespace CK.Monitoring.Tests
                     () => DumpSampleLogs2( r, g )
                     );
             }
-            FileInfo f = new DirectoryInfo( SystemActivityMonitor.RootLogPath + "TextFileMulti" ).EnumerateFiles().Single();
+            FileInfo f = new DirectoryInfo( LogFile.RootLogPath + "TextFileMulti" ).EnumerateFiles().Single();
             string text = File.ReadAllText( f.FullName );
             Console.WriteLine( text );
         }
@@ -226,7 +226,7 @@ namespace CK.Monitoring.Tests
                 DumpSampleLogs1( r, g );
                 DumpSampleLogs2( r, g );
             }
-            FileInfo f = new DirectoryInfo( SystemActivityMonitor.RootLogPath + "TextFile" ).EnumerateFiles().Single();
+            FileInfo f = new DirectoryInfo( LogFile.RootLogPath + "TextFile" ).EnumerateFiles().Single();
             string text = File.ReadAllText( f.FullName );
             Console.WriteLine( text );
             text.Should().Contain( "First Activity..." );

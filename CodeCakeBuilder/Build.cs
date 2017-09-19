@@ -1,4 +1,4 @@
-﻿using Cake.Common.Build;
+using Cake.Common.Build;
 using Cake.Common.Diagnostics;
 using Cake.Common.IO;
 using Cake.Common.Solution;
@@ -101,9 +101,10 @@ namespace CodeCake
                 .IsDependentOn( "Restore-NuGet-Packages" )
                 .Does( () =>
                  {
-                     foreach( var p in projects )
+                     using( var tempSln = Cake.CreateTemporarySolutionFile( solutionFileName ) )
                      {
-                         Cake.DotNetCoreBuild( p.Path.GetDirectory().FullPath,
+                         tempSln.ExcludeProjectsFromBuild( "CodeCakeBuilder" );
+                         Cake.DotNetCoreBuild( tempSln.FullPath.FullPath,
                              new DotNetCoreBuildSettings().AddVersionArguments( gitInfo, s =>
                              {
                                  s.Configuration = configuration;
@@ -117,25 +118,28 @@ namespace CodeCake
                  {
                      Cake.CreateDirectory( releasesDir );
                      var testDlls = projects.Where( p => p.Name.EndsWith( ".Tests" ) ).Select( p =>
-                                 new
-                             {
-                                 ProjectPath = p.Path.GetDirectory(),
-                                 NetCoreAppDll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/netcoreapp1.1/" + p.Name + ".dll" ),
-                                 Net451Dll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/net451/" + p.Name + ".dll" ),
-                             } );
+                                  new
+                                  {
+                                      ProjectPath = p.Path.GetDirectory(),
+                                      NetCoreAppDll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/netcoreapp2.0/" + p.Name + ".dll" ),
+                                      Net461Dll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/net461/" + p.Name + ".dll" ),
+                                  } );
 
                      foreach( var test in testDlls )
                      {
-                         using( Cake.Environment.SetWorkingDirectory( test.ProjectPath ) )
+                         if( System.IO.File.Exists( test.Net461Dll.FullPath ) )
+                         {
+                             Cake.Information( "Testing: {0}", test.Net461Dll );
+                             Cake.NUnit( test.Net461Dll.FullPath, new NUnitSettings()
+                             {
+                                 Framework = "v4.5",
+                                ResultsFile = test.ProjectPath.CombineWithFilePath( "TestResult.Net461.xml" )
+                             } );
+                         }
+                         if( System.IO.File.Exists( test.NetCoreAppDll.FullPath ) )
                          {
                              Cake.Information( "Testing: {0}", test.NetCoreAppDll );
                              Cake.DotNetCoreExecute( test.NetCoreAppDll );
-                             Cake.Information( "Testing: {0}", test.Net451Dll );
-                             Cake.NUnit( test.Net451Dll.FullPath, new NUnitSettings()
-                             {
-                                 Framework = "v4.5",
-                                 ResultsFile = test.ProjectPath.CombineWithFilePath( "TestResult.Net451.xml" )
-                             } );
                          }
                      }
                  } );

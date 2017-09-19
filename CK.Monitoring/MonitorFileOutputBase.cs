@@ -29,14 +29,14 @@ namespace CK.Monitoring
         /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.
         /// You must call <see cref="Initialize"/> before actually using this object.
         /// </summary>
-        /// <param name="configuredPath">The path: it can be absolute and when relative, it will be under <see cref="SystemActivityMonitor.RootLogPath"/> (that must be set).</param>
+        /// <param name="configuredPath">The path: it can be absolute and when relative, it will be under <see cref="LogFile.RootLogPath"/> (that must be set).</param>
         /// <param name="fileNameSuffix">Suffix of the file including its extension. Must not be null nor empty.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="useGzipCompression">True to gzip the file.</param>
         protected MonitorFileOutputBase( string configuredPath, string fileNameSuffix, int maxCountPerFile, bool useGzipCompression )
         {
             if( string.IsNullOrEmpty( fileNameSuffix ) ) throw new ArgumentException( nameof( fileNameSuffix ) );
-            if( maxCountPerFile < 1 ) throw new ArgumentException( "Must be greater than 0.", nameof(maxCountPerFile) );
+            if( maxCountPerFile < 1 ) throw new ArgumentException( "Must be greater than 0.", nameof( maxCountPerFile ) );
             _configPath = configuredPath;
             _maxCountPerFile = maxCountPerFile;
             _fileNameSuffix = fileNameSuffix;
@@ -50,7 +50,7 @@ namespace CK.Monitoring
         /// hyphens, enclosed in braces) of the monitor.
         /// You must call <see cref="Initialize"/> before actually using this object.
         /// </summary>
-        /// <param name="configuredPath">The path. Can be absolute. When relative, it will be under <see cref="SystemActivityMonitor.RootLogPath"/> that must be set.</param>
+        /// <param name="configuredPath">The path. Can be absolute. When relative, it will be under <see cref="LogFile.RootLogPath"/> that must be set.</param>
         /// <param name="monitorId">Monitor identifier.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="useGzipCompression">True to gzip the file.</param>
@@ -74,8 +74,8 @@ namespace CK.Monitoring
                 rootPath = _configPath;
                 if( !Path.IsPathRooted( rootPath ) )
                 {
-                    string rootLogPath = SystemActivityMonitor.RootLogPath;
-                    if( String.IsNullOrWhiteSpace( rootLogPath ) ) m.SendLine( LogLevel.Error, $"The relative path '{_configPath}' requires that SystemActivityMonitor.RootLogPath be specified.", null );
+                    string rootLogPath = LogFile.RootLogPath;
+                    if( String.IsNullOrWhiteSpace( rootLogPath ) ) m.SendLine( LogLevel.Error, $"The relative path '{_configPath}' requires that LogFile.RootLogPath be specified.", null );
                     else rootPath = Path.Combine( rootLogPath, _configPath );
                 }
             }
@@ -92,7 +92,7 @@ namespace CK.Monitoring
             {
                 if( _maxCountPerFile != value )
                 {
-                    if (_output != null && _countRemainder > _maxCountPerFile)
+                    if( _output != null && _countRemainder > _maxCountPerFile )
                     {
                         CloseCurrentFile();
                     }
@@ -109,7 +109,7 @@ namespace CK.Monitoring
         public bool Initialize( IActivityMonitor monitor )
         {
             if( _basePath != null ) return true;
-            if( monitor == null ) throw new ArgumentNullException( nameof(monitor) );
+            if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
             string b = ComputeBasePath( monitor );
             if( b != null )
             {
@@ -130,7 +130,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets whether this file is currently opened.
         /// </summary>
-        public bool IsOpened => _output != null; 
+        public bool IsOpened => _output != null;
 
         /// <summary>
         /// Closes the file if it is currently opened.
@@ -207,12 +207,12 @@ namespace CK.Monitoring
                 if( _useGzipCompression )
                 {
                     const int bufferSize = 64 * 1024;
-                    using (var source = new FileStream(fName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan|FileOptions.DeleteOnClose ))
-                    using (var destination = FileUtil.CreateAndOpenUniqueTimedFile(_basePath, _fileNameSuffix, _openedTimeUtc, FileAccess.Write, FileShare.None, bufferSize, FileOptions.SequentialScan))
+                    using( var source = new FileStream( fName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan | FileOptions.DeleteOnClose ) )
+                    using( var destination = FileUtil.CreateAndOpenUniqueTimedFile( _basePath, _fileNameSuffix, _openedTimeUtc, FileAccess.Write, FileShare.None, bufferSize, FileOptions.SequentialScan ) )
                     {
-                        using (GZipStream gZipStream = new GZipStream(destination, CompressionLevel.Optimal))
+                        using( GZipStream gZipStream = new GZipStream( destination, CompressionLevel.Optimal ) )
                         {
-                            source.CopyTo(gZipStream, bufferSize);
+                            source.CopyTo( gZipStream, bufferSize );
                         }
                     }
                 }

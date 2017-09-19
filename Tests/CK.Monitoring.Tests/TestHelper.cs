@@ -59,7 +59,7 @@ namespace CK.Monitoring.Tests
             get
             {
                 if( _solutionFolder == null ) InitalizePaths();
-                return SystemActivityMonitor.RootLogPath + "CriticalErrors";
+                return LogFile.RootLogPath + "CriticalErrors";
             }
         }
 
@@ -131,7 +131,7 @@ namespace CK.Monitoring.Tests
 
         public static string PrepareLogFolder( string subfolder )
         {
-            string p = SystemActivityMonitor.RootLogPath + subfolder;
+            string p = LogFile.RootLogPath + subfolder;
             CleanupFolder( p );
             return p;
         }
@@ -164,8 +164,8 @@ namespace CK.Monitoring.Tests
             {
                 var projectFolder = GetProjectPath();
                 _solutionFolder = Path.GetDirectoryName( Path.GetDirectoryName( projectFolder ) );
-                SystemActivityMonitor.RootLogPath = Path.Combine( projectFolder, "RootLogPath" );
-                ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {SystemActivityMonitor.RootLogPath}" );
+                LogFile.RootLogPath = Path.Combine( projectFolder, "RootLogPath" );
+                ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {LogFile.RootLogPath}" );
             }
             Assert.That( Directory.Exists( CriticalErrorsFolder ) );
         }

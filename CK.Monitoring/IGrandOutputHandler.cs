@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,7 +12,7 @@ namespace CK.Monitoring
     /// Object implementing this interface must expose a public constructor that accepts
     /// a configuration object.
     /// </summary>
-    public interface IGrandOutputHandler : IGrandOutputSink
+    public interface IGrandOutputHandler
     {
         /// <summary>
         /// Prepares the handler to receive events.
@@ -26,8 +26,16 @@ namespace CK.Monitoring
         /// Called on a regular basis.
         /// Enables this handler to do any required housekeeping.
         /// </summary>
+        /// <param name="m">The monitor to use.</param>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        void OnTimer( TimeSpan timerSpan );
+        void OnTimer( IActivityMonitor m, TimeSpan timerSpan );
+
+        /// <summary>
+        /// Handles a log event.
+        /// </summary>
+        /// <param name="m">The monitor to use.</param>
+        /// <param name="logEvent">The log event.</param>
+        void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent );
 
         /// <summary>
         /// Attempts to apply configuration if possible.

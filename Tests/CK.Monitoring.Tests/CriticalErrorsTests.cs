@@ -67,12 +67,12 @@ namespace CK.Monitoring.Tests
             {
             }
 
-            public void Handle( GrandOutputEventInfo logEvent )
+            public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
             {
                 throw new Exception( "From inside BuggySinkHandler" );
             }
 
-            public void OnTimer( TimeSpan timerSpan )
+            public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
             {
             }
         }
