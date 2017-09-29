@@ -19,6 +19,7 @@ namespace CK.Monitoring
         readonly Action _externalOnTimer;
         readonly object _confTrigger;
         readonly Action<IActivityMonitor> _initialRegister;
+        readonly CancellationTokenSource _stopTokenSource;
 
         GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
@@ -35,6 +36,7 @@ namespace CK.Monitoring
             _handlers = new List<IGrandOutputHandler>();
             _task = new Task( Process, TaskCreationOptions.LongRunning );
             _confTrigger = new object();
+            _stopTokenSource = new CancellationTokenSource();
             _timerDuration = timerDuration;
             _deltaTicks = timerDuration.Ticks;
             _deltaExternalTicks = externalTimerDuration.Ticks;
@@ -221,6 +223,11 @@ namespace CK.Monitoring
         }
 
         /// <summary>
+        /// Gets a cancellation token that is cancelled by Stop.
+        /// </summary>
+        public CancellationToken StoppingToken => _stopTokenSource.Token;
+
+        /// <summary>
         /// Starts stopping this sink, returning true iif this call
         /// actually stopped it.
         /// </summary>
@@ -231,6 +238,7 @@ namespace CK.Monitoring
         {
             if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
             {
+                _stopTokenSource.Cancel();
                 _queue.CompleteAdding();
                 return true;
             }
@@ -242,6 +250,7 @@ namespace CK.Monitoring
             if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
             _task.Wait();
             _queue.Dispose();
+            _stopTokenSource.Dispose();
         }
 
         public bool IsRunning => _stopFlag == 0;
