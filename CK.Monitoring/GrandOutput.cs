@@ -257,6 +257,12 @@ namespace CK.Monitoring
         public void ExternalLog( LogLevel level, string message, CKTrait tags ) => ExternalLog( level, message, null, tags );
 
         /// <summary>
+        /// Gets a cancellation token that is cancelled at the start
+        /// of <see cref="Dispose()"/>.
+        /// </summary>
+        public CancellationToken DisposingToken => _sink.StoppingToken;
+
+        /// <summary>
         /// Gets the sink.
         /// </summary>
         public IGrandOutputSink Sink => _sink;

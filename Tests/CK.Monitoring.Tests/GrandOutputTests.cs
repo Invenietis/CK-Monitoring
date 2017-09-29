@@ -202,6 +202,29 @@ namespace CK.Monitoring.Tests
             }
         }
 
+        [Test]
+        public void GrandOutput_signals_its_disposing_via_a_CancellationToken()
+        {
+            GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
+            // Simulates an event stream.
+            bool subscribed = true;
+            bool atleastOneReceived = false;
+            var t = new Thread( () =>
+            {
+                while( subscribed )
+                {
+                    // This throws if the sink queue is closed.
+                    go.ExternalLog( LogLevel.Fatal, "Test", null );
+                    atleastOneReceived = true;
+                }
+            } );
+            go.DisposingToken.Register( () => subscribed = false );
+            t.Start();
+            while( !atleastOneReceived ) ;
+            go.Dispose();
+            Assert.That( !subscribed );
+        }
+
         [TestCase( 1 )]
         public void disposing_GrandOutput_waits_for_termination( int loop )
         {
