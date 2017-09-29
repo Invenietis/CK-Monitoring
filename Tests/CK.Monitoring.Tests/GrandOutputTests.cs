@@ -207,6 +207,10 @@ namespace CK.Monitoring.Tests
         {
             GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
             // Simulates an event stream.
+            // Since the goal of this test is to mimic a kind of unsubscribe to
+            // an event stream with DisposingToken.Register, we use simple
+            // boolean to signal the event (using a Monitor or the CancellationToken itself
+            // would be "too easy".
             bool subscribed = true;
             bool atleastOneReceived = false;
             var t = new Thread( () =>
@@ -220,7 +224,12 @@ namespace CK.Monitoring.Tests
             } );
             go.DisposingToken.Register( () => subscribed = false );
             t.Start();
-            while( !atleastOneReceived ) ;
+            // In debug, here, using simple booleans with no interlocked works well (memory is
+            // synchronized because of the debug).
+            // In Release (both on Net461 & netcoreapp2.0) and even with Interlocked, this is not detected...
+            // while( receivedCount == 0 ) ;
+            // The Thread.Yield() does the job...
+            while( !atleastOneReceived ) Thread.Yield();
             go.Dispose();
             Assert.That( !subscribed );
         }
