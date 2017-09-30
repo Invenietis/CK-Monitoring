@@ -77,7 +77,7 @@ namespace CK.Monitoring
                     _default = new GrandOutput( configuration, true );
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                 }
-                else if( configuration != null ) _default.ApplyConfiguration( configuration );
+                else if( configuration != null ) _default.ApplyConfiguration( configuration, true );
             }
             return _default;
         }
