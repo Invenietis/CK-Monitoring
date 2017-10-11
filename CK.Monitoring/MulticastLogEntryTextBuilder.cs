@@ -25,8 +25,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Initializes a new instance of <see cref="MulticastLogEntryTextBuilder"/>.
         /// </summary>
-        /// <param name="b">The initial string builder to use.</param>
-        public MulticastLogEntryTextBuilder( StringBuilder b = null )
+        public MulticastLogEntryTextBuilder()
         {
             _prefixBuilder = new StringBuilder();
             _builder = new StringBuilder();
