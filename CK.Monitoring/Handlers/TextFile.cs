@@ -53,7 +53,7 @@ namespace CK.Monitoring.Handlers
         }
 
         /// <summary>
-        /// Does nothing since files are automatically managed (relies on <see cref="FileConfigurationBase.MaxCountPerFile"/>).
+        /// Automatically flushes the file based on <see cref="TextFileConfiguration.AutoFlushRate"/>.
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="timerSpan">Indicative timer duration.</param>

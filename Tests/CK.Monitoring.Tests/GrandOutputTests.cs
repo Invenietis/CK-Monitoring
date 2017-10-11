@@ -50,6 +50,34 @@ namespace CK.Monitoring.Tests
             TestHelper.PrepareLogFolder( "TerminationLost" );
         }
 
+        [Explicit]
+        [Test]
+        public void Console_handler_demo()
+        {
+            var c = new GrandOutputConfiguration();
+            c.AddHandler( new Handlers.ConsoleConfiguration() );
+            using( var g = new GrandOutput( c ) )
+            {
+                var m = CreateMonitorAndRegisterGrandOutput( "Hello Console!", g );
+                using( m.OpenInfo( $"This is an info group." ) )
+                {
+                    m.Fatal( $"Ouch! a faaaaatal." );
+                    m.OpenTrace( $"A trace" );
+                    using( m.OpenInfo( $"This is another group (trace)." ) )
+                    {
+                        try
+                        {
+                            throw new Exception();
+                        }
+                        catch( Exception ex )
+                        {
+                            m.Error( "An error occurred.", ex );
+                        }
+                    }
+                }
+            }
+        }
+
         [Test]
         public void CKMon_binary_files_can_be_GZip_compressed()
         {
@@ -107,6 +135,30 @@ namespace CK.Monitoring.Tests
             notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
         }
 
+        [Test]
+        public void External_log_filter_check()
+        {
+            // Resets the default global filter.
+            ActivityMonitor.DefaultFilter = LogFilter.Trace;
+            using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
+            {
+                g.ExternalLogFilter.Should().Be( LogLevelFilter.None );
+                g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
+                g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeTrue();
+                g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
+                ActivityMonitor.DefaultFilter = LogFilter.Release;
+                g.IsExternalLogEnabled( LogLevel.Info ).Should().BeFalse();
+                g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeFalse();
+                g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
+                g.ExternalLogFilter = LogLevelFilter.Info;
+                g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeFalse();
+                g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
+                g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeTrue();
+                g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
+            }
+            ActivityMonitor.DefaultFilter = LogFilter.Trace;
+        }
+
         static IActivityMonitor CreateMonitorAndRegisterGrandOutput( string topic, GrandOutput go )
         {
             var m = new ActivityMonitor( applyAutoConfigurations: false, topic: topic );
@@ -120,7 +172,6 @@ namespace CK.Monitoring.Tests
 
             public IHandlerConfiguration Clone() => new SlowSinkHandlerConfiguration() { Delay = Delay };
         }
-
 
         public class SlowSinkHandler : IGrandOutputHandler
         {

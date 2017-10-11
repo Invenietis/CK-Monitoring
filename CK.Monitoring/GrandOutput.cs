@@ -190,13 +190,10 @@ namespace CK.Monitoring
         /// <returns>True if this level should be logged otherwise false.</returns>
         public bool IsExternalLogEnabled( LogLevel level )
         {
+            if( (level & LogLevel.IsFiltered) != 0 ) return true;
             LogLevelFilter filter = ExternalLogFilter;
             if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
-            if( (level & LogLevel.IsFiltered) == 0 )
-            {
-                if( (int)filter > (int)(level & LogLevel.Mask) ) return true;
-            }
-            return false;
+            return (int)filter <= (int)(level & LogLevel.Mask);
         }
 
         /// <summary>
@@ -214,10 +211,10 @@ namespace CK.Monitoring
         /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
         public void ExternalLog( LogLevel level, string message, Exception ex = null, CKTrait tags = null )
         {
-            LogLevelFilter filter = ExternalLogFilter;
-            if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
             if( (level & LogLevel.IsFiltered) == 0 )
             {
+                LogLevelFilter filter = ExternalLogFilter;
+                if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
                 if( (int)filter > (int)(level & LogLevel.Mask) ) return;
             }
             DateTimeStamp prevLogTime;
