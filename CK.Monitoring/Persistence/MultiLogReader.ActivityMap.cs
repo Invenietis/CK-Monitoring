@@ -17,7 +17,7 @@ namespace CK.Monitoring
             readonly IReadOnlyCollection<RawLogFile> _allFiles;
             readonly IReadOnlyCollection<RawLogFile> _validFiles;
             readonly IReadOnlyList<Monitor> _monitorList;
-            readonly Dictionary<Guid,Monitor> _monitors;
+            readonly Dictionary<Guid, Monitor> _monitors;
             readonly DateTime _firstEntryDate;
             readonly DateTime _lastEntryDate;
 
@@ -36,27 +36,27 @@ namespace CK.Monitoring
             /// <summary>
             /// Gets the very first entry time (among all <see cref="Monitors"/>).
             /// </summary>
-            public DateTime FirstEntryDate => _firstEntryDate; 
+            public DateTime FirstEntryDate => _firstEntryDate;
 
             /// <summary>
             /// Gets the very last entry time (among all <see cref="Monitors"/>).
             /// </summary>
-            public DateTime LastEntryDate => _lastEntryDate; 
+            public DateTime LastEntryDate => _lastEntryDate;
 
             /// <summary>
             /// Gets the valid files (see <see cref="RawLogFile.IsValidFile"/>).
             /// </summary>
-            public IReadOnlyCollection<RawLogFile> ValidFiles => _validFiles; 
+            public IReadOnlyCollection<RawLogFile> ValidFiles => _validFiles;
 
             /// <summary>
             /// Gets all files (even the ones for which <see cref="RawLogFile.IsValidFile"/> is false).
             /// </summary>
-            public IReadOnlyCollection<RawLogFile> AllFiles => _allFiles; 
+            public IReadOnlyCollection<RawLogFile> AllFiles => _allFiles;
 
             /// <summary>
             /// Gets all the monitors that this ActivityMap contains ordered by their <see cref="Monitor.FirstEntryTime"/>.
             /// </summary>
-            public IReadOnlyList<Monitor> Monitors => _monitorList; 
+            public IReadOnlyList<Monitor> Monitors => _monitorList;
 
             /// <summary>
             /// Finds a <see cref="Monitor"/> by its identifier.
@@ -77,7 +77,7 @@ namespace CK.Monitoring
             readonly int _firstDepth;
             readonly DateTimeStamp _lastEntryTime;
             readonly int _lastDepth;
-            readonly IReadOnlyList<KeyValuePair<CKTrait,int>> _tags;
+            readonly IReadOnlyList<KeyValuePair<CKTrait, int>> _tags;
 
             internal Monitor( LiveIndexedMonitor m )
             {
@@ -93,17 +93,17 @@ namespace CK.Monitoring
             /// <summary>
             /// Gets the monitor's identifier.
             /// </summary>
-            public Guid MonitorId => _monitorId; 
+            public Guid MonitorId => _monitorId;
 
             /// <summary>
             /// Gets the different files where entries from this monitor appear.
             /// </summary>
-            public IReadOnlyList<RawLogFileMonitorOccurence> Files => _files; 
+            public IReadOnlyList<RawLogFileMonitorOccurence> Files => _files;
 
             /// <summary>
             /// Gets the very first known entry time for this monitor.
             /// </summary>
-            public DateTimeStamp FirstEntryTime => _firstEntryTime; 
+            public DateTimeStamp FirstEntryTime => _firstEntryTime;
 
             /// <summary>
             /// Gets the very first known depth for this monitor.
@@ -118,7 +118,7 @@ namespace CK.Monitoring
             /// <summary>
             /// Gets the very last known depth for this monitor.
             /// </summary>
-            public int LastDepth => _lastDepth; 
+            public int LastDepth => _lastDepth;
 
             /// <summary>
             /// Gets the weighted occurrences of each tags that have been logged in this monitor.
@@ -422,7 +422,7 @@ namespace CK.Monitoring
                 /// <summary>
                 /// Gets the log entries of the current page.
                 /// </summary>
-                public IReadOnlyList<ParentedLogEntry> Entries => _entries; 
+                public IReadOnlyList<ParentedLogEntry> Entries => _entries;
 
                 /// <summary>
                 /// Gets the page length. 
@@ -490,13 +490,13 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="pageLength">Page length.</param>
             /// <returns>All log entries in order for this Monitor.</returns>
-            public IEnumerable<ParentedLogEntry> ReadAllEntries(int pageLength = 1024)
+            public IEnumerable<ParentedLogEntry> ReadAllEntries( int pageLength = 1024 )
             {
-                using (var p = ReadFirstPage(pageLength))
+                using( var p = ReadFirstPage( pageLength ) )
                 {
-                    foreach (var e in p.Entries) yield return e;
-                    while (p.ForwardPage() > 0)
-                        foreach (var e in p.Entries) yield return e;
+                    foreach( var e in p.Entries ) yield return e;
+                    while( p.ForwardPage() > 0 )
+                        foreach( var e in p.Entries ) yield return e;
                 }
             }
 
