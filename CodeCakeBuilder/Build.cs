@@ -86,19 +86,9 @@ namespace CodeCake
                      Cake.DeleteFiles( "Tests/**/TestResult*.xml" );
                  } );
 
-            Task( "Restore-NuGet-Packages" )
-                .IsDependentOn( "Check-Repository" )
-                .IsDependentOn( "Clean" )
-                .Does( () =>
-                 {
-                    // https://docs.microsoft.com/en-us/nuget/schema/msbuild-targets
-                    Cake.DotNetCoreRestore( new DotNetCoreRestoreSettings().AddVersionArguments( gitInfo ) );
-                 } );
-
             Task( "Build" )
                 .IsDependentOn( "Check-Repository" )
                 .IsDependentOn( "Clean" )
-                .IsDependentOn( "Restore-NuGet-Packages" )
                 .Does( () =>
                  {
                      using( var tempSln = Cake.CreateTemporarySolutionFile( solutionFileName ) )
@@ -188,7 +178,7 @@ namespace CodeCake
                              || gitInfo.PreReleaseName == "prerelease"
                              || gitInfo.PreReleaseName == "rc" )
                          {
-                             PushNuGetPackages( "NUGET_API_KEY", "https://www.nuget.org/api/v2/package", nugetPackages );
+                             PushNuGetPackages( "MYGET_RELEASE_API_KEY", "https://www.myget.org/F/invenietis-release/api/v2/package", nugetPackages );
                          }
                          else
                          {
