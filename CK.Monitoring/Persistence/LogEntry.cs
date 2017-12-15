@@ -267,8 +267,8 @@ namespace CK.Monitoring
         /// If the first read byte is 0, read stops and null is returned.
         /// The 0 byte is the "end marker" that <see cref="CKMonWriterClient.Close()"/> write, but this
         /// method can read non zero-terminated streams (it catches an EndOfStreamException when reading the first byte and handles it silently).
-        /// This method can throw any type of exception (<see cref="System.IO.EndOfStreamException"/> or <see cref="InvalidDataException"/> for instance) that
-        /// must be handled by the caller.
+        /// This method can throw any type of exception except <see cref="System.IO.EndOfStreamException"/>
+        /// (like <see cref="InvalidDataException"/> for instance) that must be handled by the caller.
         /// </summary>
         /// <param name="r">The binary reader.</param>
         /// <param name="streamVersion">The version of the stream.</param>

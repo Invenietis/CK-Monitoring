@@ -208,11 +208,12 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets whether the end of file has been reached and the file is missing the final 0 byte marker.
         /// </summary>
-        public bool BadEndOfFileMarker => _badEndOfFille; 
+        public bool BadEndOfFileMarker => _badEndOfFille;
 
         /// <summary>
         /// Current <see cref="IMulticastLogEntry"/> with its associated position in the stream.
-        /// The current entry must be a multi-cast one and, as usual, <see cref="MoveNext"/> must be called before getting the first entry.
+        /// The current entry must be a multi-cast one and, as usual, <see cref="MoveNext"/> must be
+        /// called before getting the first entry.
         /// </summary>
         public MulticastLogEntryWithOffset CurrentMulticastWithOffset
         {
