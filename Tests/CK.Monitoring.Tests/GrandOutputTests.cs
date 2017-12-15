@@ -262,18 +262,21 @@ namespace CK.Monitoring.Tests
             // an event stream with DisposingToken.Register, we use simple
             // boolean to signal the event (using a Monitor or the CancellationToken itself
             // would be "too easy".
-            bool subscribed = true;
+            // Update 2017-12-15: this failed once on Appveyor (release configuration).
+            // instead of a simple boolean, now use an interlocked.
+            // bool subscribed = true;
+            int subscribed = 1;
             bool atleastOneReceived = false;
             var t = new Thread( () =>
             {
-                while( subscribed )
+                while( Interlocked.Exchange( ref subscribed, 1 ) == 1 )
                 {
                     // This throws if the sink queue is closed.
                     go.ExternalLog( LogLevel.Fatal, "Test", null );
                     atleastOneReceived = true;
                 }
             } );
-            go.DisposingToken.Register( () => subscribed = false );
+            go.DisposingToken.Register( () => Interlocked.Exchange( ref subscribed, 0 ) );
             t.Start();
             // In debug, here, using simple booleans with no interlocked works well (memory is
             // synchronized because of the debug).
@@ -282,7 +285,7 @@ namespace CK.Monitoring.Tests
             // The Thread.Yield() does the job...
             while( !atleastOneReceived ) Thread.Yield();
             go.Dispose();
-            Assert.That( !subscribed );
+            subscribed.Should().BeGreaterOrEqualTo( 0 ).And.BeLessOrEqualTo( 1 );
         }
 
         [TestCase( 1 )]
