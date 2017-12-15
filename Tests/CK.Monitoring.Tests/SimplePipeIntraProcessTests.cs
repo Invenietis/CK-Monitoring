@@ -20,12 +20,12 @@ namespace CK.Monitoring.Tests
     // A SafeHandle destructor raises an exception during Garbage Collection.
 #if !NET461
     [TestFixture]
-    public class AnonymousPipeIntraProcessTests
+    public class SimplePipeIntraProcessTests
     {
         [Test]
         public void sending_log_from_client()
         {
-            var m = new ActivityMonitor();
+            var m = new ActivityMonitor( false );
             var txt = new StupidStringClient();
             m.Output.RegisterClient( txt );
             using( m.Output.CreateBridgeTo( TestHelper.ConsoleMonitor.Output.BridgeTarget ) )

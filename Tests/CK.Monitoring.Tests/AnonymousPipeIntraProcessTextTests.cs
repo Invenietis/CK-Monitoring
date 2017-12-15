@@ -8,6 +8,8 @@ namespace CK.Monitoring.Tests
 {
     // This fails with NUnit 2.6.4 GUI runner:
     // A SafeHandle destructor raises an exception during Garbage Collection.
+    // This reproduces the way the SimpleLogPipeReceiver works to show the bug
+    // with minimal complexity. 
 #if !NET461
     [TestFixture]
     public class AnonymousPipeIntraProcessTextTests

@@ -12,6 +12,12 @@ namespace CK.Monitoring.InterProcess
     /// This receiver is the server of a <see cref="SimplePipeSenderActivityMonitorClient"/>.
     /// It creates a thread that receives the log entries from the external client and inject
     /// them in a local target monitor.
+    /// <para>
+    /// This receiver and its associated sender client cover a simple scenario where a process
+    /// launch another simple process that uses one and only one monitor. The logs emitted by the
+    /// child process appear to be from the parent process, incorporated in the activity of the
+    /// parent process local monitor.
+    /// </para>
     /// </summary>
     public class SimpleLogPipeReceiver : IDisposable
     {
@@ -44,11 +50,11 @@ namespace CK.Monitoring.InterProcess
         /// Waits for the termination of the other side.
         /// If it is known that the client has failed (typically because external process ended with a non zero
         /// return code), <paramref name="otherFailed"/> should be true: this receiver will only wait for 500 ms
-        /// before returning.
+        /// before returning, avoiding to wait for the internal thread termination.
         /// When <paramref name="otherFailed"/> is false, this method blocks until the client sends its goodbye
         /// message or the pipe is broken.
         /// </summary>
-        /// <param name="otherFailed">Hint that state that we already know that the sender has failed.</param>
+        /// <param name="otherFailed">True when you already know that the sender has failed.</param>
         /// <returns>The final status.</returns>
         public LogReceiverEndStatus WaitEnd( bool otherFailed )
         {
@@ -108,14 +114,21 @@ namespace CK.Monitoring.InterProcess
             catch( Exception ex )
             {
                 _endFlag = LogReceiverEndStatus.Error;
-                ActivityMonitor.CriticalErrorCollector.Add( ex, "While LogReceiver.Run." );
+                ActivityMonitor.CriticalErrorCollector.Add( ex, $"While {nameof( SimpleLogPipeReceiver)}.Run." );
             }
         }
 
         /// <summary>
-        /// Starts a receiver. Its <see cref="PipeName"/> must be given to the <see cref="SimplePipeSenderActivityMonitorClient"/>
+        /// Starts a receiver.
+        /// <para>
+        /// Its <see cref="PipeName"/> must be given to the <see cref="SimplePipeSenderActivityMonitorClient"/>
         /// (typically with a /logpipe: argument for the launched process) and <see cref="WaitEnd(bool)"/> should be
         /// called before disposing it.
+        /// </para>
+        /// <para>
+        /// Once the child process has been started, no more logs should be emitted in the local monitor: the internal thread
+        /// will receive the logs from the external client and relay them into the local monitor.
+        /// </para>
         /// </summary>
         /// <param name="localMonitor">The local monitor to which all collected logs will be injected.</param>
         /// <param name="interProcess">True when the client will be created in another process. False for an intra-process client (but why would you need this?).</param>
