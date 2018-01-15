@@ -266,6 +266,7 @@ namespace CK.Monitoring.Tests
             g.EnsureGrandOutputClient( m );
 
             m.Fatal( "An error occured", _exceptionWithInner );
+            m.Fatal( "Same error occured (wrapped in CKException)", new CKException( CKExceptionData.CreateFrom( _exceptionWithInner ) ) );
             m.SetTopic( "This is a topic..." );
             m.Trace( "a trace" );
             m.Trace( "another one" );
@@ -284,6 +285,7 @@ This MUST be correctly indented!" ) )
                     m.Info( "Info in info group." );
                     m.Info( "Another info in info group." );
                     m.Error( "An error.", _exceptionWithInnerLoader );
+                    m.Error( "Same error occured (wrapped in CKException)", new CKException( CKExceptionData.CreateFrom( _exceptionWithInnerLoader ) ) );
                     m.Warn( "A warning." );
                     m.Trace( "Something must be said." );
                     m.CloseGroup( "Everything is in place." );
