@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.ActivityMonitor" Version="9.0.2" />
+    <PackageReference Include="CK.ActivityMonitor" Version="9.0.3" />
   </ItemGroup>
 
 
