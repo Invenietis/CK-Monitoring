@@ -1,4 +1,4 @@
-﻿using Code.Cake;
+using Code.Cake;
 using CodeCake;
 using System;
 using System.Linq;
@@ -7,6 +7,12 @@ namespace CodeCakeBuilder
 {
     class Program
     {
+        /// <summary>
+        /// CodeCakeBuilder entry point. This is a default, simple, implementation that can 
+        /// be extended as needed.
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns>An error code (typically -1), 0 on success.</returns>
         static int Main( string[] args )
         {
             var app = new CodeCakeApplication();
