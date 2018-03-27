@@ -1,14 +1,9 @@
 {
   "profiles": {
-    "GUI Debug": {
+    "NUnit GUI": {
       "commandName": "Executable",
       "executablePath": "%USERPROFILE%\\.nuget\\packages\\nunit.runners.net4\\2.6.4\\tools\\nunit.exe",
-      "commandLineArgs": "bin\\Debug\\net461\\CK.Monitoring.Tests.dll"
-    },
-    "GUI Release": {
-      "commandName": "Executable",
-      "executablePath": "%USERPROFILE%\\.nuget\\packages\\nunit.runners.net4\\2.6.4\\tools\\nunit.exe",
-      "commandLineArgs": "bin\\Release\\net461\\CK.Monitoring.Tests.dll"
+      "commandLineArgs": "CK.Monitoring.Tests.dll"
     },
     "netcore": {
       "commandName": "Project",
