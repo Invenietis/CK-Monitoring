@@ -10,7 +10,7 @@
   </PropertyGroup>
   <!-- Shared dependency versions -->
   <PropertyGroup>
-    <CKActivityMonitorVersion>9.0.5-Cdevelop-0022</CKActivityMonitorVersion>
+    <CKActivityMonitorVersion>9.0.5-Cblank-0025</CKActivityMonitorVersion>
   </PropertyGroup>
   <!-- Reproducible builds. See: http://blog.paranoidcoding.com/2016/04/05/deterministic-builds-in-roslyn.html
     On appveyor, the clone folder MUST be set to the solution path in the CK-World.
