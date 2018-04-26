@@ -21,12 +21,18 @@ namespace CK.Monitoring
         string _currentMonitorName;
         DateTime _lastLogTime;
         int _nameLen;
+        bool _fullTimeDisplay;
 
         /// <summary>
         /// Initializes a new instance of <see cref="MulticastLogEntryTextBuilder"/>.
         /// </summary>
-        public MulticastLogEntryTextBuilder()
+        /// <param name="fullTimeDisplay">
+        /// When set to false, the log times are displayed with the +delta seconds from its minute: the full time appears
+        /// only once per minute.
+        /// </param>
+        public MulticastLogEntryTextBuilder( bool fullTimeDisplay = true )
         {
+            _fullTimeDisplay = fullTimeDisplay;
             _prefixBuilder = new StringBuilder();
             _builder = new StringBuilder();
             _monitorNames = new Dictionary<Guid, string>();
@@ -89,7 +95,7 @@ namespace CK.Monitoring
             }
             // Log time prefixes the first line only.
             TimeSpan delta = e.LogTime.TimeUtc - _lastLogTime;
-            if( delta >= TimeSpan.FromMinutes( 1 ) )
+            if( _fullTimeDisplay || delta >= TimeSpan.FromMinutes( 1 ) )
             {
                 string logTime = e.LogTime.TimeUtc.ToString( FileUtil.FileNameUniqueTimeUtcFormat );
                 _builder.Append( ' ' );
