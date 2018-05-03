@@ -23,9 +23,8 @@ namespace CodeCake
     /// <summary>
     /// Standard build "script".
     /// </summary>
-    [AddPath( "CodeCakeBuilder/Tools" )]
-    [AddPath( "packages/**/tools*" )]
-    public class Build : CodeCakeHost
+    [AddPath( "%UserProfile%/.nuget/packages/**/tools*" )]
+    public partial class Build : CodeCakeHost
     {
         public Build()
         {
@@ -43,42 +42,23 @@ namespace CodeCake
             var projectsToPublish = projects
                                         .Where( p => !p.Path.Segments.Contains( "Tests" ) );
 
+            // The SimpleRepositoryInfo should be computed once and only once.
             SimpleRepositoryInfo gitInfo = Cake.GetSimpleRepositoryInfo();
-
-            // Configuration is either "Debug" or "Release".
-            string configuration = "Debug";
+            // This default global info will be replaced by Check-Repository task.
+            // It is allocated here to ease debugging and/or manual work on complex build script.
+            CheckRepositoryInfo globalInfo = new CheckRepositoryInfo { Version = gitInfo.SafeNuGetVersion };
 
             Task( "Check-Repository" )
                 .Does( () =>
-                 {
-                     if( !gitInfo.IsValid )
-                     {
-                         if( Cake.IsInteractiveMode()
-                             && Cake.ReadInteractiveOption( "Repository is not ready to be published. Proceed anyway?", 'Y', 'N' ) == 'Y' )
-                         {
-                             Cake.Warning( "GitInfo is not valid, but you choose to continue..." );
-                         }
-                         else
-                         {
-                             if( !Cake.AppVeyor().IsRunningOnAppVeyor ) throw new Exception( "Repository is not ready to be published." );
-                         }
-                     }
-
-                     if( gitInfo.IsValidRelease
-                         && (gitInfo.PreReleaseName.Length == 0 || gitInfo.PreReleaseName == "rc") )
-                     {
-                         configuration = "Release";
-                     }
-
-                     Cake.Information( "Publishing {0} projects with version={1} and configuration={2}: {3}",
-                         projectsToPublish.Count(),
-                         gitInfo.SafeSemVersion,
-                         configuration,
-                         string.Join( ", ", projectsToPublish.Select( p => p.Name ) ) );
-                 } );
+                {
+                    globalInfo = StandardCheckRepository( projectsToPublish, gitInfo );
+                    if( globalInfo.ShouldStop )
+                    {
+                        Cake.TerminateWithSuccess( "All packages from this commit are already available. Build skipped." );
+                    }
+                } );
 
             Task( "Clean" )
-                .IsDependentOn( "Check-Repository" )
                 .Does( () =>
                  {
                      Cake.CleanDirectories( projects.Select( p => p.Path.GetDirectory().Combine( "bin" ) ) );
@@ -91,47 +71,16 @@ namespace CodeCake
                 .IsDependentOn( "Clean" )
                 .Does( () =>
                  {
-                     using( var tempSln = Cake.CreateTemporarySolutionFile( solutionFileName ) )
-                     {
-                         tempSln.ExcludeProjectsFromBuild( "CodeCakeBuilder" );
-                         Cake.DotNetCoreBuild( tempSln.FullPath.FullPath,
-                             new DotNetCoreBuildSettings().AddVersionArguments( gitInfo, s =>
-                             {
-                                 s.Configuration = configuration;
-                             } ) );
-                     }
+                     StandardSolutionBuild( solutionFileName, gitInfo, globalInfo.BuildConfiguration );
                  } );
 
             Task( "Unit-Testing" )
                 .IsDependentOn( "Build" )
+                .WithCriteria( () => Cake.InteractiveMode() == InteractiveMode.NoInteraction
+                                     || Cake.ReadInteractiveOption( "RunUnitTests", "Run Unit Tests?", 'Y', 'N' ) == 'Y' )
                 .Does( () =>
                  {
-                     Cake.CreateDirectory( releasesDir );
-                     var testDlls = projects.Where( p => p.Name.EndsWith( ".Tests" ) ).Select( p =>
-                                  new
-                                  {
-                                      ProjectPath = p.Path.GetDirectory(),
-                                      NetCoreAppDll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/netcoreapp2.0/" + p.Name + ".dll" ),
-                                      Net461Dll = p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/net461/" + p.Name + ".dll" ),
-                                  } );
-
-                     foreach( var test in testDlls )
-                     {
-                         if( System.IO.File.Exists( test.Net461Dll.FullPath ) )
-                         {
-                             Cake.Information( "Testing: {0}", test.Net461Dll );
-                             Cake.NUnit( test.Net461Dll.FullPath, new NUnitSettings()
-                             {
-                                 Framework = "v4.5",
-                                ResultsFile = test.ProjectPath.CombineWithFilePath( "TestResult.Net461.xml" )
-                             } );
-                         }
-                         if( System.IO.File.Exists( test.NetCoreAppDll.FullPath ) )
-                         {
-                             Cake.Information( "Testing: {0}", test.NetCoreAppDll );
-                             Cake.DotNetCoreExecute( test.NetCoreAppDll );
-                         }
-                     }
+                     StandardUnitTests( globalInfo.BuildConfiguration, projects.Where( p => p.Name.EndsWith( ".Tests" ) ) );
                  } );
 
             Task( "Create-NuGet-Packages" )
@@ -139,18 +88,7 @@ namespace CodeCake
                 .IsDependentOn( "Unit-Testing" )
                 .Does( () =>
                  {
-                     Cake.CreateDirectory( releasesDir );
-                     foreach( SolutionProject p in projectsToPublish )
-                     {
-                         Cake.Warning( p.Path.GetDirectory().FullPath );
-                         var s = new DotNetCorePackSettings();
-                         s.ArgumentCustomization = args => args.Append( "--include-symbols" );
-                         s.NoBuild = true;
-                         s.Configuration = configuration;
-                         s.OutputDirectory = releasesDir;
-                         s.AddVersionArguments( gitInfo );
-                         Cake.DotNetCorePack( p.Path.GetDirectory().FullPath, s );
-                     }
+                     StandardCreateNuGetPackages( releasesDir, projectsToPublish, gitInfo, globalInfo.BuildConfiguration );
                  } );
 
 
@@ -159,102 +97,13 @@ namespace CodeCake
                 .WithCriteria( () => gitInfo.IsValid )
                 .Does( () =>
                  {
-                     IEnumerable<FilePath> nugetPackages = Cake.GetFiles( releasesDir.Path + "/*.nupkg" );
-                     if( Cake.IsInteractiveMode() )
-                     {
-                         var localFeed = Cake.FindDirectoryAbove( "LocalFeed" );
-                         if( localFeed != null )
-                         {
-                             Cake.Information( "LocalFeed directory found: {0}", localFeed );
-                             if( Cake.ReadInteractiveOption( "Do you want to publish to LocalFeed?", 'Y', 'N' ) == 'Y' )
-                             {
-                                 Cake.CopyFiles( nugetPackages, localFeed );
-                             }
-                         }
-                     }
-                     if( gitInfo.IsValidRelease )
-                     {
-                         if( gitInfo.PreReleaseName == ""
-                             || gitInfo.PreReleaseName == "prerelease"
-                             || gitInfo.PreReleaseName == "rc" )
-                         {
-                             PushNuGetPackages( "MYGET_RELEASE_API_KEY",
-                                                "https://www.myget.org/F/invenietis-release/api/v2/package",
-                                                "https://www.myget.org/F/invenietis-release/symbols/api/v2/package",
-                                                nugetPackages );
-                         }
-                         else
-                         {
-                            // An alpha, beta, delta, epsilon, gamma, kappa goes to invenietis-preview.
-                            PushNuGetPackages( "MYGET_PREVIEW_API_KEY",
-                                                "https://www.myget.org/F/invenietis-preview/api/v2/package",
-                                                "https://www.myget.org/F/invenietis-preview/symbols/api/v2/package",
-                                                nugetPackages );
-                         }
-                     }
-                     else
-                     {
-                         Debug.Assert( gitInfo.IsValidCIBuild );
-                         PushNuGetPackages( "MYGET_CI_API_KEY",
-                                            "https://www.myget.org/F/invenietis-ci/api/v2/package",
-                                            "https://www.myget.org/F/invenietis-ci/symbols/api/v2/package",
-                                            nugetPackages );
-                     }
-                     if( Cake.AppVeyor().IsRunningOnAppVeyor )
-                     {
-                         Cake.AppVeyor().UpdateBuildVersion( gitInfo.SafeNuGetVersion );
-                     }
+                      StandardPushNuGetPackages( globalInfo, releasesDir );
                  } );
 
             // The Default task for this script can be set here.
             Task( "Default" )
                 .IsDependentOn( "Push-NuGet-Packages" );
 
-        }
-
-        void PushNuGetPackages( string apiKeyName, string pushUrl, string pushSymbolUrl, IEnumerable<FilePath> nugetPackages )
-        {
-            // Resolves the API key.
-            var apiKey = Cake.InteractiveEnvironmentVariable( apiKeyName );
-            if( string.IsNullOrEmpty( apiKey ) )
-            {
-                Cake.Information( $"Could not resolve {apiKeyName}. Push to {pushUrl} is skipped." );
-            }
-            else
-            {
-                var settings = new NuGetPushSettings
-                {
-                    Source = pushUrl,
-                    ApiKey = apiKey,
-                    Verbosity = NuGetVerbosity.Detailed
-                };
-                NuGetPushSettings symbSettings = null;
-                if( pushSymbolUrl != null )
-                {
-                    symbSettings = new NuGetPushSettings
-                    {
-                        Source = pushSymbolUrl,
-                        ApiKey = apiKey,
-                        Verbosity = NuGetVerbosity.Detailed
-                    };
-                }
-                foreach( var nupkg in nugetPackages )
-                {
-                    if( !nupkg.FullPath.EndsWith( ".symbols.nupkg" ) )
-                    {
-                        Cake.Information( $"Pushing '{nupkg}' to '{pushUrl}'." );
-                        Cake.NuGetPush( nupkg, settings );
-                    }
-                    else
-                    {
-                        if( symbSettings != null )
-                        {
-                            Cake.Information( $"Pushing Symbols '{nupkg}' to '{pushSymbolUrl}'." );
-                            Cake.NuGetPush( nupkg, symbSettings );
-                        }
-                    }
-                }
-            }
         }
     }
 }

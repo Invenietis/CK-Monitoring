@@ -255,7 +255,10 @@ namespace CK.Monitoring
 
         public bool IsRunning => _stopFlag == 0;
 
-        public void Handle( GrandOutputEventInfo logEvent ) => _queue.Add( logEvent );
+        public void Handle( GrandOutputEventInfo logEvent )
+        {
+            if( _stopFlag == 0 ) _queue.Add( logEvent );
+        }
 
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
