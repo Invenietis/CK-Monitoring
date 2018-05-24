@@ -123,6 +123,11 @@ namespace CK.Monitoring
              return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } );
          };
 
+        static GrandOutput()
+        {
+            AppDomain.CurrentDomain.DomainUnload += ( o, e ) => Default?.Dispose();
+        }
+
         /// <summary>
         /// Initializes a new <see cref="GrandOutput"/>. 
         /// </summary>
@@ -316,7 +321,6 @@ namespace CK.Monitoring
                 }
             }
         }
-
 
         /// <summary>
         /// Gets whether this GrandOutput has been disposed.
