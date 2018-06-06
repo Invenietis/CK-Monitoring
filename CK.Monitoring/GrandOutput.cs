@@ -126,6 +126,7 @@ namespace CK.Monitoring
         static GrandOutput()
         {
             AppDomain.CurrentDomain.DomainUnload += ( o, e ) => Default?.Dispose();
+            AppDomain.CurrentDomain.ProcessExit += ( o, e ) => Default?.Dispose();
         }
 
         /// <summary>
