@@ -165,7 +165,7 @@ namespace CK.Monitoring.Tests
             {
                 NormalizedPath path = AppContext.BaseDirectory;
                 var s = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );
-                if( s.IsEmpty ) throw new InvalidOperationException( $"Unable to find CK-Monitoring.sln above '{AppContext.BaseDirectory}'." );
+                if( s.IsEmptyPath ) throw new InvalidOperationException( $"Unable to find CK-Monitoring.sln above '{AppContext.BaseDirectory}'." );
                 _solutionFolder = s.RemoveLastPart();
                 LogFile.RootLogPath = Path.Combine( _solutionFolder, "Tests", "RootLogPath" );
                 ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {LogFile.RootLogPath}" );
