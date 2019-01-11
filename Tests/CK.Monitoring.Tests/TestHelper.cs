@@ -6,6 +6,7 @@ using System.Threading;
 using CK.Core;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
+using CK.Text;
 
 namespace CK.Monitoring.Tests
 {
@@ -162,15 +163,15 @@ namespace CK.Monitoring.Tests
         {
             if( _solutionFolder == null )
             {
-                var projectFolder = GetProjectPath();
-                _solutionFolder = Path.GetDirectoryName( Path.GetDirectoryName( projectFolder ) );
-                LogFile.RootLogPath = Path.Combine( projectFolder, "RootLogPath" );
+                NormalizedPath path = AppContext.BaseDirectory;
+                var s = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );
+                if( s.IsEmptyPath ) throw new InvalidOperationException( $"Unable to find CK-Monitoring.sln above '{AppContext.BaseDirectory}'." );
+                _solutionFolder = s.RemoveLastPart();
+                LogFile.RootLogPath = Path.Combine( _solutionFolder, "Tests", "RootLogPath" );
                 ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {LogFile.RootLogPath}" );
             }
             Assert.That( Directory.Exists( CriticalErrorsFolder ) );
         }
-
-        static string GetProjectPath( [CallerFilePath]string path = null ) => Path.GetDirectoryName( path );
 
     }
 }

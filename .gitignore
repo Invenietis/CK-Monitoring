@@ -241,3 +241,9 @@ CodeCakeBuilder/Tools/nuget.exe
 SGVVersionInfo.cs
 Tests/CK.Monitoring.Tests/TestResult.*.xml
 Tests/CK.Monitoring.Tests/RootLogPath/
+
+Tests/**/TestResult*.xml
+CodeCakeBuilder/UnitTestsDone.*.txt
+Tests/**/Logs/
+Tests/**/CKSetup-WorkingDir/
+RootLogPath/
