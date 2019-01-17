@@ -28,13 +28,13 @@ namespace CK.Monitoring.Tests
             string logPath = TestHelper.PrepareLogFolder( "sending_log_from_client" );
             var c = new GrandOutputConfiguration()
                             .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } )
-                            /*.AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } )*/;
+                            .AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } );
             using( var g = new GrandOutput( c ) )
             {
                 var m = new ActivityMonitor( false );
                 g.EnsureGrandOutputClient( m );
-                //var txt = new StupidStringClient();
-                //m.Output.RegisterClient( txt );
+                var txt = new StupidStringClient();
+                m.Output.RegisterClient( txt );
                 using( m.Output.CreateBridgeTo( TestHelper.ConsoleMonitor.Output.BridgeTarget ) )
                 {
                     using( var r = SimpleLogPipeReceiver.Start( m, interProcess: false ) )
@@ -43,13 +43,13 @@ namespace CK.Monitoring.Tests
                         r.WaitEnd( false ).Should().Be( LogReceiverEndStatus.Normal );
                     }
                 }
-                //var stupidLogs = txt.ToString();
-                //stupidLogs.Should().Contain( "From client." )
-                //                   .And.Contain( "An Exception for the fun." )
-                //                   // StupidStringClient does not dump inner exception, only the top message.
-                //                   // .And.Contain( "With an inner exception!" )
-                //                   .And.Contain( "Info n°0" )
-                //                   .And.Contain( "Info n°19" );
+                var stupidLogs = txt.ToString();
+                stupidLogs.Should().Contain( "From client." )
+                                   .And.Contain( "An Exception for the fun." )
+                                   // StupidStringClient does not dump inner exception, only the top message.
+                                   // .And.Contain( "With an inner exception!" )
+                                   .And.Contain( "Info n°0" )
+                                   .And.Contain( "Info n°19" );
             }
             // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
