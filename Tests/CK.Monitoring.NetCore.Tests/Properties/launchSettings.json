@@ -2,7 +2,7 @@
   "profiles": {
     "netcore": {
       "commandName": "Project",
-      "commandLineArgs": "--wait --test=CK.Monitoring.Tests.SimplePipeIntraProcessTests.sending_log_from_client"
+      "commandLineArgs": "--wait"
     }
   }
 }
