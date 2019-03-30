@@ -1,7 +1,7 @@
 <Project>
   <!-- Shared dependency versions -->
   <PropertyGroup>
-    <CKActivityMonitorVersion>0.0.0--027nykm-local</CKActivityMonitorVersion>
+    <CKActivityMonitorVersion>11.0.3--0014-develop</CKActivityMonitorVersion>
   </PropertyGroup>
   <!--<SourceLink>: is enabled only for Cake build. -->
   <PropertyGroup>
