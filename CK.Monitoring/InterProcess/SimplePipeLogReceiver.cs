@@ -36,8 +36,10 @@ namespace CK.Monitoring.InterProcess
             _reader = new CKBinaryReader( _server );
             _monitor = m;
             PipeName = _server.GetClientHandleAsString();
-            _thread = new Thread( Run );
-            _thread.IsBackground = true;
+            _thread = new Thread( Run )
+            {
+                IsBackground = true
+            };
             _thread.Start();
         }
 
@@ -62,7 +64,10 @@ namespace CK.Monitoring.InterProcess
             {
                 if( !_thread.Join( 500 ) ) _endFlag = LogReceiverEndStatus.Error;
             }
-            else _thread.Join();
+            else
+            {
+                _thread.Join();
+            }
             return _endFlag;
         }
 
