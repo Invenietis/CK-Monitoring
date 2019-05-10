@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using CK.Core;
-
 namespace CK.Monitoring.Handlers
 {
     /// <summary>
@@ -12,14 +12,24 @@ namespace CK.Monitoring.Handlers
     public class Console : IGrandOutputHandler
     {
         readonly MulticastLogEntryTextBuilder _builder;
-
+        ConsoleConfiguration _config;
+        string _currentMonitor;
+        bool _monitorColorSwitch;
         /// <summary>
         /// Initializes a new console handler.
         /// </summary>
         /// <param name="config">The configuration.</param>
         public Console( ConsoleConfiguration config )
         {
-            _builder = new MulticastLogEntryTextBuilder();
+            _config = config ?? throw new ArgumentNullException( "config" );
+            if( string.IsNullOrWhiteSpace( config.DateFormat ) )
+            {
+                _builder = new MulticastLogEntryTextBuilder( config.UseDeltaTime, true );
+            }
+            else
+            {
+                _builder = new MulticastLogEntryTextBuilder( config.DateFormat, config.UseDeltaTime );
+            }
         }
 
         /// <summary>
@@ -40,7 +50,9 @@ namespace CK.Monitoring.Handlers
         /// <returns>True if <paramref name="c"/> is a ConsoleConfiguration.</returns>
         public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
-            return c is ConsoleConfiguration;
+            if( !(c is ConsoleConfiguration cf) ) return false;
+            _config = cf;
+            return true;
         }
 
         /// <summary>
@@ -59,9 +71,36 @@ namespace CK.Monitoring.Handlers
         /// <param name="e">The log entry.</param>
         public void Handle( IActivityMonitor m, GrandOutputEventInfo e )
         {
-            _builder.AppendEntry( e.Entry );
-            System.Console.Write( _builder.Builder.ToString() );
-            _builder.Builder.Clear();
+           
+            var entry = _builder.FormatEntry( e.Entry );
+            if( entry.Key != null )
+            {
+                DisplayFormattedEntry( entry.Key.Value, LogLevel.Info );
+            }
+            DisplayFormattedEntry( entry.Value, e.Entry.LogLevel );
+        }
+
+        void DisplayFormattedEntry( MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel )
+        {
+            ConsoleColor prevForegroundColor = System.Console.ForegroundColor;
+            ConsoleColor prevBackgroundColor = System.Console.BackgroundColor;
+            System.Console.Write( entry.FormattedDate + " " );
+            if( _currentMonitor != entry.MonitorId )
+            {
+                _currentMonitor = entry.MonitorId;
+                _monitorColorSwitch = !_monitorColorSwitch;
+            }
+            if( _monitorColorSwitch )
+            {
+               System.Console.ForegroundColor = prevBackgroundColor;
+               System.Console.BackgroundColor = prevForegroundColor;
+            }
+            System.Console.Write( entry.MonitorId );
+            ColoredActivityMonitorConsoleClient.DefaultSetColor( _config.BackgroundColor, LogLevel.Mask & logLevel );
+            System.Console.Write( ' ' );
+            System.Console.Write(entry.RemainingOfTheEntry );
+            System.Console.ForegroundColor = prevForegroundColor;
+            System.Console.BackgroundColor = prevBackgroundColor;
         }
 
         /// <summary>
