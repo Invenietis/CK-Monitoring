@@ -70,7 +70,10 @@ namespace CK.Monitoring.Handlers
                 _file.Close();
                 _file = new MonitorBinaryFileOutput( _config.Path, _config.MaxCountPerFile, _config.UseGzipCompression );
             }
-            else _file.MaxCountPerFile = cF.MaxCountPerFile;
+            else
+            {
+                _file.MaxCountPerFile = cF.MaxCountPerFile;
+            }
             _config = cF;
             return true;
         }
