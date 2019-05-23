@@ -32,6 +32,7 @@ namespace CK.Monitoring
         readonly string _blankSpacePrefix;
         const string _deltaFormat = @"ss\.fffffff";
         readonly int _deltaBlankSpacing;
+
         /// <summary>
         /// Initializes a new instance of <see cref="MulticastLogEntryTextBuilder"/>.
         /// </summary>
@@ -63,6 +64,7 @@ namespace CK.Monitoring
             _blankSpacePrefix = new string( ' ', _timeFormatLength + 8 ); //timeString + ' ' + '~001' + ' ' + 'F' + ' '
             _deltaBlankSpacing = _timeFormatLength - _deltaFormat.Length;
         }
+
         static string B64ConvertInt( int value )
         {
             //https://www.codeproject.com/Articles/27493/Convert-an-integer-to-a-base-64-string-and-back-ag
@@ -72,25 +74,6 @@ namespace CK.Monitoring
             c[1] = _b64e[(value & 4032) >> 06];
             c[2] = _b64e[(value & 63)];
             return new string( c );
-        }
-
-        /// <returns>(string currentMonitorName, FormattedEntry? optionalLine ) </returns>
-        KeyValuePair<string, FormattedEntry?> GetMonitorName( IMulticastLogEntry e )
-        {
-            if( _monitorNames.TryGetValue( e.MonitorId, out string currentMonitorName ) )
-            {
-                return new KeyValuePair<string, FormattedEntry?>( currentMonitorName, null );
-            }
-            string _monitorResetLog = "";
-            if( _monitorNames.Count == _maxMonitorCount )
-            {
-                _monitorNames.Clear();
-                _monitorResetLog = $" Monitor reset count {_maxMonitorCount}.";
-            }
-            currentMonitorName = B64ConvertInt( _monitorNames.Count );
-            _monitorNames.Add( e.MonitorId, currentMonitorName );
-            var optionalInput = new FormattedEntry( currentMonitorName, GetFormattedDate( e ), $"i Monitor: ~{e.MonitorId.ToString()}. {_monitorResetLog}\n" );
-            return new KeyValuePair<string, FormattedEntry?>( currentMonitorName, optionalInput );
         }
 
         string GetFormattedDate( IMulticastLogEntry e )
@@ -111,34 +94,60 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Represent an entry to display. Mostly used to change the color of the different parts.
+        /// Represent a "line" to display.
+        /// This is used to change the color of the different parts: 
         /// </summary>
         public readonly struct FormattedEntry
         {
             /// <summary>
             /// Construct a new <see cref="FormattedEntry"/>.
             /// </summary>
+            /// <param name="logLevel">Log level.</param>
+            /// <param name="indentationPrefix">Indentation prefix.</param>
             /// <param name="monitorId">The monitor id, the constructor will prepend a '~' character.</param>
             /// <param name="date">The formatted date of the entry.</param>
             /// <param name="remainingOfTheEntry">The rest of the text entry.</param>
-            public FormattedEntry( string monitorId, string date, string remainingOfTheEntry )
+            public FormattedEntry( char logLevel, string indentationPrefix, string monitorId, string date, string remainingOfTheEntry )
             {
+                LogLevel = logLevel;
+                IndentationPrefix = indentationPrefix;
                 FormattedDate = date;
                 MonitorId = "~"+ monitorId;
                 RemainingOfTheEntry = remainingOfTheEntry;
             }
+
             /// <summary>
-            /// The formatted date of the entry.
+            /// The level character.
+            /// </summary>
+            public readonly char LogLevel;
+
+            /// <summary>
+            /// The level character.
+            /// </summary>
+            public readonly string IndentationPrefix;
+
+            /// <summary>
+            /// Part 1: the formatted date of the entry.
             /// </summary>
             public readonly string FormattedDate;
+
             /// <summary>
-            /// The monitor id to display.
+            /// Part 2: the monitor identifier to display.
             /// </summary>
             public readonly string MonitorId;
+
             /// <summary>
-            /// The rest of the text entry.
+            /// Part 3: the text entry is the <see cref="LogLevel"/> + ' ' + <see cref="IndentationPrefix"/> + the log text itself.
+            /// The first part length is 2 + IndentationPrefix.Length.
             /// </summary>
             public readonly string RemainingOfTheEntry;
+
+            /// <summary>
+            /// Returns 
+            /// </summary>
+            /// <returns></returns>
+            public override string ToString() => FormattedDate + MonitorId + RemainingOfTheEntry;
+            
         }
 
         /// <summary>
@@ -148,13 +157,32 @@ namespace CK.Monitoring
         /// <returns>(FormattedEntry optionalEntry, FormattedEntry entry)</returns>
         public KeyValuePair<FormattedEntry?,FormattedEntry> FormatEntry( IMulticastLogEntry logEntry )
         {
-            KeyValuePair<string, FormattedEntry?> kvp = GetMonitorName( logEntry );
+            FormattedEntry? firstLine;
+            string formattedDate = GetFormattedDate( logEntry );
+
+            char logLevel = CharLogLevel( logEntry );
             string indentationPrefix = ActivityMonitorTextHelperClient.GetMultilinePrefixWithDepth( logEntry.Text != null ? logEntry.GroupDepth : logEntry.GroupDepth - 1 );
+
+            if( !_monitorNames.TryGetValue( logEntry.MonitorId, out string monitorId ) )
+            {
+                string _monitorResetLog = "";
+                if( _monitorNames.Count == _maxMonitorCount )
+                {
+                    _monitorNames.Clear();
+                    _monitorResetLog = $" Monitor reset count {_maxMonitorCount}.";
+                }
+                monitorId = B64ConvertInt( _monitorNames.Count );
+                _monitorNames.Add( logEntry.MonitorId, monitorId );
+                firstLine = new FormattedEntry( 'i', indentationPrefix, monitorId, formattedDate, $"i Monitor: ~{logEntry.MonitorId.ToString()}. {_monitorResetLog}" );
+            }
+            else firstLine = null;
+
             string multiLinePrefix = _blankSpacePrefix + indentationPrefix;
 
-            _builder.Append( CharLogLevel( logEntry ) )
-                .Append(' ')
+            _builder.Append( logLevel )
+                .Append( ' ' )
                 .Append( indentationPrefix );
+
             if( logEntry.Text != null )
             {
                 Debug.Assert( logEntry.LogType != LogEntryType.CloseGroup );
@@ -188,7 +216,7 @@ namespace CK.Monitoring
             }
             string outputLine = _builder.ToString();
             _builder.Clear();
-            return new KeyValuePair<FormattedEntry?, FormattedEntry>(kvp.Value, new FormattedEntry( kvp.Key, GetFormattedDate( logEntry ), outputLine ));
+            return new KeyValuePair<FormattedEntry?, FormattedEntry>( firstLine, new FormattedEntry( logLevel, indentationPrefix, monitorId, formattedDate, outputLine ) );
         }
 
         /// <summary>
