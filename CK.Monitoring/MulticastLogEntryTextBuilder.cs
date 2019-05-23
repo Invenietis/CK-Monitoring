@@ -112,7 +112,7 @@ namespace CK.Monitoring
                 LogLevel = logLevel;
                 IndentationPrefix = indentationPrefix;
                 FormattedDate = date;
-                MonitorId = "~"+ monitorId;
+                MonitorId = "~" + monitorId;
                 RemainingOfTheEntry = remainingOfTheEntry;
             }
 
@@ -122,7 +122,7 @@ namespace CK.Monitoring
             public readonly char LogLevel;
 
             /// <summary>
-            /// The level character.
+            /// The Indentation of the log.
             /// </summary>
             public readonly string IndentationPrefix;
 
@@ -143,11 +143,34 @@ namespace CK.Monitoring
             public readonly string RemainingOfTheEntry;
 
             /// <summary>
-            /// Returns 
+            /// Returns the log entry formatted: 
+            /// <see cref="FormattedDate"/> + " " + <see cref="MonitorId"/> + " " + <see cref="RemainingOfTheEntry"/>.
             /// </summary>
-            /// <returns></returns>
-            public override string ToString() => FormattedDate + MonitorId + RemainingOfTheEntry;
-            
+            /// <returns>The full formatted entry line.</returns>
+            public override string ToString() => FormattedDate + " " + MonitorId + " " + RemainingOfTheEntry;
+
+        }
+
+        /// <summary>
+        /// Gets a formatted string from a logEntry.
+        /// </summary>
+        /// <param name="logEntry">Entry to format.</param>
+        /// <param name="entrySeparator">Separate the two entries when needed. Default null resolve to <see cref="Environment.NewLine"/>.</param>
+        /// <returns>Formatted log entries.</returns>
+        public string FormatEntryString(IMulticastLogEntry logEntry, string entrySeparator = null)
+        {
+            if( entrySeparator == null ) entrySeparator = Environment.NewLine;
+            var logOutput = FormatEntry( logEntry );
+            if( logOutput.Key == null )
+            {
+                return logOutput.Value.ToString();
+            }
+            _builder.Append( logOutput.Key.Value.ToString() )
+                .Append( entrySeparator )
+                .Append( logOutput.Value.ToString() );
+            string output = _builder.ToString();
+            _builder.Clear();
+            return output;
         }
 
         /// <summary>
@@ -155,7 +178,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="logEntry"></param>
         /// <returns>(FormattedEntry optionalEntry, FormattedEntry entry)</returns>
-        public KeyValuePair<FormattedEntry?,FormattedEntry> FormatEntry( IMulticastLogEntry logEntry )
+        public KeyValuePair<FormattedEntry?, FormattedEntry> FormatEntry( IMulticastLogEntry logEntry )
         {
             FormattedEntry? firstLine;
             string formattedDate = GetFormattedDate( logEntry );
@@ -175,7 +198,10 @@ namespace CK.Monitoring
                 _monitorNames.Add( logEntry.MonitorId, monitorId );
                 firstLine = new FormattedEntry( 'i', indentationPrefix, monitorId, formattedDate, $"i Monitor: ~{logEntry.MonitorId.ToString()}. {_monitorResetLog}" );
             }
-            else firstLine = null;
+            else
+            {
+                firstLine = null;
+            }
 
             string multiLinePrefix = _blankSpacePrefix + indentationPrefix;
 

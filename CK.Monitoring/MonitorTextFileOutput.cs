@@ -35,23 +35,10 @@ namespace CK.Monitoring
         public void Write( IMulticastLogEntry e )
         {
             BeforeWriteEntry();
-            var formattedLines = _builder.FormatEntry( e );
-            if( formattedLines.Key != null )
-            {
-                WriteEntry( formattedLines.Key.Value ) ;
-            }
-            WriteEntry( formattedLines.Value );
+            string formattedLines = _builder.FormatEntryString( e );
+            _writer.Write( formattedLines );
             _canFlush = true;
             AfterWriteEntry();
-        }
-
-        void WriteEntry(MulticastLogEntryTextBuilder.FormattedEntry entry)
-        {
-            _writer.Write( entry.FormattedDate );
-            _writer.Write( " " );
-            _writer.Write( entry.MonitorId );
-            _writer.Write( " " );
-            _writer.Write( entry.RemainingOfTheEntry );
         }
 
         /// <summary>
