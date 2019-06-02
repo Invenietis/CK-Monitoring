@@ -170,14 +170,13 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Opens a new file suffixed by ".tmp".
+        /// Opens a new file named "T-" + Unique-Timed-File-Utc + fileNameSuffix + ".tmp".
         /// </summary>
         /// <returns>The opened stream to write to.</returns>
         protected virtual Stream OpenNewFile()
         {
-            FileOptions opt = FileOptions.SequentialScan;
             _openedTimeUtc = DateTime.UtcNow;
-            _output = new FileStream( _basePath + Guid.NewGuid().ToString() + _fileNameSuffix + ".tmp", FileMode.CreateNew, FileAccess.Write, FileShare.Read, _fileBufferSize, opt );
+            _output = FileUtil.CreateAndOpenUniqueTimedFile( _basePath + "T-", _fileNameSuffix + ".tmp", _openedTimeUtc, FileAccess.Write, FileShare.Read, _fileBufferSize, FileOptions.SequentialScan );
             _countRemainder = _maxCountPerFile;
             return _output;
         }

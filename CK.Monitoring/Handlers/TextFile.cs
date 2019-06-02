@@ -24,8 +24,7 @@ namespace CK.Monitoring.Handlers
         /// <param name="config">The configuration.</param>
         public TextFile( TextFileConfiguration config )
         {
-            if( config == null ) throw new ArgumentNullException( nameof( config ) );
-            _config = config;
+            _config = config ?? throw new ArgumentNullException( nameof( config ) );
             _file = new MonitorTextFileOutput( config.Path, config.MaxCountPerFile, false );
             _countFlush = _config.AutoFlushRate;
         }

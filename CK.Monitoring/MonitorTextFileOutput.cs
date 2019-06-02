@@ -1,4 +1,5 @@
 using CK.Core;
+using System.Collections.Generic;
 using System.IO;
 
 namespace CK.Monitoring
@@ -24,7 +25,7 @@ namespace CK.Monitoring
         public MonitorTextFileOutput( string configuredPath, int maxCountPerFile, bool useGzipCompression )
             : base( configuredPath, ".txt" + (useGzipCompression ? ".gzip" : string.Empty), maxCountPerFile, useGzipCompression )
         {
-            _builder = new MulticastLogEntryTextBuilder();
+            _builder = new MulticastLogEntryTextBuilder( false, false );
         }
 
         /// <summary>
@@ -34,10 +35,9 @@ namespace CK.Monitoring
         public void Write( IMulticastLogEntry e )
         {
             BeforeWriteEntry();
-            _builder.AppendEntry( e );
-            _writer.Write( _builder.Builder.ToString() );
+            string formattedLines = _builder.FormatEntryString( e );
+            _writer.Write( formattedLines );
             _canFlush = true;
-            _builder.Builder.Clear();
             AfterWriteEntry();
         }
 
