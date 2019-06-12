@@ -1,7 +1,7 @@
 <Project>
   <!-- Shared dependency versions -->
   <PropertyGroup>
-    <CKActivityMonitorVersion>11.1.0</CKActivityMonitorVersion>
+    <CKActivityMonitorVersion>0.0.0--02biqfy-local</CKActivityMonitorVersion>
   </PropertyGroup>
   <!--<SourceLink>: is enabled only for Cake build. -->
   <PropertyGroup>
@@ -41,7 +41,7 @@
   <!--<ReproducibleBuilds>: See http://blog.paranoidcoding.com/2016/04/05/deterministic-builds-in-roslyn.html.-->
   <PropertyGroup Condition=" '$(CakeBuild)' == 'true' ">
     <Deterministic>true</Deterministic>
-    <PathMap>$(SolutionDir)=C:\CKli-World\CK-Core-Projects\CK-Monitoring</PathMap>
+    <PathMap>'$(SolutionDir)'=C:\CKli-World\CK-Core-Projects\CK-Monitoring</PathMap>
   </PropertyGroup>
   <!--</ReproducibleBuilds>-->
   <!--<ZeroVersion>: When not building from the CI, assemblies always use the ZeroVersion (see CSemVer.InformationalVersion).-->
