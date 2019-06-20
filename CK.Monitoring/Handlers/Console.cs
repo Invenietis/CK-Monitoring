@@ -97,7 +97,7 @@ namespace CK.Monitoring.Handlers
             }
             System.Console.Write( entry.MonitorId );
             ColoredActivityMonitorConsoleClient.DefaultSetColor( _config.BackgroundColor, LogLevel.Mask & logLevel );
-            System.Console.Write( ' ' + entry.LogLevel + ' ' );
+            System.Console.Write( " " + entry.LogLevel + " " );
             System.Console.ForegroundColor = prevForegroundColor;
             System.Console.BackgroundColor = prevBackgroundColor;
             System.Console.Write( entry.IndentationPrefix );
