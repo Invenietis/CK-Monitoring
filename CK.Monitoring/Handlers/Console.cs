@@ -75,12 +75,12 @@ namespace CK.Monitoring.Handlers
             var entry = _builder.FormatEntry( e.Entry );
             if( entry.Key != null )
             {
-                DisplayFormattedEntry( entry.Key.Value, LogLevel.Info, entry.Key.Value.RemainingOfTheEntry.Substring(2+entry.Key.Value.IndentationPrefix.Length) );
+                DisplayFormattedEntry( entry.Key.Value, LogLevel.Info);
             }
-            DisplayFormattedEntry( entry.Value, e.Entry.LogLevel, e.Entry.Text );
+            DisplayFormattedEntry( entry.Value, e.Entry.LogLevel );
         }
 
-        void DisplayFormattedEntry( MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel, string logMessage )
+        void DisplayFormattedEntry( MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel )
         {
             ConsoleColor prevForegroundColor = System.Console.ForegroundColor;
             ConsoleColor prevBackgroundColor = System.Console.BackgroundColor;
@@ -92,19 +92,24 @@ namespace CK.Monitoring.Handlers
             }
             if( _monitorColorSwitch )
             {
-                System.Console.ForegroundColor = prevBackgroundColor;
-                System.Console.BackgroundColor = prevForegroundColor;
+                ConsoleResetColor();
             }
             System.Console.Write( entry.MonitorId );
-            ColoredActivityMonitorConsoleClient.DefaultSetColor( _config.BackgroundColor, LogLevel.Mask & logLevel );
+            ConsoleSetColor();
             System.Console.Write( " " + entry.LogLevel + " " );
-            System.Console.ForegroundColor = prevForegroundColor;
-            System.Console.BackgroundColor = prevBackgroundColor;
+            ConsoleResetColor();
             System.Console.Write( entry.IndentationPrefix );
-            ColoredActivityMonitorConsoleClient.DefaultSetColor( _config.BackgroundColor, LogLevel.Mask & logLevel );
-            System.Console.WriteLine( logMessage );
-            System.Console.ForegroundColor = prevForegroundColor;
-            System.Console.BackgroundColor = prevBackgroundColor;
+            ConsoleSetColor();
+            System.Console.WriteLine( entry.EntryText );
+            ConsoleResetColor();
+
+            void ConsoleSetColor() =>
+                ColoredActivityMonitorConsoleClient.DefaultSetColor( _config.BackgroundColor, LogLevel.Mask & logLevel );
+            void ConsoleResetColor()
+            {
+                System.Console.ForegroundColor = prevForegroundColor;
+                System.Console.BackgroundColor = prevBackgroundColor;
+            }
         }
 
         /// <summary>

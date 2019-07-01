@@ -54,27 +54,44 @@ namespace CK.Monitoring.Tests
         [Test]
         public void Console_handler_demo()
         {
+            var a = new ActivityMonitor();
+            a.Output.RegisterClient( new ActivityMonitorConsoleClient() );
+            a.Info( "This is an ActivityMonitor Console demo." );
+            LogDemo( a );
             var c = new GrandOutputConfiguration();
             c.AddHandler( new Handlers.ConsoleConfiguration() );
+            c.AddHandler( new Handlers.TextFileConfiguration()
+            {
+                Path = "test"
+            } );
             using( var g = new GrandOutput( c ) )
             {
                 var m = CreateMonitorAndRegisterGrandOutput( "Hello Console!", g );
-                using( m.OpenInfo( $"This is an info group." ) )
+                m.Info( "This is the same demo, but with the GrandOutputConsole." );
+                LogDemo( m );
+            }
+        }
+
+        void LogDemo(IActivityMonitor m)
+        {
+            m.Info( "This is an info." );
+            using( m.OpenInfo( $"This is an info group." ) )
+            {
+                m.Fatal( $"Ouch! a faaaaatal." );
+                m.OpenTrace( $"A trace" );
+                var group = m.OpenInfo( $"This is another group (trace)." );
                 {
-                    m.Fatal( $"Ouch! a faaaaatal." );
-                    m.OpenTrace( $"A trace" );
-                    using( m.OpenInfo( $"This is another group (trace)." ) )
+                    try
                     {
-                        try
-                        {
-                            throw new Exception();
-                        }
-                        catch( Exception ex )
-                        {
-                            m.Error( "An error occurred.", ex );
-                        }
+                        throw new Exception();
+                    }
+                    catch( Exception ex )
+                    {
+                        m.Error( "An error occurred.", ex );
                     }
                 }
+                m.CloseGroup( "This is a close group." );
+                group.Dispose();
             }
         }
 
