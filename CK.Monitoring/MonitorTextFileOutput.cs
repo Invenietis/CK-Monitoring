@@ -36,7 +36,7 @@ namespace CK.Monitoring
         {
             BeforeWriteEntry();
             string formattedLines = _builder.FormatEntryString( e );
-            _writer.Write( formattedLines );
+            _writer.WriteLine( formattedLines );
             _canFlush = true;
             AfterWriteEntry();
         }
