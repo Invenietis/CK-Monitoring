@@ -92,7 +92,8 @@ namespace CK.Monitoring.Handlers
             }
             if( _monitorColorSwitch )
             {
-                ConsoleResetColor();
+                System.Console.ForegroundColor = prevBackgroundColor;
+                System.Console.BackgroundColor = prevForegroundColor;
             }
             System.Console.Write( entry.MonitorId );
             ConsoleSetColor();
