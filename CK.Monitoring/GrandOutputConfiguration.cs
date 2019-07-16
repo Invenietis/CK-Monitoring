@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +16,7 @@ namespace CK.Monitoring
         /// Gets or sets the timer duration.
         /// Defaults to 500 milliseconds.
         /// </summary>
-        public TimeSpan TimerDuration { get; set; } = TimeSpan.FromMilliseconds(500);
+        public TimeSpan TimerDuration { get; set; } = TimeSpan.FromMilliseconds( 500 );
 
         /// <summary>
         /// Gets the list of handlers configuration.
@@ -28,7 +28,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="duration">Sets the timer duration.</param>
         /// <returns>This configuration.</returns>
-        public GrandOutputConfiguration SetTimerDuration(TimeSpan duration)
+        public GrandOutputConfiguration SetTimerDuration( TimeSpan duration )
         {
             TimerDuration = duration;
             return this;
@@ -39,9 +39,9 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="config">The configuration top add.</param>
         /// <returns>This configuration object.</returns>
-        public GrandOutputConfiguration AddHandler(IHandlerConfiguration config)
+        public GrandOutputConfiguration AddHandler( IHandlerConfiguration config )
         {
-            Handlers.Add(config);
+            Handlers.Add( config );
             return this;
         }
 
@@ -53,7 +53,7 @@ namespace CK.Monitoring
         {
             var c = new GrandOutputConfiguration();
             c.TimerDuration = TimerDuration;
-            c.Handlers.AddRange(Handlers.Select(h => h.Clone()));
+            c.Handlers.AddRange( Handlers.Select( h => h.Clone() ) );
             return c;
         }
     }
