@@ -212,7 +212,7 @@ namespace CK.Monitoring
                 if( logEntry.Exception != null )
                 {
                     _builder.AppendLine();
-                    logEntry.Exception.ToStringBuilder( _builder, multiLinePrefix );
+                    logEntry.Exception.ToStringBuilder( _builder, multiLinePrefix, false );
                 }
             }
             else
