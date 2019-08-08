@@ -20,10 +20,10 @@ namespace CK.Monitoring.Handlers
         /// <summary>
         /// Gets or sets the rate of file housekeeping tasks execution (automatic log file deletion).
         /// This is a multiple of <see cref="GrandOutputConfiguration.TimerDuration"/>,
-        /// and defaults to 240 (which is 2 minutes with the default <see cref="GrandOutputConfiguration.TimerDuration"/> of 500ms).
+        /// and defaults to 1800 (which is 15 minutes with the default <see cref="GrandOutputConfiguration.TimerDuration"/> of 500ms).
         /// Setting this to zero disables housekeeping entirely.
         /// </summary>
-        public int HousekeepingRate { get; set; } = 240;
+        public int HousekeepingRate { get; set; } = 1800;
 
         /// <summary>
         /// Gets or sets the minimum number of days to keep log files, when housekeeping is enabled via <see cref="HousekeepingRate"/>.
@@ -44,10 +44,11 @@ namespace CK.Monitoring.Handlers
 
         /// <summary>
         /// Gets or sets the maximum total file size log files can use, in kilobytes.
+        /// Defaults to 100 megabytes.
         /// Log files within <see cref="MinimumTimeSpanToKeep"/> or <see cref="MinimumDaysToKeep"/> will not be deleted,
         /// even if they exceed this value.
         /// </summary>
-        public int MaximumTotalKbToKeep { get; set; } = 5000;
+        public int MaximumTotalKbToKeep { get; set; } = 100_000;
 
         /// <summary>
         /// Clones this configuration.
