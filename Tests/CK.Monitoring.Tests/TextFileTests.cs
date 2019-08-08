@@ -243,10 +243,10 @@ namespace CK.Monitoring.Tests
             string folder = TestHelper.PrepareLogFolder( "AutoDelete_Date" );
 
             var textConf = new Handlers.TextFileConfiguration() { Path = "AutoDelete_Date" };
-            textConf.HousekeepingRate.Should().Be( 240, "Default HousekeepingRate configuration" );
+            textConf.HousekeepingRate.Should().Be( 1800, "Default HousekeepingRate configuration" );
             textConf.MinimumDaysToKeep.Should().Be( 60, "Default HousekeepingRate configuration" );
             textConf.MinimumTimeSpanToKeep.Should().Be( TimeSpan.FromDays( 60 ), "Default HousekeepingRate configuration" );
-            textConf.MaximumTotalKbToKeep.Should().Be( 5000, "Default HousekeepingRate configuration" );
+            textConf.MaximumTotalKbToKeep.Should().Be( 100_000, "Default HousekeepingRate configuration" );
 
             // Change configuration for tests
             textConf.HousekeepingRate = 1; // Run every 500ms
@@ -316,7 +316,7 @@ namespace CK.Monitoring.Tests
 
             long getTotalLogSize()
             {
-                return Directory.EnumerateFiles( folder ).Sum(x => new FileInfo(x).Length);
+                return Directory.EnumerateFiles( folder ).Sum( x => new FileInfo( x ).Length );
             }
 
             var totalLogSize = getTotalLogSize();
