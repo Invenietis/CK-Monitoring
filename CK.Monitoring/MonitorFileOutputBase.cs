@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Threading;
 using CK.Core;
@@ -128,6 +129,12 @@ namespace CK.Monitoring
         }
 
         /// <summary>
+        /// The base path in which log files are created.
+        /// Can be null when <see cref="Initialize"/> has not been called.
+        /// </summary>
+        internal string BasePath => _basePath;
+
+        /// <summary>
         /// Gets whether this file is currently opened.
         /// </summary>
         public bool IsOpened => _output != null;
@@ -167,6 +174,79 @@ namespace CK.Monitoring
         public void Dispose()
         {
             Close();
+        }
+
+        /// <summary>
+        /// Automatically deletes files that are older than the specified <paramref name="timeSpanToKeep"/>,
+        /// and those beyond that would exceed the total size specified by <paramref name="totalBytesToKeep"/>.
+        /// </summary>
+        /// <param name="m">The monitor to use when logging.</param>
+        /// <param name="timeSpanToKeep">
+        /// The minimum time log files should be kept.
+        /// Log files within this span will not be deleted if they exceed <paramref name="totalBytesToKeep"/>.
+        /// If zero: log files will not be deleted at all.
+        /// </param>
+        /// <param name="totalBytesToKeep">
+        /// The maximum total log file size to keep.
+        /// If zero: all files beyond <paramref name="timeSpanToKeep"/> will be deleted.
+        /// </param>
+        public void RunFileHousekeeping( IActivityMonitor m, TimeSpan timeSpanToKeep, long totalBytesToKeep )
+        {
+            if( timeSpanToKeep == TimeSpan.Zero || _basePath == null ) return;
+
+            DateTime minDate = DateTime.UtcNow - timeSpanToKeep;
+
+            // TODO: What happens if two logfiles have the same date? At worst, conflicting be deleted on the next run
+            // Note: The comparer is a reverse comparer. The most RECENT log file is the FIRST.
+            SortedDictionary<DateTime, FileInfo> sortedLogFiles = new SortedDictionary<DateTime, FileInfo>( Comparer<DateTime>.Create( ( x, y ) => y.CompareTo( x ) ) );
+
+            DirectoryInfo logDirectory = new DirectoryInfo( _basePath );
+            foreach( FileInfo file in logDirectory.EnumerateFiles() )
+            {
+                // Temporary files are "T-" + <date> + _fileNameSuffix + ".tmp" (See OpenNewFile())
+                if( file.Name.EndsWith( ".tmp" ) && file.Name.StartsWith( "T-" ) )
+                {
+                    if( _output != null && _output.Name == file.FullName )
+                    {
+                        // Skip currently-opened temporary file
+                        continue;
+                    }
+
+                    string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 6 );
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
+                    {
+                        sortedLogFiles[d] = file;
+                    }
+                }
+                // Final files are <date> + _fileNameSuffix (see CloseCurrentFile())
+                else if( file.Name.EndsWith( _fileNameSuffix ) )
+                {
+                    string datePart = file.Name.Substring( 0, file.Name.Length - _fileNameSuffix.Length );
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
+                    {
+                        sortedLogFiles[d] = file;
+                    }
+                }
+            }
+
+            long totalFileSize = 0;
+
+            // Reminder: The comparer of sortedLogFiles is a reverse comparer. The most RECENT log file is the FIRST.
+            foreach( KeyValuePair<DateTime, FileInfo> kvp in sortedLogFiles )
+            {
+                totalFileSize += kvp.Value.Length;
+                if( kvp.Key < minDate && totalFileSize > totalBytesToKeep )
+                {
+                    try
+                    {
+                        kvp.Value.Delete();
+                    }
+                    catch( IOException ex )
+                    {
+                        m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Warn, $"Failed to delete file {kvp.Value.FullName} when housekeeping", DateTimeStamp.UtcNow, ex );
+                    }
+                }
+            }
         }
 
         /// <summary>
