@@ -162,7 +162,7 @@ namespace CK.Monitoring.Tests
                 g.ExternalLog( LogLevel.Warn, "NOSHOW" );
                 g.ExternalLog( LogLevel.Error, "SHOW 2" );
                 g.ExternalLog( LogLevel.Fatal, "SHOW 3" );
-                g.ExternalLog( LogLevel.Trace|LogLevel.IsFiltered, "SHOW 4" );
+                g.ExternalLog( LogLevel.Trace | LogLevel.IsFiltered, "SHOW 4" );
                 g.ExternalLogFilter = LogLevelFilter.None;
                 g.ExternalLog( LogLevel.Debug, "NOSHOW" );
                 g.ExternalLog( LogLevel.Trace, "SHOW 4" );
@@ -235,6 +235,102 @@ namespace CK.Monitoring.Tests
             text.Should().Contain( "Something must be said" );
             text.Should().Contain( "My very first conclusion." );
             text.Should().Contain( "My second conclusion." );
+        }
+
+        [Test]
+        public void text_file_auto_delete_by_date()
+        {
+            string folder = TestHelper.PrepareLogFolder( "AutoDelete_Date" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "AutoDelete_Date" };
+            textConf.HousekeepingRate.Should().Be( 1800, "Default HousekeepingRate configuration" );
+            textConf.MinimumDaysToKeep.Should().Be( 60, "Default HousekeepingRate configuration" );
+            textConf.MinimumTimeSpanToKeep.Should().Be( TimeSpan.FromDays( 60 ), "Default HousekeepingRate configuration" );
+            textConf.MaximumTotalKbToKeep.Should().Be( 100_000, "Default HousekeepingRate configuration" );
+
+            // Change configuration for tests
+            textConf.HousekeepingRate = 1; // Run every 500ms
+            textConf.MaximumTotalKbToKeep = 0; // Always delete file beyond max size
+            textConf.MinimumTimeSpanToKeep = TimeSpan.FromSeconds( 3 ); // Delete files older than 3 seconds
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+
+            // TEST DELETION BY DATE
+
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                var m = new ActivityMonitor( false );
+                g.EnsureGrandOutputClient( m );
+                Thread.Sleep( 5 );
+                m.Info( "Hello world" );
+                Thread.Sleep( 700 );
+
+                string tempFile = Directory.EnumerateFiles( folder ).Single();
+                File.Exists( tempFile ).Should().BeTrue( "Log file was created and exists" );
+
+                // Wait for next flush (500ms), and deletion threshold (3000ms)
+                Thread.Sleep( 4000 );
+
+                File.Exists( tempFile ).Should().BeTrue( "Log file wasn't deleted yet - it's still active" );
+            }
+            string finalLogFile = Directory.EnumerateFiles( folder ).Single();
+
+            // Open another GrandOutput to trigger housekeeping
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                // Wait for next flush (500 ms)
+                Thread.Sleep( 600 );
+            }
+
+            File.Exists( finalLogFile ).Should().BeFalse( "Inactive log file was deleted" );
+
+            // TEST DELETION BY FILE SIZE
+
+        }
+
+        [Test]
+        public void text_file_auto_delete_by_size()
+        {
+            string folder = TestHelper.PrepareLogFolder( "AutoDelete_Size" );
+
+            var textConf = new Handlers.TextFileConfiguration() { Path = "AutoDelete_Size" };
+            // Change configuration for tests
+            textConf.HousekeepingRate = 1; // Run every 500ms
+            textConf.MaximumTotalKbToKeep = 1; // Always delete file beyond max size
+            textConf.MinimumTimeSpanToKeep = TimeSpan.Zero; // Make minimum timespan
+            var config = new GrandOutputConfiguration().AddHandler( textConf );
+
+            int lineLengthToLogToGet1000bytes = 1000 - 413;
+
+            // TEST DELETION BY SIZE
+
+            // Create 3*1 KB log files
+            for( int i = 0; i < 3; i++ )
+            {
+                using( GrandOutput g = new GrandOutput( config ) )
+                {
+                    var m = new ActivityMonitor( false );
+                    g.EnsureGrandOutputClient( m );
+                    m.Info( new string( 'X', lineLengthToLogToGet1000bytes ) );
+                }
+            }
+
+            long getTotalLogSize()
+            {
+                return Directory.EnumerateFiles( folder ).Sum( x => new FileInfo( x ).Length );
+            }
+
+            var totalLogSize = getTotalLogSize();
+            totalLogSize.Should().Be( 3000 );
+
+            // Open another GrandOutput to trigger housekeeping.
+            // Note: this DOES create a file!
+            using( GrandOutput g = new GrandOutput( config ) )
+            {
+                // Wait for next flush (500 ms)
+                Thread.Sleep( 600 );
+            }
+
+            Directory.GetFiles( folder ).Length.Should().Be( 2, "Only 2 files should be kept - the last log file, and 1x1KB file" );
         }
 
         static void DumpSampleLogs1( Random r, GrandOutput g )

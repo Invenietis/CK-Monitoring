@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Threading;
 using CK.Core;
@@ -167,6 +168,89 @@ namespace CK.Monitoring
         public void Dispose()
         {
             Close();
+        }
+
+        /// <summary>
+        /// Automatically deletes files that are older than the specified <paramref name="timeSpanToKeep"/>,
+        /// and those beyond that would exceed the total size specified by <paramref name="totalBytesToKeep"/>.
+        /// </summary>
+        /// <param name="m">The monitor to use when logging.</param>
+        /// <param name="timeSpanToKeep">
+        /// The minimum time log files should be kept.
+        /// Log files within this span will not be deleted if they exceed <paramref name="totalBytesToKeep"/>.
+        /// If zero: log files will not be deleted at all
+        /// (<paramref name="totalBytesToKeep"/> MUST be non-zero).
+        /// </param>
+        /// <param name="totalBytesToKeep">
+        /// The maximum total log file size to keep.
+        /// If zero: all files beyond <paramref name="timeSpanToKeep"/> will be deleted
+        /// (<paramref name="timeSpanToKeep"/> MUST be non-zero).
+        /// </param>
+        public void RunFileHousekeeping( IActivityMonitor m, TimeSpan timeSpanToKeep, long totalBytesToKeep )
+        {
+            if( _basePath == null ) return;
+            if( timeSpanToKeep == TimeSpan.Zero && totalBytesToKeep == 0 )
+            {
+                throw new ArgumentException( $"Either {nameof( timeSpanToKeep )} or {nameof( totalBytesToKeep )} must be non-zero." );
+            }
+
+            var candidates = new List<KeyValuePair<DateTime, FileInfo>>();
+
+            DateTime minDate = DateTime.UtcNow - timeSpanToKeep;
+            DirectoryInfo logDirectory = new DirectoryInfo( _basePath );
+            foreach( FileInfo file in logDirectory.EnumerateFiles() )
+            {
+                // Temporary files are "T-" + <date> + _fileNameSuffix + ".tmp" (See OpenNewFile())
+                if( file.Name.EndsWith( ".tmp" ) && file.Name.StartsWith( "T-" ) )
+                {
+                    if( _output != null && _output.Name == file.FullName )
+                    {
+                        // Skip currently-opened temporary file
+                        continue;
+                    }
+
+                    string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 4 );
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
+                    {
+                        candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
+                    }
+                }
+                // Final files are <date> + _fileNameSuffix (see CloseCurrentFile())
+                else if( file.Name.EndsWith( _fileNameSuffix ) )
+                {
+                    string datePart = file.Name.Substring( 0, file.Name.Length - _fileNameSuffix.Length );
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
+                    {
+                        candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
+                    }
+                }
+            }
+
+            if( candidates.Count > 0 )
+            {
+                // Note: The comparer is a reverse comparer. The most RECENT log file is the FIRST.
+                candidates.Sort( ( a, b ) => DateTime.Compare( b.Key, a.Key ) );
+                m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Debug, $"Considering {candidates.Count} log files to delete.", m.NextLogTime(), null );
+
+                long totalFileSize = 0;
+                foreach( var kvp in candidates )
+                {
+                    var file = kvp.Value;
+                    totalFileSize += file.Length;
+                    if( totalFileSize > totalBytesToKeep )
+                    {
+                        m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Trace, $"Deleting file {file.FullName} (housekeeping).", m.NextLogTime(), null );
+                        try
+                        {
+                            file.Delete();
+                        }
+                        catch( Exception ex )
+                        {
+                            m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Warn, $"Failed to delete file {file.FullName} (housekeeping).", m.NextLogTime(), ex );
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
