@@ -296,7 +296,7 @@ namespace CK.Monitoring.Tests
             // Change configuration for tests
             textConf.HousekeepingRate = 1; // Run every 500ms
             textConf.MaximumTotalKbToKeep = 1; // Always delete file beyond max size
-            textConf.MinimumTimeSpanToKeep = TimeSpan.FromTicks( 1 ); // Make minimum timespan
+            textConf.MinimumTimeSpanToKeep = TimeSpan.Zero; // Make minimum timespan
             var config = new GrandOutputConfiguration().AddHandler( textConf );
 
             int lineLengthToLogToGet1000bytes = 1000 - 413;

@@ -129,12 +129,6 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// The base path in which log files are created.
-        /// Can be null when <see cref="Initialize"/> has not been called.
-        /// </summary>
-        internal string BasePath => _basePath;
-
-        /// <summary>
         /// Gets whether this file is currently opened.
         /// </summary>
         public bool IsOpened => _output != null;
@@ -184,22 +178,25 @@ namespace CK.Monitoring
         /// <param name="timeSpanToKeep">
         /// The minimum time log files should be kept.
         /// Log files within this span will not be deleted if they exceed <paramref name="totalBytesToKeep"/>.
-        /// If zero: log files will not be deleted at all.
+        /// If zero: log files will not be deleted at all
+        /// (<paramref name="totalBytesToKeep"/> MUST be non-zero).
         /// </param>
         /// <param name="totalBytesToKeep">
         /// The maximum total log file size to keep.
-        /// If zero: all files beyond <paramref name="timeSpanToKeep"/> will be deleted.
+        /// If zero: all files beyond <paramref name="timeSpanToKeep"/> will be deleted
+        /// (<paramref name="timeSpanToKeep"/> MUST be non-zero).
         /// </param>
         public void RunFileHousekeeping( IActivityMonitor m, TimeSpan timeSpanToKeep, long totalBytesToKeep )
         {
-            if( timeSpanToKeep == TimeSpan.Zero || _basePath == null ) return;
+            if( _basePath == null ) return;
+            if( timeSpanToKeep == TimeSpan.Zero && totalBytesToKeep == 0 )
+            {
+                throw new ArgumentException( $"Either {nameof( timeSpanToKeep )} or {nameof( totalBytesToKeep )} must be non-zero." );
+            }
+
+            var candidates = new List<KeyValuePair<DateTime, FileInfo>>();
 
             DateTime minDate = DateTime.UtcNow - timeSpanToKeep;
-
-            // TODO: What happens if two logfiles have the same date? At worst, conflicting be deleted on the next run
-            // Note: The comparer is a reverse comparer. The most RECENT log file is the FIRST.
-            SortedDictionary<DateTime, FileInfo> sortedLogFiles = new SortedDictionary<DateTime, FileInfo>( Comparer<DateTime>.Create( ( x, y ) => y.CompareTo( x ) ) );
-
             DirectoryInfo logDirectory = new DirectoryInfo( _basePath );
             foreach( FileInfo file in logDirectory.EnumerateFiles() )
             {
@@ -212,10 +209,10 @@ namespace CK.Monitoring
                         continue;
                     }
 
-                    string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 6 );
+                    string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 4 );
                     if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
                     {
-                        sortedLogFiles[d] = file;
+                        candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
                     }
                 }
                 // Final files are <date> + _fileNameSuffix (see CloseCurrentFile())
@@ -224,26 +221,33 @@ namespace CK.Monitoring
                     string datePart = file.Name.Substring( 0, file.Name.Length - _fileNameSuffix.Length );
                     if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
                     {
-                        sortedLogFiles[d] = file;
+                        candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
                     }
                 }
             }
 
-            long totalFileSize = 0;
-
-            // Reminder: The comparer of sortedLogFiles is a reverse comparer. The most RECENT log file is the FIRST.
-            foreach( KeyValuePair<DateTime, FileInfo> kvp in sortedLogFiles )
+            if( candidates.Count > 0 )
             {
-                totalFileSize += kvp.Value.Length;
-                if( kvp.Key < minDate && totalFileSize > totalBytesToKeep )
+                // Note: The comparer is a reverse comparer. The most RECENT log file is the FIRST.
+                candidates.Sort( ( a, b ) => DateTime.Compare( b.Key, a.Key ) );
+                m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Debug, $"Considering {candidates.Count} log files to delete.", m.NextLogTime(), null );
+
+                long totalFileSize = 0;
+                foreach( var kvp in candidates )
                 {
-                    try
+                    var file = kvp.Value;
+                    totalFileSize += file.Length;
+                    if( totalFileSize > totalBytesToKeep )
                     {
-                        kvp.Value.Delete();
-                    }
-                    catch( IOException ex )
-                    {
-                        m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Warn, $"Failed to delete file {kvp.Value.FullName} when housekeeping", DateTimeStamp.UtcNow, ex );
+                        m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Trace, $"Deleting file {file.FullName} (housekeeping).", m.NextLogTime(), null );
+                        try
+                        {
+                            file.Delete();
+                        }
+                        catch( Exception ex )
+                        {
+                            m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Warn, $"Failed to delete file {file.FullName} (housekeeping).", m.NextLogTime(), ex );
+                        }
                     }
                 }
             }
