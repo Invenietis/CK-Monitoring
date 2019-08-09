@@ -106,14 +106,14 @@ namespace CK.Monitoring
             /// <param name="indentationPrefix">Indentation prefix.</param>
             /// <param name="monitorId">The monitor id, the constructor will prepend a '~' character.</param>
             /// <param name="date">The formatted date of the entry.</param>
-            /// <param name="remainingOfTheEntry">The rest of the text entry.</param>
-            public FormattedEntry( char logLevel, string indentationPrefix, string monitorId, string date, string remainingOfTheEntry )
+            /// <param name="entryText">The rest of the text entry.</param>
+            public FormattedEntry( char logLevel, string indentationPrefix, string monitorId, string date, string entryText )
             {
                 LogLevel = logLevel;
                 IndentationPrefix = indentationPrefix;
                 FormattedDate = date;
                 MonitorId = "~" + monitorId;
-                RemainingOfTheEntry = remainingOfTheEntry;
+                EntryText = entryText;
             }
 
             /// <summary>
@@ -125,7 +125,7 @@ namespace CK.Monitoring
             /// The Indentation of the log.
             /// </summary>
             public readonly string IndentationPrefix;
-
+                
             /// <summary>
             /// Part 1: the formatted date of the entry.
             /// </summary>
@@ -138,16 +138,15 @@ namespace CK.Monitoring
 
             /// <summary>
             /// Part 3: the text entry is the <see cref="LogLevel"/> + ' ' + <see cref="IndentationPrefix"/> + the log text itself.
-            /// The first part length is 2 + IndentationPrefix.Length.
             /// </summary>
-            public readonly string RemainingOfTheEntry;
+            public readonly string EntryText;
 
             /// <summary>
             /// Returns the log entry formatted: 
-            /// <see cref="FormattedDate"/> + " " + <see cref="MonitorId"/> + " " + <see cref="RemainingOfTheEntry"/>.
+            /// <see cref="FormattedDate"/> + " " + <see cref="MonitorId"/> + " " + <see cref="EntryText"/>.
             /// </summary>
             /// <returns>The full formatted entry line.</returns>
-            public override string ToString() => FormattedDate + " " + MonitorId + " " + RemainingOfTheEntry;
+            public override string ToString() => FormattedDate + " " + MonitorId + " " + LogLevel + " " + IndentationPrefix + EntryText;
 
         }
 
@@ -196,7 +195,7 @@ namespace CK.Monitoring
                 }
                 monitorId = B64ConvertInt( _monitorNames.Count );
                 _monitorNames.Add( logEntry.MonitorId, monitorId );
-                firstLine = new FormattedEntry( 'i', indentationPrefix, monitorId, formattedDate, $"i Monitor: ~{logEntry.MonitorId.ToString()}. {_monitorResetLog}" );
+                firstLine = new FormattedEntry( 'i', indentationPrefix, monitorId, formattedDate, $"Monitor: ~{logEntry.MonitorId.ToString()}. {_monitorResetLog}" );
             }
             else
             {
@@ -205,19 +204,16 @@ namespace CK.Monitoring
 
             string multiLinePrefix = _blankSpacePrefix + indentationPrefix;
 
-            _builder.Append( logLevel )
-                .Append( ' ' )
-                .Append( indentationPrefix );
-
             if( logEntry.Text != null )
             {
                 Debug.Assert( logEntry.LogType != LogEntryType.CloseGroup );
                 if( logEntry.LogType == LogEntryType.OpenGroup ) _builder.Append( "> " );
                 multiLinePrefix += "  ";
-                _builder.AppendMultiLine( multiLinePrefix, logEntry.Text, false ).AppendLine();
+                _builder.AppendMultiLine( multiLinePrefix, logEntry.Text, false );
                 if( logEntry.Exception != null )
                 {
-                    logEntry.Exception.ToStringBuilder( _builder, multiLinePrefix );
+                    _builder.AppendLine();
+                    logEntry.Exception.ToStringBuilder( _builder, multiLinePrefix, false );
                 }
             }
             else
@@ -232,12 +228,8 @@ namespace CK.Monitoring
                     multiLinePrefix += "   | ";
                     foreach( var c in logEntry.Conclusions )
                     {
-                        _builder.AppendMultiLine( multiLinePrefix, c.Text, true ).AppendLine();
+                        _builder.AppendMultiLine( multiLinePrefix, c.Text, true );
                     }
-                }
-                else
-                {
-                    _builder.AppendLine();
                 }
             }
             string outputLine = _builder.ToString();

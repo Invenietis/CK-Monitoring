@@ -12,6 +12,9 @@ namespace CK.Monitoring.Handlers
     {
         MonitorBinaryFileOutput _file;
         BinaryFileConfiguration _config;
+        int _countHousekeeping;
+        private TimeSpan _minTimespan;
+        int _maxKbToKeep;
 
         /// <summary>
         /// Initializes a new <see cref="BinaryFile"/> bound to its <see cref="BinaryFileConfiguration"/>.
@@ -22,6 +25,9 @@ namespace CK.Monitoring.Handlers
             if( config == null ) throw new ArgumentNullException( "config" );
             _file = new MonitorBinaryFileOutput( config.Path, config.MaxCountPerFile, config.UseGzipCompression );
             _config = config;
+            _countHousekeeping = _config.HousekeepingRate;
+            _minTimespan = _config.MinimumTimeSpanToKeep;
+            _maxKbToKeep = _config.MaximumTotalKbToKeep;
         }
 
         /// <summary>
@@ -53,6 +59,11 @@ namespace CK.Monitoring.Handlers
         /// <param name="timerSpan">Indicative timer duration.</param>
         public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
         {
+            if( --_countHousekeeping == 0 )
+            {
+                _file.RunFileHousekeeping( m, _config.MinimumTimeSpanToKeep, _config.MaximumTotalKbToKeep * 1000L );
+                _countHousekeeping = _config.HousekeepingRate;
+            }
         }
 
         /// <summary>
