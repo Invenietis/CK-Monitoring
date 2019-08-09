@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using CK.Core;
 using System.IO.Compression;
+using System.Diagnostics;
 
 namespace CK.Monitoring
 {
@@ -210,7 +211,7 @@ namespace CK.Monitoring
                     }
 
                     string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 4 );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) && d < minDate )
                     {
                         candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
                     }
@@ -219,7 +220,7 @@ namespace CK.Monitoring
                 else if( file.Name.EndsWith( _fileNameSuffix ) )
                 {
                     string datePart = file.Name.Substring( 0, file.Name.Length - _fileNameSuffix.Length );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, false ) && d < minDate )
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) && d < minDate )
                     {
                         candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
                     }
