@@ -8,6 +8,7 @@ using NUnit.Framework;
 using System.Threading.Tasks;
 using FluentAssertions;
 using System.Threading;
+using CK.Text;
 
 namespace CK.Monitoring.Tests
 {
@@ -329,8 +330,8 @@ namespace CK.Monitoring.Tests
                 // Wait for next flush (500 ms)
                 Thread.Sleep( 600 );
             }
-
-            Directory.GetFiles( folder ).Length.Should().Be( 2, "Only 2 files should be kept - the last log file, and 1x1KB file" );
+            var files = Directory.GetFiles( folder ).Select( f => Path.GetFileName( f ) );
+            files.Should().HaveCount( 2, $"Only 2 files should be kept - the last log file, and 1x1KB file: {files.Concatenate()}" );
         }
 
         static void DumpSampleLogs1( Random r, GrandOutput g )

@@ -144,7 +144,7 @@ namespace CK.Monitoring.Tests
             {
                 try
                 {
-                    if( Directory.Exists( folder ) ) Directory.Delete( folder, true );
+                    while( Directory.Exists( folder ) ) Directory.Delete( folder, true );
                     Directory.CreateDirectory( folder );
                     File.WriteAllText( Path.Combine( folder, "TestWrite.txt" ), "Test write works." );
                     File.Delete( Path.Combine( folder, "TestWrite.txt" ) );

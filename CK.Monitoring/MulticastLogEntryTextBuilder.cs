@@ -136,6 +136,7 @@ namespace CK.Monitoring
             /// </summary>
             public readonly string MonitorId;
 
+            /// <summary>
             /// Part 3: the text entry is the <see cref="LogLevel"/> + ' ' + <see cref="IndentationPrefix"/> + the log text itself.
             /// </summary>
             public readonly string EntryText;
