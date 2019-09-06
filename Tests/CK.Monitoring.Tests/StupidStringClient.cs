@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,7 +11,7 @@ namespace CK.Monitoring.Tests
         public class Entry
         {
             public readonly LogLevel Level;
-            public readonly CKTrait Tags;
+            public readonly CKTag Tags;
             public readonly string Text;
             public readonly Exception Exception;
             public readonly DateTimeStamp LogTime;
@@ -42,14 +42,14 @@ namespace CK.Monitoring.Tests
         public readonly List<Entry> Entries;
         public StringWriter Writer { get; private set; }
         public bool WriteTags { get; private set; }
-        public bool WriteConclusionTraits { get; private set; }
+        public bool WriteConclusionTags { get; private set; }
 
-        public StupidStringClient( bool writeTags = false, bool writeConclusionTraits = false )
+        public StupidStringClient( bool writeTags = false, bool writeConclusionTags = false )
         {
             Entries = new List<Entry>();
             Writer = new StringWriter();
             WriteTags = writeTags;
-            WriteConclusionTraits = writeConclusionTraits;
+            WriteConclusionTags = writeConclusionTags;
         }
 
         protected override void OnEnterLevel( ActivityMonitorLogData data )
@@ -88,7 +88,7 @@ namespace CK.Monitoring.Tests
         {
             Writer.WriteLine();
             Writer.Write( new String( '-', g.Depth ) );
-            if( WriteConclusionTraits )
+            if( WriteConclusionTags )
             {
                 Writer.Write( String.Join( ", ", conclusions.Select( c => c.Text + "-/[/" + c.Tag.ToString() + "/]/" ) ) );
             }

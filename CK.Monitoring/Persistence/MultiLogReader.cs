@@ -32,7 +32,7 @@ namespace CK.Monitoring
             internal int _firstDepth;
             internal DateTimeStamp _lastEntryTime;
             internal int _lastDepth;
-            internal Dictionary<CKTrait,int> _tags; 
+            internal Dictionary<CKTag,int> _tags; 
 
             internal LiveIndexedMonitor( Guid monitorId, MultiLogReader reader )
             {
@@ -63,12 +63,12 @@ namespace CK.Monitoring
                     {
                         if( _tags == null )
                         {
-                            _tags = new Dictionary<CKTrait, int>();
-                            foreach( var t in log.Tags.AtomicTraits ) _tags.Add( t, 1 );
+                            _tags = new Dictionary<CKTag, int>();
+                            foreach( var t in log.Tags.AtomicTags ) _tags.Add( t, 1 );
                         }
                         else
                         {
-                            foreach( var t in log.Tags.AtomicTraits )
+                            foreach( var t in log.Tags.AtomicTags )
                             {
                                 int count;
                                 _tags.TryGetValue( t, out count );

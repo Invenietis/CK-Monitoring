@@ -39,7 +39,7 @@ namespace CK.Monitoring.Impl
         
         public int LineNumber => 0; 
 
-        public CKTrait Tags => ActivityMonitor.Tags.Empty; 
+        public CKTag Tags => ActivityMonitor.Tags.Empty; 
 
         public IReadOnlyList<ActivityLogGroupConclusion> Conclusions => _conclusions;
 

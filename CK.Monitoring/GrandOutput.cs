@@ -32,7 +32,7 @@ namespace CK.Monitoring
         /// The tag that marks all external log entry sent when <see cref="HandleCriticalErrors"/>
         /// is true.
         /// </summary>
-        public static CKTrait CriticalErrorTag = ActivityMonitor.Tags.Context.FindOrCreate( "CriticalError" );
+        public static CKTag CriticalErrorTag = ActivityMonitor.Tags.Context.FindOrCreate( "CriticalError" );
 
         /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
@@ -215,7 +215,7 @@ namespace CK.Monitoring
         /// <param name="message">String message.</param>
         /// <param name="ex">Optional exception.</param>
         /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
-        public void ExternalLog( LogLevel level, string message, Exception ex = null, CKTrait tags = null )
+        public void ExternalLog( LogLevel level, string message, Exception ex = null, CKTag tags = null )
         {
             if( (level & LogLevel.IsFiltered) == 0 )
             {
@@ -257,7 +257,7 @@ namespace CK.Monitoring
         /// <param name="level">Log level.</param>
         /// <param name="message">String message.</param>
         /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
-        public void ExternalLog( LogLevel level, string message, CKTrait tags ) => ExternalLog( level, message, null, tags );
+        public void ExternalLog( LogLevel level, string message, CKTag tags ) => ExternalLog( level, message, null, tags );
 
         /// <summary>
         /// Gets a cancellation token that is cancelled at the start
@@ -272,7 +272,7 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Gets or sets whether this GrandOutput subscribes to <see cref="ActivityMonitor.CriticalErrorCollector"/>
-        /// events and sends them by calling <see cref="ExternalLog(CK.Core.LogLevel, string, Exception, CKTrait)">ExternalLog</see>
+        /// events and sends them by calling <see cref="ExternalLog(CK.Core.LogLevel, string, Exception, CKTag)">ExternalLog</see>
         /// with a <see cref="CriticalErrorTag"/> tag.
         /// Defaults to true for the <see cref="Default"/> GrandOutput, false otherwise.
         /// </summary>

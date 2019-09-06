@@ -42,7 +42,7 @@ namespace CK.Monitoring.InterProcess
             }
         }
 
-        void IActivityMonitorClient.OnAutoTagsChanged( CKTrait newTrait )
+        void IActivityMonitorClient.OnAutoTagsChanged( CKTag newTag )
         {
         }
 

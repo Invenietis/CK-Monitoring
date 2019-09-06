@@ -12,7 +12,7 @@ namespace CK.Monitoring.Impl
         readonly DateTimeStamp _previousLogTime;
         readonly LogEntryType _previousEntryType;
 
-        public LEMCLog( Guid monitorId, int depth, DateTimeStamp previousLogTime, LogEntryType previousEntryType, string text, DateTimeStamp t, string fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData ex )
+        public LEMCLog( Guid monitorId, int depth, DateTimeStamp previousLogTime, LogEntryType previousEntryType, string text, DateTimeStamp t, string fileName, int lineNumber, LogLevel l, CKTag tags, CKExceptionData ex )
             : base( text, t, fileName, lineNumber, l, tags, ex )
         {
             _monitorId = monitorId;

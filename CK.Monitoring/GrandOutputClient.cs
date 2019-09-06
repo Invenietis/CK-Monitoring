@@ -102,7 +102,7 @@ namespace CK.Monitoring
             _prevLogType = LogEntryType.CloseGroup;
         }
 
-        void IActivityMonitorClient.OnAutoTagsChanged( CKTrait newTrait )
+        void IActivityMonitorClient.OnAutoTagsChanged( CKTag newTag )
         {
         }
     }

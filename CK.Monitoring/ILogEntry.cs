@@ -37,7 +37,7 @@ namespace CK.Monitoring
         /// Gets the tags for this entry.
         /// Always equals to <see cref="ActivityMonitor.Tags.Empty"/> when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
         /// </summary>
-        CKTrait Tags { get; }
+        CKTag Tags { get; }
 
         /// <summary>
         /// Gets the log time.
