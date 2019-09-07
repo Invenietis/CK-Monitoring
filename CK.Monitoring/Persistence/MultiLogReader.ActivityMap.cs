@@ -77,7 +77,7 @@ namespace CK.Monitoring
             readonly int _firstDepth;
             readonly DateTimeStamp _lastEntryTime;
             readonly int _lastDepth;
-            readonly IReadOnlyList<KeyValuePair<CKTag, int>> _tags;
+            readonly IReadOnlyList<KeyValuePair<CKTrait, int>> _tags;
 
             internal Monitor( LiveIndexedMonitor m )
             {
@@ -87,7 +87,7 @@ namespace CK.Monitoring
                 _firstDepth = m._firstDepth;
                 _lastEntryTime = m._lastEntryTime;
                 _lastDepth = m._lastDepth;
-                _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Util.Array.Empty<KeyValuePair<CKTag, int>>();
+                _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Util.Array.Empty<KeyValuePair<CKTrait, int>>();
             }
 
             /// <summary>
@@ -123,7 +123,7 @@ namespace CK.Monitoring
             /// <summary>
             /// Gets the weighted occurrences of each tags that have been logged in this monitor.
             /// </summary>
-            public IReadOnlyList<KeyValuePair<CKTag, int>> AllTags => _tags;
+            public IReadOnlyList<KeyValuePair<CKTrait, int>> AllTags => _tags;
 
             internal class MultiFileReader : IDisposable
             {

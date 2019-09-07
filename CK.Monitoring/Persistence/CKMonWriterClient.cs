@@ -196,7 +196,7 @@ namespace CK.Monitoring
         {
             // Does nothing.
         }
-        void IActivityMonitorClient.OnAutoTagsChanged( CKTag newTag )
+        void IActivityMonitorClient.OnAutoTagsChanged( CKTrait newTrait )
         {
             // Does nothing.
         }

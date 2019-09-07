@@ -7,14 +7,14 @@ namespace CK.Monitoring.Impl
     class LEOpenGroup : ILogEntry
     {
         readonly string _text;
-        readonly CKTag _tags;
+        readonly CKTrait _tags;
         readonly string _fileName;
         readonly int _lineNumber;
         readonly LogLevel _level;
         readonly CKExceptionData _ex;
         readonly DateTimeStamp _time;
 
-        public LEOpenGroup( string text, DateTimeStamp t, string fileName, int lineNumber, LogLevel l, CKTag tags, CKExceptionData ex )
+        public LEOpenGroup( string text, DateTimeStamp t, string fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData ex )
         {
             _text = text;
             _time = t;
@@ -42,7 +42,7 @@ namespace CK.Monitoring.Impl
 
         public string Text => _text;
 
-        public CKTag Tags => _tags; 
+        public CKTrait Tags => _tags; 
 
         public DateTimeStamp LogTime => _time; 
 

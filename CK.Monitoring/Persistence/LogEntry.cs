@@ -26,7 +26,7 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static ILogEntry CreateLog( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTag tags, CKExceptionData ex )
+        public static ILogEntry CreateLog( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
         {
             return new LELog( text, t, fileName, lineNumber, level, tags, ex );
         }
@@ -42,7 +42,7 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static ILogEntry CreateOpenGroup( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTag tags, CKExceptionData ex )
+        public static ILogEntry CreateOpenGroup( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
         {
             return new LEOpenGroup( text, t, fileName, lineNumber, level, tags, ex );
         }
@@ -78,7 +78,7 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static IMulticastLogEntry CreateMulticastLog( Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTag tags, CKExceptionData ex )
+        public static IMulticastLogEntry CreateMulticastLog( Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
         {
             return new LEMCLog( monitorId, depth, previousLogTime, previousEntryType, text, t, fileName, lineNumber, level, tags, ex );
         }
@@ -98,7 +98,7 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static IMulticastLogEntry CreateMulticastOpenGroup( Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTag tags, CKExceptionData ex )
+        public static IMulticastLogEntry CreateMulticastOpenGroup( Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
         {
             return new LEMCOpenGroup( monitorId, depth, previousLogTime, previousEntryType, text, t, fileName, lineNumber, level, tags, ex );
         }
@@ -137,7 +137,7 @@ namespace CK.Monitoring
         /// <param name="ex">Exception of the log entry.</param>
         /// <param name="fileName">Source file name of the log entry</param>
         /// <param name="lineNumber">Source line number of the log entry</param>
-        static public void WriteLog( CKBinaryWriter w, Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, bool isOpenGroup, LogLevel level, DateTimeStamp logTime, string text, CKTag tags, CKExceptionData ex, string fileName, int lineNumber )
+        static public void WriteLog( CKBinaryWriter w, Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, bool isOpenGroup, LogLevel level, DateTimeStamp logTime, string text, CKTrait tags, CKExceptionData ex, string fileName, int lineNumber )
         {
             if( w == null ) throw new ArgumentNullException( "w" );
             StreamLogType type = StreamLogType.IsMultiCast | (isOpenGroup ? StreamLogType.TypeOpenGroup : StreamLogType.TypeLine);
@@ -158,13 +158,13 @@ namespace CK.Monitoring
         /// <param name="ex">Exception of the log entry.</param>
         /// <param name="fileName">Source file name of the log entry</param>
         /// <param name="lineNumber">Source line number of the log entry</param>
-        static public void WriteLog( CKBinaryWriter w, bool isOpenGroup, LogLevel level, DateTimeStamp logTime, string text, CKTag tags, CKExceptionData ex, string fileName, int lineNumber )
+        static public void WriteLog( CKBinaryWriter w, bool isOpenGroup, LogLevel level, DateTimeStamp logTime, string text, CKTrait tags, CKExceptionData ex, string fileName, int lineNumber )
         {
             if( w == null ) throw new ArgumentNullException( "w" );
             DoWriteLog( w, isOpenGroup ? StreamLogType.TypeOpenGroup : StreamLogType.TypeLine, level, logTime, text, tags, ex, fileName, lineNumber );
         }
 
-        static void DoWriteLog( CKBinaryWriter w, StreamLogType t, LogLevel level, DateTimeStamp logTime, string text, CKTag tags, CKExceptionData ex, string fileName, int lineNumber )
+        static void DoWriteLog( CKBinaryWriter w, StreamLogType t, LogLevel level, DateTimeStamp logTime, string text, CKTrait tags, CKExceptionData ex, string fileName, int lineNumber )
         {
             if( tags != null && !tags.IsEmpty ) t |= StreamLogType.HasTags;
             if( ex != null )
@@ -298,7 +298,7 @@ namespace CK.Monitoring
             }
             DateTimeStamp time = new DateTimeStamp( DateTime.FromBinary( r.ReadInt64() ), (t & StreamLogType.HasUniquifier) != 0 ? r.ReadByte() : (Byte)0 );
             if( time.TimeUtc.Year < 2014 || time.TimeUtc.Year > 3000 ) throw new InvalidDataException( "Date year before 2014 or after 3000 are considered invalid." );
-            CKTag tags = ActivityMonitor.Tags.Empty;
+            CKTrait tags = ActivityMonitor.Tags.Empty;
             string fileName = null;
             int lineNumber = 0;
             CKExceptionData ex = null;
@@ -366,7 +366,7 @@ namespace CK.Monitoring
                 conclusions = new ActivityLogGroupConclusion[conclusionsCount];
                 for( int i = 0; i < conclusionsCount; i++ )
                 {
-                    CKTag cTags = ActivityMonitor.Tags.Register( r.ReadString() );
+                    CKTrait cTags = ActivityMonitor.Tags.Register( r.ReadString() );
                     string cText = r.ReadString();
                     conclusions[i] = new ActivityLogGroupConclusion( cText, cTags );
                 }
