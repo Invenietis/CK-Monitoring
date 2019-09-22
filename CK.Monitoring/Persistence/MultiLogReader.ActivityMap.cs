@@ -268,7 +268,7 @@ namespace CK.Monitoring
 
                 public void Dispose()
                 {
-                    if( _readers == null )
+                    if( _readers != null )
                         for( int i = 0; i < _readers.Count; ++i ) _readers[i].Dispose();
                 }
             }
