@@ -133,7 +133,6 @@ namespace CK.Monitoring
                         SafeActivateOrDeactivate( monitor, h, false );
                         _handlers.Remove( h );
                     }
-                    faulty = null;
                 }
             }
             foreach( var h in _handlers ) SafeActivateOrDeactivate( monitor, h, false );

@@ -67,7 +67,7 @@ namespace CK.Monitoring
             {
                 if( _default == null )
                 {
-                    bool ensureStaticIntialization = LogFile.TrackActivityMonitorLoggingError;
+                    bool ensureStaticIntialization = LogFile.TrackActivityMonitorLoggingError; //lgtm [cs/useless-assignment-to-local]
                     if( configuration == null )
                     {
                         configuration = new GrandOutputConfiguration()
