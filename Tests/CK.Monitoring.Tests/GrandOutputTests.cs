@@ -324,7 +324,7 @@ namespace CK.Monitoring.Tests
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
             // The {loop} "~~~~~FINAL TRACE~~~~~" appear in text logs.
             fileNames
-                .Where( n => n.EndsWith( ".txt" ) )
+                .Where( n => n.EndsWith( ".log" ) )
                 .Select( n => File.ReadAllText( n ) )
                 .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
                 .Sum()
