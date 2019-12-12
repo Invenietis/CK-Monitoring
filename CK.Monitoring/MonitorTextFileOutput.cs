@@ -16,14 +16,14 @@ namespace CK.Monitoring
         bool _canFlush;
 
         /// <summary>
-        /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.
+        /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".log" extension.
         /// You must call <see cref="MonitorFileOutputBase.Initialize">Initialize</see> before actually using this object.
         /// </summary>
         /// <param name="configuredPath">The path: it can be absolute and when relative, it will be under <see cref="LogFile.RootLogPath"/> (that must be set).</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="useGzipCompression">True to gzip the file.</param>
         public MonitorTextFileOutput( string configuredPath, int maxCountPerFile, bool useGzipCompression )
-            : base( configuredPath, ".txt" + (useGzipCompression ? ".gzip" : string.Empty), maxCountPerFile, useGzipCompression )
+            : base( configuredPath, ".log" + (useGzipCompression ? ".gzip" : string.Empty), maxCountPerFile, useGzipCompression )
         {
             _builder = new MulticastLogEntryTextBuilder( false, false );
         }
