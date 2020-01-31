@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using CK.Core;
-using CK.Text;
 
 namespace CK.Monitoring
 {

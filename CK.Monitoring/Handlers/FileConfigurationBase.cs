@@ -1,7 +1,4 @@
-using System.Xml.Linq;
 using CK.Core;
-using System.IO;
-using System;
 
 namespace CK.Monitoring.Handlers
 {

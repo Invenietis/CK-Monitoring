@@ -1,11 +1,8 @@
 using Cake.Common.IO;
-using Cake.Common.Solution;
 using Cake.Core;
 
 using Cake.Core.Diagnostics;
-using Cake.Core.IO;
 using SimpleGitVersion;
-using System.Linq;
 
 
 
