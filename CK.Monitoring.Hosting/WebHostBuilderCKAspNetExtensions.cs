@@ -79,16 +79,15 @@ namespace Microsoft.AspNetCore.Hosting
             // Three steps initialization:
             // First creates the initializer instance.
             var initializer = new GrandOutputConfigurationInitializer( grandOutput );
-            builder.ConfigureLogging( ( ctx, loggingBuilder ) =>
-            {
-                var section = ctx.Configuration.GetSection( configurationPath );
-                // Second, give it the environment and its section.
-                initializer.Initialize( builder, ctx.HostingEnvironment, loggingBuilder, section );
-            } );
+
+            initializer.InitializeMonitor( builder, configurationPath );
+
             // Now, registers the PostInstanciationFilter as a transient object.
             // This startup filter will inject the Application service IApplicationLifetime.
-            return RegisterMonitor(builder);
+            return RegisterMonitor( builder );
         }
+
+
 
         /// <summary>
         /// Initialize from IConfigurationSection instead of configurationPath.
@@ -96,14 +95,11 @@ namespace Microsoft.AspNetCore.Hosting
         static IHostBuilder DoUseMonitoring( IHostBuilder builder, GrandOutput grandOutput, IConfigurationSection configuration )
         {
             var initializer = new GrandOutputConfigurationInitializer( grandOutput );
-            builder.ConfigureLogging( ( ctx, loggingBuilder ) =>
-            {
-                initializer.Initialize( builder, ctx.HostingEnvironment, loggingBuilder, configuration );
-            } );
-            return RegisterMonitor(builder);
+            initializer.InitializeMonitor( builder, configuration );
+            return RegisterMonitor( builder );
         }
 
-        static IHostBuilder RegisterMonitor(IHostBuilder builder)
+        static IHostBuilder RegisterMonitor( IHostBuilder builder )
         {
             return builder.ConfigureServices( ( ctx, services ) =>
             {

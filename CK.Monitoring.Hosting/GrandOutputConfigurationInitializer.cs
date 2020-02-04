@@ -17,7 +17,7 @@ namespace CK.Monitoring.Hosting
         /// <summary>
         /// Simply dispose the given <see cref="_grandOutput"/> when the server close.
         /// </summary>
-        class HostedService : IHostedService
+        class HostedService : IHostedService, IDisposable
         {
             readonly GrandOutput _grandOutput;
 
@@ -25,6 +25,8 @@ namespace CK.Monitoring.Hosting
             {
                 _grandOutput = grandOutput;
             }
+
+            public void Dispose() => _grandOutput.Dispose();
 
             public Task StartAsync( CancellationToken cancellationToken ) => Task.CompletedTask;
 
@@ -53,7 +55,26 @@ namespace CK.Monitoring.Hosting
             _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
         }
 
-        public void Initialize( IHostBuilder builder, IHostEnvironment env, ILoggingBuilder aspNetLogs, IConfigurationSection section )
+        public void InitializeMonitor( IHostBuilder builder, string configurationPath )
+        {
+            builder.ConfigureLogging( ( ctx, loggingBuilder ) =>
+            {
+                var section = ctx.Configuration.GetSection( configurationPath );
+                Initialize( ctx.HostingEnvironment, loggingBuilder, section );
+            } );
+            builder.ConfigureServices( services => SubscribeGrandOutputDispose( services ) );
+        }
+
+        public void InitializeMonitor( IHostBuilder builder, IConfigurationSection config )
+        {
+            builder.ConfigureLogging( ( ctx, loggingBuilder ) =>
+            {
+                Initialize( ctx.HostingEnvironment, loggingBuilder, config );
+            } );
+            builder.ConfigureServices( services => SubscribeGrandOutputDispose( services ) );
+        }
+
+        void Initialize( IHostEnvironment env, ILoggingBuilder aspNetLogs, IConfigurationSection section )
         {
             _section = section;
             if( _isDefaultGrandOutput && LogFile.RootLogPath == null )
@@ -69,24 +90,17 @@ namespace CK.Monitoring.Hosting
             _target.DisposingToken.Register( () =>
             {
                 _changeToken.Dispose();
-                ConfigureGlobalListeners( false, false, false );
+                ConfigureGlobalListeners( false, false );
             } );
             // This is required so that default configuration with Text handler
             // is applied if there is no section.
             ApplyDynamicConfiguration( true );
-
-            builder.ConfigureServices( ( ctx, services ) =>
-            {
-                 services.AddHostedService( ( p ) => new HostedService( _target ) );
-            } );
         }
 
-        public void PostInitialze( IHostApplicationLifetime lifetime )
-        {
-            lifetime.ApplicationStopped.Register( () => _target.Dispose() );
-        }
+        IServiceCollection SubscribeGrandOutputDispose( IServiceCollection services ) =>
+            services.AddHostedService( ( p ) => new HostedService( _target ) );
 
-        void ConfigureGlobalListeners( bool trackUnhandledException, bool net461DiagnosticTrace, bool aspNetLogs )
+        void ConfigureGlobalListeners( bool trackUnhandledException, bool aspNetLogs )
         {
             _loggerProvider._running = aspNetLogs;
             if( trackUnhandledException != _trackUnhandledException )
@@ -108,9 +122,8 @@ namespace CK.Monitoring.Hosting
         void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
         {
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
-            bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
             bool aspNetLogs = !String.Equals( _section["HandleAspNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
-            ConfigureGlobalListeners( trackUnhandledException, net461DiagnosticTrace, aspNetLogs );
+            ConfigureGlobalListeners( trackUnhandledException, aspNetLogs );
             GrandOutputConfiguration c;
             var gSection = _section.GetSection( "GrandOutput" );
             if( gSection.Exists() )
