@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.IO;
-using System.Threading;
 using CK.Core;
 using System.IO.Compression;
-using System.Diagnostics;
 
 namespace CK.Monitoring
 {

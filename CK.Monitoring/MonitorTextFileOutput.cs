@@ -1,5 +1,4 @@
 using CK.Core;
-using System.Collections.Generic;
 using System.IO;
 
 namespace CK.Monitoring
