@@ -1,15 +1,8 @@
 using CK.Core;
 using NUnit.Framework;
 using System;
-using System.Collections.Generic;
-using System.IO.Pipes;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using CK.Core.Impl;
 using System.IO;
-using CK.Monitoring;
-using System.Diagnostics;
 using System.Threading;
 using FluentAssertions;
 using CK.Monitoring.InterProcess;

@@ -1,7 +1,5 @@
 using CK.Core;
-using CK.Text;
 using System.Collections.Generic;
-using System.IO;
 
 namespace CK.Monitoring.Impl
 {

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using CK.Core;
-using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using CK.Text;
 

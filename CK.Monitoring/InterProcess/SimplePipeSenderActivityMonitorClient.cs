@@ -1,9 +1,7 @@
 using CK.Core;
-using CK.Monitoring;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
-using System.Text;
 
 namespace CK.Monitoring.InterProcess
 {
