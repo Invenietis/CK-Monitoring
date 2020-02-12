@@ -8,8 +8,7 @@ namespace CK.Monitoring.Handlers
     public class TextFileConfiguration : FileConfigurationBase
     {
         /// <summary>
-        /// Gets or sets the rate of the auto flush to be able to read
-        /// the temporary currrent file content.
+        /// Gets or sets the rate of the auto flush to be able to read the temporary current file content.
         /// This is a multiple of <see cref="GrandOutputConfiguration.TimerDuration"/>
         /// and defaults to 6 (default GrandOutputConfiguration timer duration being 500 milliseconds, this
         /// flushes the text approximately every 3 seconds).

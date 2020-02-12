@@ -46,11 +46,14 @@ namespace CK.Monitoring
         /// Configuration to apply to the default GrandOutput.
         /// When null, a default configuration with a <see cref="Handlers.TextFileConfiguration"/> in a "Text" path is configured.
         /// </param>
-        /// <returns>The Default GrandOutput.</returns>
+        /// <returns>The Default GrandOutput has by default its <see cref="HandleCriticalErrors"/> sets to true.</returns>
         /// <remarks>
         /// <para>
         /// This method is thread-safe (a simple lock protects it) and uses a <see cref="ActivityMonitor.AutoConfiguration"/> action 
         /// that uses <see cref="EnsureGrandOutputClient(IActivityMonitor)"/> on newly created ActivityMonitor.
+        /// </para>
+        /// <para>
+        /// The default GrandOutput handles Critical errors (by subscribing to <see cref=""/>
         /// </para>
         /// <para>
         /// The Default GrandOutput can safely be <see cref="Dispose()"/> at any time: disposing the Default 
@@ -184,7 +187,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets whether a log level should be emitted.
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
-        /// bit set, the decision has already being taken and we return true.
+        /// bit set, the decision has already been taken and we return true.
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>
         /// (and if it is <see cref="LogLevelFilter.None"/>, the static <see cref="ActivityMonitor.DefaultFilter"/>).
         /// </summary>

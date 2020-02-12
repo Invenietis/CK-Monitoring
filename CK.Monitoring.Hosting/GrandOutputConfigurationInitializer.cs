@@ -74,14 +74,14 @@ namespace CK.Monitoring.Hosting
             builder.ConfigureServices( services => SubscribeGrandOutputDispose( services ) );
         }
 
-        void Initialize( IHostEnvironment env, ILoggingBuilder aspNetLogs, IConfigurationSection section )
+        void Initialize( IHostEnvironment env, ILoggingBuilder dotNetLogs, IConfigurationSection section )
         {
             _section = section;
             if( _isDefaultGrandOutput && LogFile.RootLogPath == null )
             {
                 LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
             }
-            aspNetLogs.AddProvider( _loggerProvider );
+            dotNetLogs.AddProvider( _loggerProvider );
             var reloadToken = _section.GetReloadToken();
             _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
             // We do not handle CancellationTokenRegistration.Dispose here.
@@ -100,9 +100,9 @@ namespace CK.Monitoring.Hosting
         IServiceCollection SubscribeGrandOutputDispose( IServiceCollection services ) =>
             services.AddHostedService( ( p ) => new HostedService( _target ) );
 
-        void ConfigureGlobalListeners( bool trackUnhandledException, bool aspNetLogs )
+        void ConfigureGlobalListeners( bool trackUnhandledException, bool dotNetLogs )
         {
-            _loggerProvider._running = aspNetLogs;
+            _loggerProvider._running = dotNetLogs;
             if( trackUnhandledException != _trackUnhandledException )
             {
                 if( trackUnhandledException )
@@ -122,8 +122,21 @@ namespace CK.Monitoring.Hosting
         void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
         {
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
-            bool aspNetLogs = !String.Equals( _section["HandleAspNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
-            ConfigureGlobalListeners( trackUnhandledException, aspNetLogs );
+
+            bool obsoleteAspNetLogs = _section["HandleAspNetLogs"] != null;
+            bool dotNetLogs = !String.Equals( _section[obsoleteAspNetLogs ? "HandleAspNetLogs" : "HandleDotNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
+
+            LogFilter defaultFilter = LogFilter.Undefined;
+            bool hasGlobalDefaultFilter = _section["GlobalDefaultFilter"] != null;
+            bool errorParsingGlobalDefaultFilter = hasGlobalDefaultFilter && !LogFilter.TryParse( _section["GlobalDefaultFilter"], out defaultFilter );
+
+            // On first initialization, configure the filter as early as possible.
+            if( hasGlobalDefaultFilter && !errorParsingGlobalDefaultFilter && initialConfigMustWaitForApplication )
+            {
+                ActivityMonitor.DefaultFilter = defaultFilter;
+            }
+
+            ConfigureGlobalListeners( trackUnhandledException, dotNetLogs );
             GrandOutputConfiguration c;
             var gSection = _section.GetSection( "GrandOutput" );
             if( gSection.Exists() )
@@ -198,7 +211,40 @@ namespace CK.Monitoring.Hosting
                 c = new GrandOutputConfiguration()
                     .AddHandler( new CK.Monitoring.Handlers.TextFileConfiguration() { Path = "Text" } );
             }
+
+            // If a GlobalDefaultFilter has been successsfuly parsed and we are reconfiguring and it is different than
+            // current one, logs the change before applying the configuration.
+            if( hasGlobalDefaultFilter
+                && !errorParsingGlobalDefaultFilter
+                && !initialConfigMustWaitForApplication
+                && defaultFilter != ActivityMonitor.DefaultFilter )
+            {
+                _target.ExternalLog( Core.LogLevel.Info, $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}'." );
+                ActivityMonitor.DefaultFilter = defaultFilter;
+            }
+
             _target.ApplyConfiguration( c, initialConfigMustWaitForApplication );
+            // On the initial configuration (initialConfigMustWaitForApplication is true), we wait until the
+            // configuration is operational. Otherwise, during reconfiguration, we don't wait and here
+            // we don't care if the obsolete warning goes to the previous or next configured output.
+            if( obsoleteAspNetLogs )
+            {
+                _target.ExternalLog( Core.LogLevel.Warn, "Configuration name \"HandleAspNetLogs\" is obsolete: please use \"HandleDotNetLogs\" instead. " );
+            }
+
+            if( hasGlobalDefaultFilter )
+            {
+                // Always log the parse error, but only log a real change or the intitial configured level.
+                if( errorParsingGlobalDefaultFilter )
+                {
+                    _target.ExternalLog( Core.LogLevel.Error, $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                }
+                else if( defaultFilter != ActivityMonitor.DefaultFilter || initialConfigMustWaitForApplication )
+                {
+                    _target.ExternalLog( Core.LogLevel.Info, $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}' (previously '{ActivityMonitor.DefaultFilter}'))." );
+                    ActivityMonitor.DefaultFilter = defaultFilter;
+                }
+            }
         }
 
         void OnUnobservedTaskException( object sender, UnobservedTaskExceptionEventArgs e )
