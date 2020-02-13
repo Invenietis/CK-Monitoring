@@ -157,7 +157,7 @@ namespace CK.Monitoring.Tests
             ActivityMonitor.DefaultFilter = LogFilter.Trace;
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
             {
-                g.ExternalLogFilter.Should().Be( LogLevelFilter.None );
+                g.ExternalLogLevelFilter.Should().Be( LogLevelFilter.None );
                 g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
@@ -165,7 +165,7 @@ namespace CK.Monitoring.Tests
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
-                g.ExternalLogFilter = LogLevelFilter.Info;
+                g.ExternalLogLevelFilter = LogLevelFilter.Info;
                 g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeTrue();

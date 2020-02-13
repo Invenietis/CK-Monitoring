@@ -155,14 +155,14 @@ namespace CK.Monitoring.Tests
             {
                 g.ExternalLog( LogLevel.Debug, "NOSHOW" );
                 g.ExternalLog( LogLevel.Trace, "SHOW 0" );
-                g.ExternalLogFilter = LogLevelFilter.Debug;
+                g.ExternalLogLevelFilter = LogLevelFilter.Debug;
                 g.ExternalLog( LogLevel.Debug, "SHOW 1" );
-                g.ExternalLogFilter = LogLevelFilter.Error;
+                g.ExternalLogLevelFilter = LogLevelFilter.Error;
                 g.ExternalLog( LogLevel.Warn, "NOSHOW" );
                 g.ExternalLog( LogLevel.Error, "SHOW 2" );
                 g.ExternalLog( LogLevel.Fatal, "SHOW 3" );
                 g.ExternalLog( LogLevel.Trace | LogLevel.IsFiltered, "SHOW 4" );
-                g.ExternalLogFilter = LogLevelFilter.None;
+                g.ExternalLogLevelFilter = LogLevelFilter.None;
                 g.ExternalLog( LogLevel.Debug, "NOSHOW" );
                 g.ExternalLog( LogLevel.Trace, "SHOW 4" );
             }

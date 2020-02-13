@@ -1,3 +1,4 @@
+using CK.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,20 @@ namespace CK.Monitoring
         /// Defaults to 500 milliseconds.
         /// </summary>
         public TimeSpan TimerDuration { get; set; } = TimeSpan.FromMilliseconds( 500 );
+
+        /// <summary>
+        /// Gets or sets the minimal filter of all the <see cref="IActivityMonitor"/> that are bound
+        /// to the <see cref="GrandOutput"/> (through the <see cref="GrandOutputClient"/>).
+        /// Default to <see cref="LogFilter.Undefined"/>: there is no impact on each <see cref="IActivityMonitor.ActualFilter"/>.
+        /// </summary>
+        public LogFilter MinimalFilter { get; set; } = LogFilter.Undefined;
+
+        /// <summary>
+        /// Gets or sets the filter level for <see cref="GrandOutput.ExternalLog(LogLevel, string, Exception, CKTrait)"/> methods.
+        /// Defaults to <see cref="LogLevelFilter.None"/> (the <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see>
+        /// is used).
+        /// </summary>
+        public LogLevelFilter ExternalLogLevelFilter { get; set; } = LogLevelFilter.None;
 
         /// <summary>
         /// Gets the list of handlers configuration.

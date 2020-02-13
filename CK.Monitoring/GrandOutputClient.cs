@@ -59,11 +59,8 @@ namespace CK.Monitoring
 
         internal bool IsBoundToMonitor => _monitorSource != null; 
 
-        internal void OnCentralDisposed()
-        {
-            _monitorSource?.SignalChange();
-        }
-
+        internal void OnGrandOutputDisposedOrMinimalFilterChanged() => _monitorSource?.SignalChange();
+        
         void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
         {
             if( _central.IsDisposed ) return;
