@@ -11,7 +11,7 @@ namespace CK.Monitoring.Handlers
         MonitorBinaryFileOutput _file;
         BinaryFileConfiguration _config;
         int _countHousekeeping;
-        private TimeSpan _minTimespan;
+        TimeSpan _minTimespan;
         int _maxKbToKeep;
 
         /// <summary>

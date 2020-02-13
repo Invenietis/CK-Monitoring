@@ -6,20 +6,19 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using System;
 
-namespace Microsoft.AspNetCore.Hosting
+namespace Microsoft.Extensions.Hosting
 {
 
     /// <summary>
     /// Adds extension methods on <see cref="IHostBuilder"/>.
     /// </summary>
-    public static class WebHostBuilderCKAspNetExtensions
+    public static class HostBuilderMonitoringHostExtensions
     {
         /// <summary>
-        /// Uses <see cref="CK.Monitoring"/> during the web host building and initializes the default <see cref="GrandOutput"/>,
-        /// and bounds the configuration from the given configuration section.
+        /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration from the given configuration section path.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// </summary>
-        /// <param name="builder">Web host builder</param>
+        /// <param name="builder">Host builder</param>
         /// <param name="configurationPath">The path of the monitoring configuration in the global configuration.</param>
         /// <returns>The builder.</returns>
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, string configurationPath = "Monitoring" )
@@ -28,11 +27,11 @@ namespace Microsoft.AspNetCore.Hosting
         }
 
         /// <summary>
-        /// Uses <see cref="CK.Monitoring"/> during the web host building and initializes an instance of the <see cref="GrandOutput"/>
-        /// that must not be null nor be the <see cref="GrandOutput.Default"/> and bounds the configuration from the given configuration section.
+        /// Configures a <see cref="GrandOutput"/> instance that must not be null nor be the <see cref="GrandOutput.Default"/> and
+        /// bounds the configuration from the given configuration section path.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// </summary>
-        /// <param name="builder">Web host builder</param>
+        /// <param name="builder">This Host builder</param>
         /// <param name="grandOutput">The target <see cref="GrandOutput"/>.</param>
         /// <param name="configurationPath">The path of the monitoring configuration in the global configuration.</param>
         /// <returns>The builder.</returns>
@@ -44,12 +43,11 @@ namespace Microsoft.AspNetCore.Hosting
         }
 
         /// <summary>
-        /// Uses <see cref="CK.Monitoring"/> during the web host building and initializes the default <see cref="GrandOutput"/>,
-        /// and bounds the configuration to the given configuration section.
+        /// Configures the <see cref="GrandOutput.Default"/> based on the given configuration section.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// </summary>
-        /// <param name="builder">Web host builder</param>
-        /// <param name="section">The configuration section.</param>
+        /// <param name="builder">This host builder</param>
+        /// <param name="section">The configuration section. Must not be null.</param>
         /// <returns>The builder.</returns>
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, IConfigurationSection section )
         {
@@ -58,8 +56,8 @@ namespace Microsoft.AspNetCore.Hosting
         }
 
         /// <summary>
-        /// Uses <see cref="CK.Monitoring"/> during the web host building and initializes an instance of the <see cref="GrandOutput"/>
-        /// that must not be null nor be the <see cref="GrandOutput.Default"/> and bounds the configuration to a configuration section.
+        /// Configures a <see cref="GrandOutput"/> instance that must not be null nor be the <see cref="GrandOutput.Default"/> and
+        /// bounds the configuration from the given configuration section.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// </summary>
         /// <param name="builder">This Web host builder</param>
@@ -86,8 +84,6 @@ namespace Microsoft.AspNetCore.Hosting
             // This startup filter will inject the Application service IApplicationLifetime.
             return RegisterMonitor( builder );
         }
-
-
 
         /// <summary>
         /// Initialize from IConfigurationSection instead of configurationPath.
