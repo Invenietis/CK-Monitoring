@@ -181,6 +181,16 @@ namespace CK.Monitoring.Tests
             return m;
         }
 
+        [Test]
+        public void GrandOutput_MinimalFilter_works()
+        {
+            using GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
+            var m = CreateMonitorAndRegisterGrandOutput( "Test.", go );
+            m.ActualFilter.Should().Be( LogFilter.Undefined );
+            go.MinimalFilter = LogFilter.Release;
+            m.ActualFilter.Should().Be( LogFilter.Release );
+        }
+
         public class SlowSinkHandlerConfiguration : IHandlerConfiguration
         {
             public int Delay { get; set; }

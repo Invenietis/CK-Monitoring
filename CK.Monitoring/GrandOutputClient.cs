@@ -53,7 +53,7 @@ namespace CK.Monitoring
         {
         }
 
-        LogFilter IActivityMonitorBoundClient.MinimalFilter => LogFilter.Undefined;
+        LogFilter IActivityMonitorBoundClient.MinimalFilter => _central.MinimalFilter;
 
         bool IActivityMonitorBoundClient.IsDead => _central.IsDisposed;
 
