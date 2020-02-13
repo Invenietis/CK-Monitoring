@@ -121,6 +121,8 @@ namespace CK.Monitoring.Hosting
 
         void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
         {
+            _target.ExternalLog( Core.LogLevel.Debug, $"Applying monitoring Configuration{(initialConfigMustWaitForApplication ? " (initial call)" : "")}." );
+
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
 
             bool obsoleteAspNetLogs = _section["HandleAspNetLogs"] != null;
@@ -150,8 +152,7 @@ namespace CK.Monitoring.Hosting
                     // Checks for single value and not section.
                     // This is required for handlers that have no configuration properties:
                     // "Handlers": { "Console": true } does the job.
-                    // The only case of "falsiness" we consider here is "false":
-                    // we ignore the key is this case.
+                    // The only case of "falsiness" we consider here is "false": we ignore the key in this case.
                     string value = hConfig.Value;
                     if( !String.IsNullOrWhiteSpace( value )
                         && String.Equals( value, "false", StringComparison.OrdinalIgnoreCase ) ) continue;
@@ -278,12 +279,12 @@ namespace CK.Monitoring.Hosting
                 {
                     var weakTypeName = fullTypeName + ", " + assemblyName;
                     resolved = SimpleTypeFinder.RawGetType( weakTypeName, false );
-                    if( resolved != null ) return IsHandlerConfiguration( resolved );
+                    if( IsHandlerConfiguration( resolved ) ) return resolved;
                     if( !fullTypeName.EndsWith( "Configuration" ) )
                     {
                         weakTypeName = fullTypeName + "Configuration, " + assemblyName;
                         resolved = SimpleTypeFinder.RawGetType( weakTypeName, false );
-                        if( resolved != null ) return IsHandlerConfiguration( resolved );
+                        if( IsHandlerConfiguration( resolved ) ) return resolved;
                     }
                 }
                 return null;
@@ -309,11 +310,7 @@ namespace CK.Monitoring.Hosting
             return resolved;
         }
 
-        static Type IsHandlerConfiguration( Type candidate )
-        {
-            if( typeof( IHandlerConfiguration ).IsAssignableFrom( candidate ) ) return candidate;
-            return null;
-        }
+        static bool IsHandlerConfiguration( Type candidate ) => candidate != null && typeof( IHandlerConfiguration ).IsAssignableFrom( candidate );
 
         static void OnConfigurationChanged( object obj )
         {
