@@ -143,7 +143,7 @@ namespace CK.Monitoring
             _minimalFilter = LogFilter.Undefined;
             // Starts the pump thread. Its monitor will be registered
             // in this GrandOutput.
-            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ), config.TimerDuration, TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients, OnFiltersChanged );
+            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ), config.TimerDuration ?? TimeSpan.FromMilliseconds(500), TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients, OnFiltersChanged );
             _externalLogLock = new object();
             _externalLogLastTime = DateTimeStamp.MinValue;
             HandleCriticalErrors = handleCriticalErrors;
@@ -190,6 +190,7 @@ namespace CK.Monitoring
 
         /// <summary></summary>
         [Obsolete( "Use ExternalLogLevelFilter instead.", true)]
+        [System.ComponentModel.EditorBrowsable( System.ComponentModel.EditorBrowsableState.Never )]
         public LogLevelFilter ExternalLogFilter { get; set; }
 
         /// <summary>
@@ -213,10 +214,10 @@ namespace CK.Monitoring
             }
         }
 
-        void OnFiltersChanged( LogFilter minimalFilter, LogLevelFilter externalLogFilter )
+        void OnFiltersChanged( LogFilter? minimalFilter, LogLevelFilter? externalLogFilter )
         {
-            MinimalFilter = minimalFilter;
-            ExternalLogLevelFilter = externalLogFilter;
+            if( minimalFilter.HasValue ) MinimalFilter = minimalFilter.Value;
+            if( externalLogFilter.HasValue ) ExternalLogLevelFilter = externalLogFilter.Value;
         }
 
 

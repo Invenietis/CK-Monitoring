@@ -16,21 +16,22 @@ namespace CK.Monitoring
         /// Gets or sets the timer duration.
         /// Defaults to 500 milliseconds.
         /// </summary>
-        public TimeSpan TimerDuration { get; set; } = TimeSpan.FromMilliseconds( 500 );
+        public TimeSpan? TimerDuration { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the minimal filter of all the <see cref="IActivityMonitor"/> that are bound
-        /// to the <see cref="GrandOutput"/> (through the <see cref="GrandOutputClient"/>).
-        /// Default to <see cref="LogFilter.Undefined"/>: there is no impact on each <see cref="IActivityMonitor.ActualFilter"/>.
+        /// Gets or sets a <see cref="LogFilter"/> that will eventually affects all the <see cref="IActivityMonitor.ActualFilter"/> of
+        /// monitors that are bound to the <see cref="GrandOutput"/> (through the <see cref="GrandOutputClient"/>).
+        /// This, when not null, impacts the <see cref="GrandOutput.MinimalFilter"/> property that defaults
+        /// to <see cref="LogFilter.Undefined"/>: by default, there is no impact on each <see cref="IActivityMonitor.ActualFilter"/>.
         /// </summary>
-        public LogFilter MinimalFilter { get; set; } = LogFilter.Undefined;
+        public LogFilter? MinimalFilter { get; set; } = null;
 
         /// <summary>
         /// Gets or sets the filter level for <see cref="GrandOutput.ExternalLog(LogLevel, string, Exception, CKTrait)"/> methods.
-        /// Defaults to <see cref="LogLevelFilter.None"/> (the <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see>
-        /// is used).
+        /// This, when not null, impacts the <see cref="GrandOutput.ExternalLogLevelFilter"/> property that defaults to <see cref="LogLevelFilter.None"/>
+        /// (the <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see> is used).
         /// </summary>
-        public LogLevelFilter ExternalLogLevelFilter { get; set; } = LogLevelFilter.None;
+        public LogLevelFilter? ExternalLogLevelFilter { get; set; } = null;
 
         /// <summary>
         /// Gets the list of handlers configuration.
@@ -38,9 +39,31 @@ namespace CK.Monitoring
         public List<IHandlerConfiguration> Handlers { get; } = new List<IHandlerConfiguration>();
 
         /// <summary>
+        /// Sets the <see cref="MinimalFilter"/> (fluent interface).
+        /// </summary>
+        /// <param name="filter">The log filter.</param>
+        /// <returns>This configuration.</returns>
+        public GrandOutputConfiguration SetMinimalFilter( LogFilter? filter )
+        {
+            MinimalFilter = filter;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the <see cref="ExternalLogLevelFilter"/> (fluent interface).
+        /// </summary>
+        /// <param name="filter">The log level filter.</param>
+        /// <returns>This configuration.</returns>
+        public GrandOutputConfiguration SetExternalLogLevelFilter( LogLevelFilter? filter )
+        {
+            ExternalLogLevelFilter = filter;
+            return this;
+        }
+
+        /// <summary>
         /// Sets the <see cref="TimerDuration"/> (fluent interface).
         /// </summary>
-        /// <param name="duration">Sets the timer duration.</param>
+        /// <param name="duration">The root timer duration.</param>
         /// <returns>This configuration.</returns>
         public GrandOutputConfiguration SetTimerDuration( TimeSpan duration )
         {
@@ -67,6 +90,8 @@ namespace CK.Monitoring
         {
             var c = new GrandOutputConfiguration();
             c.TimerDuration = TimerDuration;
+            c.ExternalLogLevelFilter = ExternalLogLevelFilter;
+            c.MinimalFilter = MinimalFilter;
             c.Handlers.AddRange( Handlers.Select( h => h.Clone() ) );
             return c;
         }

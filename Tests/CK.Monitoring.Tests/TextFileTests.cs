@@ -59,8 +59,9 @@ namespace CK.Monitoring.Tests
             var textConf = new Handlers.TextFileConfiguration() { Path = "AutoFlush" };
             textConf.AutoFlushRate.Should().Be( 6, "Default AutoFlushRate configuration." );
 
-            var config = new GrandOutputConfiguration().AddHandler( textConf );
-            config.TimerDuration.Should().Be( TimeSpan.FromMilliseconds( 500 ), "Default timer congiguration." );
+            // Avoid relying on the internal 500ms default.
+            var config = new GrandOutputConfiguration { TimerDuration = TimeSpan.FromMilliseconds( 500 ) }
+                                .AddHandler( textConf );
 
             using( GrandOutput g = new GrandOutput( config ) )
             {
