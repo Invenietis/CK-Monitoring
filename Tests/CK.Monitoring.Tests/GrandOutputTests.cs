@@ -157,7 +157,7 @@ namespace CK.Monitoring.Tests
             ActivityMonitor.DefaultFilter = LogFilter.Trace;
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
             {
-                g.ExternalLogFilter.Should().Be( LogLevelFilter.None );
+                g.ExternalLogLevelFilter.Should().Be( LogLevelFilter.None );
                 g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
@@ -165,7 +165,7 @@ namespace CK.Monitoring.Tests
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
-                g.ExternalLogFilter = LogLevelFilter.Info;
+                g.ExternalLogLevelFilter = LogLevelFilter.Info;
                 g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeFalse();
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeTrue();
@@ -179,6 +179,16 @@ namespace CK.Monitoring.Tests
             var m = new ActivityMonitor( applyAutoConfigurations: false, topic: topic );
             go.EnsureGrandOutputClient( m );
             return m;
+        }
+
+        [Test]
+        public void GrandOutput_MinimalFilter_works()
+        {
+            using GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
+            var m = CreateMonitorAndRegisterGrandOutput( "Test.", go );
+            m.ActualFilter.Should().Be( LogFilter.Undefined );
+            go.MinimalFilter = LogFilter.Release;
+            m.ActualFilter.Should().Be( LogFilter.Release );
         }
 
         public class SlowSinkHandlerConfiguration : IHandlerConfiguration

@@ -59,8 +59,9 @@ namespace CK.Monitoring.Tests
             var textConf = new Handlers.TextFileConfiguration() { Path = "AutoFlush" };
             textConf.AutoFlushRate.Should().Be( 6, "Default AutoFlushRate configuration." );
 
-            var config = new GrandOutputConfiguration().AddHandler( textConf );
-            config.TimerDuration.Should().Be( TimeSpan.FromMilliseconds( 500 ), "Default timer congiguration." );
+            // Avoid relying on the internal 500ms default.
+            var config = new GrandOutputConfiguration { TimerDuration = TimeSpan.FromMilliseconds( 500 ) }
+                                .AddHandler( textConf );
 
             using( GrandOutput g = new GrandOutput( config ) )
             {
@@ -155,14 +156,14 @@ namespace CK.Monitoring.Tests
             {
                 g.ExternalLog( LogLevel.Debug, "NOSHOW" );
                 g.ExternalLog( LogLevel.Trace, "SHOW 0" );
-                g.ExternalLogFilter = LogLevelFilter.Debug;
+                g.ExternalLogLevelFilter = LogLevelFilter.Debug;
                 g.ExternalLog( LogLevel.Debug, "SHOW 1" );
-                g.ExternalLogFilter = LogLevelFilter.Error;
+                g.ExternalLogLevelFilter = LogLevelFilter.Error;
                 g.ExternalLog( LogLevel.Warn, "NOSHOW" );
                 g.ExternalLog( LogLevel.Error, "SHOW 2" );
                 g.ExternalLog( LogLevel.Fatal, "SHOW 3" );
                 g.ExternalLog( LogLevel.Trace | LogLevel.IsFiltered, "SHOW 4" );
-                g.ExternalLogFilter = LogLevelFilter.None;
+                g.ExternalLogLevelFilter = LogLevelFilter.None;
                 g.ExternalLog( LogLevel.Debug, "NOSHOW" );
                 g.ExternalLog( LogLevel.Trace, "SHOW 4" );
             }

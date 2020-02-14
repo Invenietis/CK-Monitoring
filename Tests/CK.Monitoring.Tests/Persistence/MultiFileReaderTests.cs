@@ -33,10 +33,10 @@ namespace CK.Monitoring.Tests.Persistence
                 // We must let the trace to be handled by the previous configuration:
                 // entries are not processed before a change of the config since
                 // we want to apply the new configuration as soon as possible.
-                Thread.Sleep( emptyConfig.TimerDuration + emptyConfig.TimerDuration );
+                Thread.Sleep( 200 );
                 g.ApplyConfiguration( binaryConfig, true );
                 m.Trace( "Show-1" );
-                Thread.Sleep( emptyConfig.TimerDuration + emptyConfig.TimerDuration );
+                Thread.Sleep( 200 );
                 g.ApplyConfiguration( emptyConfig, true );
                 m.Trace( "NoShow-3" );
             }

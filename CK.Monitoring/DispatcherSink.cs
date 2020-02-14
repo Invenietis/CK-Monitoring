@@ -18,6 +18,7 @@ namespace CK.Monitoring
         readonly Action _externalOnTimer;
         readonly object _confTrigger;
         readonly Action<IActivityMonitor> _initialRegister;
+        readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
         readonly CancellationTokenSource _stopTokenSource;
 
         GrandOutputConfiguration[] _newConf;
@@ -28,7 +29,12 @@ namespace CK.Monitoring
         volatile int _stopFlag;
         volatile bool _forceClose;
 
-        public DispatcherSink( Action<IActivityMonitor> initialRegister, TimeSpan timerDuration, TimeSpan externalTimerDuration, Action externalTimer )
+        public DispatcherSink(
+            Action<IActivityMonitor> initialRegister,
+            TimeSpan timerDuration,
+            TimeSpan externalTimerDuration,
+            Action externalTimer,
+            Action<LogFilter?,LogLevelFilter?> filterChange )
         {
             _initialRegister = initialRegister;
             _queue = new BlockingCollection<GrandOutputEventInfo>();
@@ -43,6 +49,7 @@ namespace CK.Monitoring
             long now = DateTime.UtcNow.Ticks;
             _nextTicks = now + timerDuration.Ticks;
             _nextExternalTicks = now + externalTimerDuration.Ticks;
+            _filterChange = filterChange;
             _task.Start();
         }
 
@@ -141,8 +148,9 @@ namespace CK.Monitoring
         private void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
             Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
-            var c = newConf[newConf.Length - 1];
-            TimerDuration = c.TimerDuration;
+            var c = newConf[newConf.Length - 1];    
+            _filterChange( c.MinimalFilter, c.ExternalLogLevelFilter );
+            if( c.TimerDuration.HasValue ) TimerDuration = c.TimerDuration.Value;
             List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
             for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
             {

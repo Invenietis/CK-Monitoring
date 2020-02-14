@@ -17,6 +17,8 @@ namespace CK.Monitoring
         readonly List<WeakReference<GrandOutputClient>> _clients;
         readonly DispatcherSink _sink;
         readonly object _externalLogLock;
+        LogFilter _minimalFilter;
+
         DateTimeStamp _externalLogLastTime;
         int _handleCriticalErrors;
 
@@ -46,11 +48,14 @@ namespace CK.Monitoring
         /// Configuration to apply to the default GrandOutput.
         /// When null, a default configuration with a <see cref="Handlers.TextFileConfiguration"/> in a "Text" path is configured.
         /// </param>
-        /// <returns>The Default GrandOutput.</returns>
+        /// <returns>The Default GrandOutput has by default its <see cref="HandleCriticalErrors"/> sets to true.</returns>
         /// <remarks>
         /// <para>
         /// This method is thread-safe (a simple lock protects it) and uses a <see cref="ActivityMonitor.AutoConfiguration"/> action 
         /// that uses <see cref="EnsureGrandOutputClient(IActivityMonitor)"/> on newly created ActivityMonitor.
+        /// </para>
+        /// <para>
+        /// The default GrandOutput handles Critical errors (by subscribing to <see cref=""/>
         /// </para>
         /// <para>
         /// The Default GrandOutput can safely be <see cref="Dispose()"/> at any time: disposing the Default 
@@ -135,9 +140,10 @@ namespace CK.Monitoring
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
             // Creates the client list first.
             _clients = new List<WeakReference<GrandOutputClient>>();
+            _minimalFilter = LogFilter.Undefined;
             // Starts the pump thread. Its monitor will be registered
             // in this GrandOutput.
-            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ), config.TimerDuration, TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients );
+            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ), config.TimerDuration ?? TimeSpan.FromMilliseconds(500), TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients, OnFiltersChanged );
             _externalLogLock = new object();
             _externalLogLastTime = DateTimeStamp.MinValue;
             HandleCriticalErrors = handleCriticalErrors;
@@ -175,17 +181,51 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Gets or sets the filter for ExternalLog methods.
-        /// Defaults to <see cref="LogLevelFilter.None"/>: <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see>
-        /// is used.
+        /// Gets or directly sets the filter level for ExternalLog methods (without using the <see cref="GrandOutputConfiguration.ExternalLogLevelFilter"/> configuration).
+        /// Defaults to <see cref="LogLevelFilter.None"/> (<see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see>
+        /// is used).
+        /// Note that <see cref="ApplyConfiguration(GrandOutputConfiguration, bool)"/> changes this property.
         /// </summary>
+        public LogLevelFilter ExternalLogLevelFilter { get; set; }
+
+        /// <summary></summary>
+        [Obsolete( "Use ExternalLogLevelFilter instead.", true)]
+        [System.ComponentModel.EditorBrowsable( System.ComponentModel.EditorBrowsableState.Never )]
         public LogLevelFilter ExternalLogFilter { get; set; }
+
+        /// <summary>
+        /// Gets or directly sets the minimal filter (without using the <see cref="GrandOutputConfiguration.MinimalFilter"/> configuration).
+        /// This minimal filter impacts all the <see cref="IActivityMonitor"/> that are bound to the <see cref="GrandOutput"/>
+        /// (through the <see cref="GrandOutputClient"/>).
+        /// Default to <see cref="LogFilter.Undefined"/>: there is no impact on each <see cref="IActivityMonitor.ActualFilter"/>.
+        /// Note that <see cref="ApplyConfiguration(GrandOutputConfiguration, bool)"/> changes this property.
+        /// </summary>
+        public LogFilter MinimalFilter
+        {
+            get => _minimalFilter;
+            set 
+            {
+                var m = _minimalFilter;
+                if( m != value )
+                {
+                    _minimalFilter = value;
+                    SignalClients();
+                }
+            }
+        }
+
+        void OnFiltersChanged( LogFilter? minimalFilter, LogLevelFilter? externalLogFilter )
+        {
+            if( minimalFilter.HasValue ) MinimalFilter = minimalFilter.Value;
+            if( externalLogFilter.HasValue ) ExternalLogLevelFilter = externalLogFilter.Value;
+        }
+
 
         /// <summary>
         /// Gets whether a log level should be emitted.
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
-        /// bit set, the decision has already being taken and we return true.
-        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>
+        /// bit set, the decision has already been taken and we return true.
+        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>
         /// (and if it is <see cref="LogLevelFilter.None"/>, the static <see cref="ActivityMonitor.DefaultFilter"/>).
         /// </summary>
         /// <param name="level">Log level to test.</param>
@@ -193,7 +233,7 @@ namespace CK.Monitoring
         public bool IsExternalLogEnabled( LogLevel level )
         {
             if( (level & LogLevel.IsFiltered) != 0 ) return true;
-            LogLevelFilter filter = ExternalLogFilter;
+            LogLevelFilter filter = ExternalLogLevelFilter;
             if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
             return (int)filter <= (int)(level & LogLevel.Mask);
         }
@@ -205,7 +245,7 @@ namespace CK.Monitoring
         /// <remarks>
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see> bit
         /// set, the decision has already being taken and here we do our job: dispatching of the log.
-        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>.
+        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>
         /// <param name="message">String message.</param>
@@ -215,7 +255,7 @@ namespace CK.Monitoring
         {
             if( (level & LogLevel.IsFiltered) == 0 )
             {
-                LogLevelFilter filter = ExternalLogFilter;
+                LogLevelFilter filter = ExternalLogLevelFilter;
                 if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
                 if( (int)filter > (int)(level & LogLevel.Mask) ) return;
             }
@@ -248,7 +288,7 @@ namespace CK.Monitoring
         /// <remarks>
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
         /// bit set, the decision has already being taken and here we do our job: dispatching of the log.
-        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogFilter"/>.
+        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>
         /// <param name="message">String message.</param>
@@ -342,18 +382,23 @@ namespace CK.Monitoring
                         _default = null;
                     }
                 }
-                lock( _clients )
+                SignalClients();
+                _sink.Finalize( millisecondsBeforeForceClose );
+            }
+        }
+
+        void SignalClients()
+        {
+            lock( _clients )
+            {
+                for( int i = 0; i < _clients.Count; ++i )
                 {
-                    for( int i = 0; i < _clients.Count; ++i )
+                    GrandOutputClient cw;
+                    if( _clients[i].TryGetTarget( out cw ) && cw.IsBoundToMonitor )
                     {
-                        GrandOutputClient cw;
-                        if( _clients[i].TryGetTarget( out cw ) && cw.IsBoundToMonitor )
-                        {
-                            cw.OnCentralDisposed();
-                        }
+                        cw.OnGrandOutputDisposedOrMinimalFilterChanged();
                     }
                 }
-                _sink.Finalize( millisecondsBeforeForceClose );
             }
         }
 
