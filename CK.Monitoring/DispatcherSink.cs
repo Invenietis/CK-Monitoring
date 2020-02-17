@@ -20,21 +20,26 @@ namespace CK.Monitoring
         readonly Action<IActivityMonitor> _initialRegister;
         readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
         readonly CancellationTokenSource _stopTokenSource;
+        readonly object _externalLogLock;
+        DateTimeStamp _externalLogLastTime;
 
         GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
         long _deltaTicks;
         long _nextTicks;
         long _nextExternalTicks;
+        int _configurationCount;
         volatile int _stopFlag;
         volatile bool _forceClose;
+        readonly bool _isDefaultGrandOutput;
 
         public DispatcherSink(
             Action<IActivityMonitor> initialRegister,
             TimeSpan timerDuration,
             TimeSpan externalTimerDuration,
             Action externalTimer,
-            Action<LogFilter?,LogLevelFilter?> filterChange )
+            Action<LogFilter?,LogLevelFilter?> filterChange,
+            bool isDefaultGrandOutput )
         {
             _initialRegister = initialRegister;
             _queue = new BlockingCollection<GrandOutputEventInfo>();
@@ -50,6 +55,10 @@ namespace CK.Monitoring
             _nextTicks = now + timerDuration.Ticks;
             _nextExternalTicks = now + externalTimerDuration.Ticks;
             _filterChange = filterChange;
+            _externalLogLock = new object();
+            _externalLogLastTime = DateTimeStamp.MinValue;
+            _isDefaultGrandOutput = isDefaultGrandOutput;
+
             _task.Start();
         }
 
@@ -207,6 +216,13 @@ namespace CK.Monitoring
                     monitor.SendLine( LogLevel.Fatal, msg, ex );
                 }
             }
+            if( _isDefaultGrandOutput )
+            {
+                // No need to Dispose() this Process.
+                var thisProcess = System.Diagnostics.Process.GetCurrentProcess();
+                var msg = $"GrandOutput.Default configuration n°{_configurationCount++} for '{thisProcess.ProcessName}' (PID:{thisProcess.Id},AppDomainId:{AppDomain.CurrentDomain.Id}) on machine {Environment.MachineName}, UserName: '{Environment.UserName}', CommandLine: '{Environment.CommandLine}', BaseDirectory: '{AppContext.BaseDirectory}'.";
+                ExternalLog( Core.LogLevel.Info | Core.LogLevel.IsFiltered, msg, null, null );
+            }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
         }
@@ -279,6 +295,31 @@ namespace CK.Monitoring
                         Monitor.Wait( _confTrigger );
                 }
             }
+        }
+
+
+        public void ExternalLog( LogLevel level, string message, Exception ex, CKTrait tags )
+        {
+            DateTimeStamp prevLogTime;
+            DateTimeStamp logTime;
+            lock( _externalLogLock )
+            {
+                prevLogTime = _externalLogLastTime;
+                _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
+            }
+            var e = LogEntry.CreateMulticastLog(
+                        Guid.Empty,
+                        LogEntryType.Line,
+                        prevLogTime,
+                        depth: 0,
+                        text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
+                        t: logTime,
+                        level: level,
+                        fileName: null,
+                        lineNumber: 0,
+                        tags: tags,
+                        ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
+            Handle( new GrandOutputEventInfo( e, String.Empty ) );
         }
     }
 }
