@@ -23,7 +23,7 @@ namespace Microsoft.Extensions.Hosting
         /// <returns>The builder.</returns>
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, string configurationPath = "Monitoring" )
         {
-            return DoUseMonitoring( builder, null, configurationPath );
+            return DoUseMonitoring( builder, null, c => c.GetSection( configurationPath ) );
         }
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace Microsoft.Extensions.Hosting
         {
             if( grandOutput == null ) throw new ArgumentNullException( nameof( grandOutput ) );
             if( grandOutput == GrandOutput.Default ) throw new ArgumentException( "The GrandOutput must not be the default one.", nameof( grandOutput ) );
-            return DoUseMonitoring( builder, grandOutput, configurationPath );
+            return DoUseMonitoring( builder, grandOutput, c => c.GetSection( configurationPath ) );
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace Microsoft.Extensions.Hosting
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, IConfigurationSection section )
         {
             if( section == null ) throw new ArgumentNullException( nameof( section ) );
-            return DoUseMonitoring( builder, null, section );
+            return DoUseMonitoring( builder, null, c => section );
         }
 
         /// <summary>
@@ -69,38 +69,14 @@ namespace Microsoft.Extensions.Hosting
             if( grandOutput == null ) throw new ArgumentNullException( nameof( grandOutput ) );
             if( grandOutput == GrandOutput.Default ) throw new ArgumentException( "The GrandOutput must not be the default one.", nameof( grandOutput ) );
             if( section == null ) throw new ArgumentNullException( nameof( section ) );
-            return DoUseMonitoring( builder, grandOutput, section );
+            return DoUseMonitoring( builder, grandOutput, c => section );
         }
 
-        static IHostBuilder DoUseMonitoring( IHostBuilder builder, GrandOutput grandOutput, string configurationPath )
-        {
-            // Three steps initialization:
-            // First creates the initializer instance.
-            var initializer = new GrandOutputConfigurationInitializer( grandOutput );
-
-            initializer.InitializeMonitor( builder, configurationPath );
-
-            // Now, registers the PostInstanciationFilter as a transient object.
-            // This startup filter will inject the Application service IApplicationLifetime.
-            return RegisterMonitor( builder );
-        }
-
-        /// <summary>
-        /// Initialize from IConfigurationSection instead of configurationPath.
-        /// </summary>
-        static IHostBuilder DoUseMonitoring( IHostBuilder builder, GrandOutput grandOutput, IConfigurationSection configuration )
+        static IHostBuilder DoUseMonitoring( IHostBuilder builder, GrandOutput grandOutput, Func<IConfiguration, IConfigurationSection> configSection )
         {
             var initializer = new GrandOutputConfigurationInitializer( grandOutput );
-            initializer.InitializeMonitor( builder, configuration );
-            return RegisterMonitor( builder );
-        }
-
-        static IHostBuilder RegisterMonitor( IHostBuilder builder )
-        {
-            return builder.ConfigureServices( ( ctx, services ) =>
-            {
-                services.TryAddScoped<IActivityMonitor>( sp => new ActivityMonitor() );
-            } );
+            initializer.ConfigureBuilder( builder, configSection );
+            return builder;
         }
 
     }

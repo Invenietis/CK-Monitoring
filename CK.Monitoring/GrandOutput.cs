@@ -16,12 +16,9 @@ namespace CK.Monitoring
     {
         readonly List<WeakReference<GrandOutputClient>> _clients;
         readonly DispatcherSink _sink;
-        readonly object _externalLogLock;
         LogFilter _minimalFilter;
 
-        DateTimeStamp _externalLogLastTime;
         int _handleCriticalErrors;
-
 
         static GrandOutput _default;
         static readonly object _defaultLock = new object();
@@ -75,7 +72,7 @@ namespace CK.Monitoring
                                             .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
                         configuration.InternalClone = true;
                     }
-                    _default = new GrandOutput( configuration, true );
+                    _default = new GrandOutput( true, configuration, true );
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                 }
                 else if( configuration != null ) _default.ApplyConfiguration( configuration, true );
@@ -136,6 +133,11 @@ namespace CK.Monitoring
         /// <param name="config">The configuration.</param>
         /// <param name="handleCriticalErrors">True to handle critical errors.</param>
         public GrandOutput( GrandOutputConfiguration config, bool handleCriticalErrors = false )
+            : this( false, config, handleCriticalErrors )
+        {
+        }
+
+        GrandOutput( bool isDefault, GrandOutputConfiguration config, bool handleCriticalErrors )
         {
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
             // Creates the client list first.
@@ -143,9 +145,13 @@ namespace CK.Monitoring
             _minimalFilter = LogFilter.Undefined;
             // Starts the pump thread. Its monitor will be registered
             // in this GrandOutput.
-            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ), config.TimerDuration ?? TimeSpan.FromMilliseconds(500), TimeSpan.FromMinutes( 5 ), DoGarbageDeadClients, OnFiltersChanged );
-            _externalLogLock = new object();
-            _externalLogLastTime = DateTimeStamp.MinValue;
+            _sink = new DispatcherSink(
+                            m => DoEnsureGrandOutputClient( m ),
+                            config.TimerDuration ?? TimeSpan.FromMilliseconds(500),
+                            TimeSpan.FromMinutes( 5 ),
+                            DoGarbageDeadClients,
+                            OnFiltersChanged,
+                            isDefault );
             HandleCriticalErrors = handleCriticalErrors;
             ApplyConfiguration( config, waitForApplication: true );
         }
@@ -259,26 +265,7 @@ namespace CK.Monitoring
                 if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
                 if( (int)filter > (int)(level & LogLevel.Mask) ) return;
             }
-            DateTimeStamp prevLogTime;
-            DateTimeStamp logTime;
-            lock( _externalLogLock )
-            {
-                prevLogTime = _externalLogLastTime;
-                _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
-            }
-            var e = LogEntry.CreateMulticastLog(
-                        Guid.Empty,
-                        LogEntryType.Line,
-                        prevLogTime,
-                        depth: 0,
-                        text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
-                        t: logTime,
-                        level: level,
-                        fileName: null,
-                        lineNumber: 0,
-                        tags: tags,
-                        ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
-            _sink.Handle( new GrandOutputEventInfo( e, String.Empty ) );
+            _sink.ExternalLog( level, message, ex, tags );
         }
 
         /// <summary>
