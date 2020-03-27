@@ -40,7 +40,7 @@ namespace CK.Monitoring.Handlers
         /// Log files within <see cref="MinimumTimeSpanToKeep"/> will not be deleted, even if their cumulative
         /// size exceeds this value.
         /// Setting both this and <see cref="MaximumTotalKbToKeep"/> to 0 suppress any file cleanup.
-        /// Defaults to 100 megabytes.
+        /// Defaults to 100 Mebibyte.
         /// </summary>
         public int MaximumTotalKbToKeep { get; set; } = 100 * 1024;
 
