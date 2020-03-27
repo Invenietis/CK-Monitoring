@@ -170,30 +170,32 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Automatically deletes files that are older than the specified <paramref name="timeSpanToKeep"/>,
-        /// and those beyond that would exceed the total size specified by <paramref name="totalBytesToKeep"/>.
+        /// and those that would make the cumulated file size exceed <paramref name="totalBytesToKeep"/>.
         /// </summary>
         /// <param name="m">The monitor to use when logging.</param>
         /// <param name="timeSpanToKeep">
-        /// The minimum time log files should be kept.
-        /// Log files within this span will not be deleted if they exceed <paramref name="totalBytesToKeep"/>.
-        /// If zero: log files will not be deleted at all
-        /// (<paramref name="totalBytesToKeep"/> MUST be non-zero).
+        /// The minimum time during which log files should be kept.
+        /// Log files within this span will never be deleted (even if they exceed <paramref name="totalBytesToKeep"/>).
+        /// If zero, there is no "time to keep", only the size limit applies and totalBytesToKeep parameter MUST be positive.
         /// </param>
         /// <param name="totalBytesToKeep">
-        /// The maximum total log file size to keep.
-        /// If zero: all files beyond <paramref name="timeSpanToKeep"/> will be deleted
-        /// (<paramref name="timeSpanToKeep"/> MUST be non-zero).
+        /// The maximum total size in bytes of the log files.
+        /// If zero, there is no size limit, only "time to keep" applies and all "old" files (<paramref name="timeSpanToKeep"/>
+        /// MUST be positive) are deleted.
         /// </param>
         public void RunFileHousekeeping( IActivityMonitor m, TimeSpan timeSpanToKeep, long totalBytesToKeep )
         {
             if( _basePath == null ) return;
-            if( timeSpanToKeep == TimeSpan.Zero && totalBytesToKeep == 0 )
+            if( timeSpanToKeep <= TimeSpan.Zero && totalBytesToKeep <= 0 )
             {
-                throw new ArgumentException( $"Either {nameof( timeSpanToKeep )} or {nameof( totalBytesToKeep )} must be non-zero." );
+                throw new ArgumentException( $"Either {nameof( timeSpanToKeep )} or {nameof( totalBytesToKeep )} must be positive." );
             }
 
             var candidates = new List<KeyValuePair<DateTime, FileInfo>>();
 
+            int preservedByDateCount = 0;
+            long byteLengthOfPreservedByDate = 0;
+            long totalByteLength = 0;
             DateTime minDate = DateTime.UtcNow - timeSpanToKeep;
             DirectoryInfo logDirectory = new DirectoryInfo( _basePath );
             foreach( FileInfo file in logDirectory.EnumerateFiles() )
@@ -208,8 +210,14 @@ namespace CK.Monitoring
                     }
 
                     string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 4 );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) && d < minDate )
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) )
                     {
+                        if( d >= minDate )
+                        {
+                            ++preservedByDateCount;
+                            byteLengthOfPreservedByDate += file.Length;
+                        }
+                        totalByteLength += file.Length;
                         candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
                     }
                 }
@@ -217,20 +225,28 @@ namespace CK.Monitoring
                 else if( file.Name.EndsWith( _fileNameSuffix ) )
                 {
                     string datePart = file.Name.Substring( 0, file.Name.Length - _fileNameSuffix.Length );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) && d < minDate )
+                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) )
                     {
+                        if( d >= minDate )
+                        {
+                            ++preservedByDateCount;
+                            byteLengthOfPreservedByDate += file.Length;
+                        }
+                        totalByteLength += file.Length;
                         candidates.Add( new KeyValuePair<DateTime, FileInfo>( d, file ) );
                     }
                 }
             }
-
-            if( candidates.Count > 0 )
+            int canBeDeletedCount = candidates.Count - preservedByDateCount;
+            bool hasBytesOverflow = totalByteLength > totalBytesToKeep;
+            if( canBeDeletedCount > 0 && hasBytesOverflow )
             {
                 // Note: The comparer is a reverse comparer. The most RECENT log file is the FIRST.
                 candidates.Sort( ( a, b ) => DateTime.Compare( b.Key, a.Key ) );
+                candidates.RemoveRange( 0, preservedByDateCount );
                 m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Debug, $"Considering {candidates.Count} log files to delete.", m.NextLogTime(), null );
 
-                long totalFileSize = 0;
+                long totalFileSize = byteLengthOfPreservedByDate;
                 foreach( var kvp in candidates )
                 {
                     var file = kvp.Value;
