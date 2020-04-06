@@ -32,7 +32,7 @@ namespace CK.Monitoring.Handlers
         /// Setting both this and <see cref="MinimumTimeSpanToKeep"/> to 0 suppress any file cleanup.
         /// Defaults to 100 Megabyte.
         /// </summary>
-        public int MaximumTotalKbToKeep { get; set; } = 100_1000;
+        public int MaximumTotalKbToKeep { get; set; } = 100_000;
 
         /// <summary>
         /// Gets or sets the number of days in <see cref="MinimumTimeSpanToKeep"/> as an integer.

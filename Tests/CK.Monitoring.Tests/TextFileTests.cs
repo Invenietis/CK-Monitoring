@@ -246,7 +246,7 @@ namespace CK.Monitoring.Tests
             textConf.HousekeepingRate.Should().Be( 1800, "Default HousekeepingRate configuration" );
             textConf.MinimumDaysToKeep.Should().Be( 60, "Default HousekeepingRate configuration" );
             textConf.MinimumTimeSpanToKeep.Should().Be( TimeSpan.FromDays( 60 ), "Default HousekeepingRate configuration" );
-            textConf.MaximumTotalKbToKeep.Should().Be( 100 * 1024, "Default HousekeepingRate configuration" );
+            textConf.MaximumTotalKbToKeep.Should().Be( 100_000, "Default HousekeepingRate configuration" );
 
             // Change configuration for tests
             textConf.HousekeepingRate = 1; // Run every 500ms
