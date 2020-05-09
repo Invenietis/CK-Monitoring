@@ -19,29 +19,30 @@ namespace CK.Monitoring.Handlers
 
         /// <summary>
         /// Gets or sets the minimum number of days to keep log files, when housekeeping is enabled via <see cref="HousekeepingRate"/>.
-        /// Log files older than this will be deleted.
-        /// Setting this to <see cref="TimeSpan.Zero"/> disables automatic file deletion.
+        /// Log files more recent than this will not be deleted (even if <see cref="MaximumTotalKbToKeep"/> applies).
+        /// Setting both this and <see cref="MaximumTotalKbToKeep"/> to 0 suppress any file cleanup.
+        /// Defaults to 60 days.
         /// </summary>
         public TimeSpan MinimumTimeSpanToKeep { get; set; } = TimeSpan.FromDays( 60 );
 
         /// <summary>
-        /// Gets or sets the number of days in <see cref="MinimumTimeSpanToKeep"/> as an integer.
-        /// If a partial day is set in <see cref="MinimumTimeSpanToKeep"/>, the next positive integer is returned.
-        /// </summary>
-        public int MinimumDaysToKeep
-        {
-            get => Convert.ToInt32( Math.Ceiling( MinimumTimeSpanToKeep.TotalDays ) );
-            set => MinimumTimeSpanToKeep = TimeSpan.FromDays( value );
-        }
-
-        /// <summary>
         /// Gets or sets the maximum total file size log files can use, in kilobytes.
-        /// Defaults to 100 megabytes.
-        /// Log files within <see cref="MinimumTimeSpanToKeep"/> or <see cref="MinimumDaysToKeep"/> will not be deleted,
-        /// even if they exceed this value.
+        /// Log files within <see cref="MinimumTimeSpanToKeep"/> will not be deleted, even if their cumulative
+        /// size exceeds this value.
+        /// Setting both this and <see cref="MinimumTimeSpanToKeep"/> to 0 suppress any file cleanup.
+        /// Defaults to 100 Megabyte.
         /// </summary>
         public int MaximumTotalKbToKeep { get; set; } = 100_000;
 
+        /// <summary>
+        /// Gets or sets the number of days in <see cref="MinimumTimeSpanToKeep"/> as an integer.
+        /// If a partial day is set in <see cref="MinimumTimeSpanToKeep"/>, the number of complete days is returned.
+        /// </summary>
+        public int MinimumDaysToKeep
+        {
+            get => Convert.ToInt32( Math.Floor( MinimumTimeSpanToKeep.TotalDays ) );
+            set => MinimumTimeSpanToKeep = TimeSpan.FromDays( value );
+        }
 
         /// <summary>
         /// Gets or sets the path of the file. When not rooted (see <see cref="System.IO.Path.IsPathRooted"/>),
