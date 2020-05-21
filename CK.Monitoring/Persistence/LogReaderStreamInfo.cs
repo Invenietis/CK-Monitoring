@@ -6,7 +6,7 @@ namespace CK.Monitoring
     /// <summary>
     /// Container for an uncompressed log stream and other meta-information.
     /// </summary>
-    internal struct LogReaderStreamInfo
+    internal readonly struct LogReaderStreamInfo
     {
         /// <summary>
         /// Gets the log stream: it is opened and uncompressed. Its position is before the version number if Version is equal to -1; otherwise, it is after.
@@ -43,9 +43,11 @@ namespace CK.Monitoring
         /// Opens a log stream, handling version and compression.
         /// On success, its Stream positionned after the header (before the first log entry).
         /// Supports headers:
-        /// - Old version header (05 00 00 00)
-        /// - CKMOD header (43 4B 4D 4F 4E) followed by version
-        /// - RFC 1952 GZIP header (1F 8B), will be handled automatically by: a GZip stream reader will be created.
+        /// <list type="bullet">
+        ///   <item>Old version header (05 00 00 00).</item>
+        ///   <item>CKMOD header (43 4B 4D 4F 4E) followed by version.</item>
+        ///   <item>RFC 1952 GZIP header (1F 8B), will be handled automatically: a GZip stream reader will be created.</item>
+        /// </list>
         /// </summary>
         /// <param name="seekableStream">Log stream to read.</param>
         /// <returns>LogReader information.</returns>
