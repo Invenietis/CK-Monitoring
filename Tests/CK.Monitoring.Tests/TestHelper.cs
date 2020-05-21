@@ -131,6 +131,7 @@ namespace CK.Monitoring.Tests
 
         public static string PrepareLogFolder( string subfolder )
         {
+            if( _solutionFolder == null ) InitalizePaths();
             string p = LogFile.RootLogPath + subfolder;
             CleanupFolder( p );
             return p;
@@ -138,6 +139,7 @@ namespace CK.Monitoring.Tests
 
         static void CleanupFolder( string folder )
         {
+            if( _solutionFolder == null ) InitalizePaths();
             int tryCount = 0;
             for( ;;)
             {
@@ -166,7 +168,7 @@ namespace CK.Monitoring.Tests
                 var s = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );
                 if( s.IsEmptyPath ) throw new InvalidOperationException( $"Unable to find CK-Monitoring.sln above '{AppContext.BaseDirectory}'." );
                 _solutionFolder = s.RemoveLastPart();
-                LogFile.RootLogPath = Path.Combine( _solutionFolder, "Tests", "RootLogPath" );
+                LogFile.RootLogPath = Path.Combine( _solutionFolder, "Tests", "CK.Monitoring.Tests", "Logs" );
                 ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {LogFile.RootLogPath}" );
             }
             Assert.That( Directory.Exists( CriticalErrorsFolder ) );

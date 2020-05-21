@@ -156,6 +156,16 @@ namespace CK.Monitoring
                 MonitorId = monitorId;
                 KnownLastMonitorEntryOffset = knownLastMonitorEntryOffset;
             }
+
+            /// <summary>
+            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IUniqueId.UniqueId"/> that
+            /// is explicitly implemented. (This is a mainly for tests.)
+            /// </summary>
+            /// <param name="monitor">Activity Monitor to filter.</param>
+            public MulticastFilter( ActivityMonitor m )
+                : this( ((IUniqueId)m).UniqueId )
+            {
+            }
         }
 
         /// <summary>
@@ -275,10 +285,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Close the inner stream (.Net 4.5 only: if this reader has been asked to do so thanks to constructors' parameter mustClose sets to true).
         /// </summary>
-        public void Dispose()
-        {
-            Close( false );
-        }
+        public void Dispose() => Close( false );
 
         void Close( bool throwError )
         {
@@ -292,10 +299,7 @@ namespace CK.Monitoring
             if( throwError ) throw new InvalidOperationException( "Invalid log data." );
         }
 
-        object IEnumerator.Current
-        {
-            get { return Current; }
-        }
+        object IEnumerator.Current => Current; 
 
         void IEnumerator.Reset()
         {
