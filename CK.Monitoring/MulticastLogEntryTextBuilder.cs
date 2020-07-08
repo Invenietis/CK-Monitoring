@@ -195,7 +195,7 @@ namespace CK.Monitoring
                 }
                 monitorId = B64ConvertInt( _monitorNames.Count );
                 _monitorNames.Add( logEntry.MonitorId, monitorId );
-                firstLine = new FormattedEntry( 'i', indentationPrefix, monitorId, formattedDate, $"Monitor: ~{logEntry.MonitorId.ToString()}. {_monitorResetLog}" );
+                firstLine = new FormattedEntry( 'i', indentationPrefix, monitorId, formattedDate, $"Monitor: ~{logEntry.MonitorId}. {_monitorResetLog}" );
             }
             else
             {

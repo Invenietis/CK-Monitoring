@@ -16,6 +16,16 @@ namespace CK.Monitoring.Handlers
         public ConsoleColor BackgroundColor { get; set; }
 
         /// <summary>
+        /// Enable unique color per monitor id
+        /// </summary>
+        public bool EnableMonitorIdColorFlag { get; set; }
+
+        /// <summary>
+        /// Does... things...
+        /// </summary>
+        public bool Cocorico { get; set; }
+
+        /// <summary>
         /// Time format string used to display the DateTime before each logged line.
         /// If not set, the format used will be "yyyy-MM-dd HH\hmm.ss.fff"
         /// </summary>
@@ -38,7 +48,9 @@ namespace CK.Monitoring.Handlers
             {
                 BackgroundColor = BackgroundColor,
                 DateFormat = DateFormat,
-                UseDeltaTime = UseDeltaTime
+                UseDeltaTime = UseDeltaTime,
+                EnableMonitorIdColorFlag = EnableMonitorIdColorFlag,
+                Cocorico = Cocorico
             };
         }
     }
