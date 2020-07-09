@@ -111,7 +111,6 @@ namespace CK.Monitoring.Handlers
                        'u', 'v', 'w', 'x', 'y', 'z',
                        '+', '/'};
 
-        int cnt = 0;
         void DisplayFormattedEntry( MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel )
         {
             ConsoleColor prevForegroundColor = System.Console.ForegroundColor;

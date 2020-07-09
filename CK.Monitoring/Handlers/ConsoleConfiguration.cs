@@ -45,7 +45,6 @@ namespace CK.Monitoring.Handlers
                 DateFormat = DateFormat,
                 UseDeltaTime = UseDeltaTime,
                 EnableMonitorIdColorFlag = EnableMonitorIdColorFlag,
-                Cocorico = Cocorico
             };
         }
     }
