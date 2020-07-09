@@ -139,25 +139,6 @@ namespace CK.Monitoring.Handlers
                     }
                 }
             }
-            else if( _config.Cocorico )
-            {
-                if( cnt % 3 == 0 )
-                {
-                    prevBackgroundColor = ConsoleColor.Blue;
-                    System.Console.BackgroundColor = ConsoleColor.Blue;
-                }
-                else if( cnt % 3 == 2 )
-                {
-                    prevBackgroundColor = ConsoleColor.Red;
-                    System.Console.BackgroundColor = ConsoleColor.Red;
-                }
-                else
-                {
-                    prevBackgroundColor = ConsoleColor.White;
-                    System.Console.BackgroundColor = ConsoleColor.White;
-                }
-                cnt++;
-            }
             else
             {
                 if( _monitorColorSwitch )

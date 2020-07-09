@@ -16,14 +16,9 @@ namespace CK.Monitoring.Handlers
         public ConsoleColor BackgroundColor { get; set; }
 
         /// <summary>
-        /// Enable unique color per monitor id
+        /// Default to false, enable unique color per monitor id.
         /// </summary>
         public bool EnableMonitorIdColorFlag { get; set; }
-
-        /// <summary>
-        /// Does... things...
-        /// </summary>
-        public bool Cocorico { get; set; }
 
         /// <summary>
         /// Time format string used to display the DateTime before each logged line.
