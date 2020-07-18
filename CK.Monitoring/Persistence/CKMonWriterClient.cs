@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Text;
 using CK.Core;
 using CK.Core.Impl;
 
@@ -91,9 +89,9 @@ namespace CK.Monitoring
         /// <returns>True on success, false otherwise.</returns>
         public bool Open()
         {
-            using( _source.ReentrancyAndConcurrencyLock() )
+           if( _source == null ) throw new InvalidOperationException( "CKMonWriterClient must be registered in an ActivityMonitor." );
+           using( _source.ReentrancyAndConcurrencyLock() )
             {
-                if( _source == null ) throw new InvalidOperationException( "CKMonWriterClient must be registered in an ActivityMonitor." );
                 if( _file != null ) return true;
                 _file = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
                 _prevLogType = LogEntryType.None;

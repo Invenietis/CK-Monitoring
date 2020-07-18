@@ -248,3 +248,5 @@ Tests/**/CKSetup-WorkingDir/
 RootLogPath/
 
 CodeCakeBuilder/MemoryKey.*.txt
+CodeCakeBuilder/UnitTestsDone.*.txt
+$StObjGen/

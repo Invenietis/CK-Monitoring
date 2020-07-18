@@ -178,13 +178,13 @@ namespace CK.Monitoring
             WriteLogTypeAndLevel( w, t, level );
             w.Write( logTime.TimeUtc.ToBinary() );
             if( logTime.Uniquifier != 0 ) w.Write( logTime.Uniquifier );
-            if( (t & StreamLogType.HasTags) != 0 ) w.Write( tags.ToString() );
+            if( (t & StreamLogType.HasTags) != 0 ) w.Write( tags.ToString() ); // lgtm [cs/dereferenced-value-may-be-null]
             if( (t & StreamLogType.HasFileName) != 0 )
             {
                 w.Write( fileName );
                 w.WriteNonNegativeSmallInt32( lineNumber );
             }
-            if( (t & StreamLogType.HasException) != 0 ) ex.Write( w );
+            if( (t & StreamLogType.HasException) != 0 ) ex.Write( w ); // lgtm [cs/dereferenced-value-may-be-null]
             if( (t & StreamLogType.IsTextTheExceptionMessage) == 0 ) w.Write( text );
         }
 
@@ -253,7 +253,7 @@ namespace CK.Monitoring
             if( closeTime.Uniquifier != 0 ) w.Write( closeTime.Uniquifier );
             if( (t & StreamLogType.HasConclusions) != 0 )
             {
-                w.WriteNonNegativeSmallInt32( conclusions.Count );
+                w.WriteNonNegativeSmallInt32( conclusions.Count ); //lgtm [cs/dereferenced-value-may-be-null]
                 foreach( ActivityLogGroupConclusion c in conclusions )
                 {
                     w.Write( c.Tag.ToString() );

@@ -1,10 +1,5 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using CK.Core;
 using CK.Core.Impl;
 
@@ -58,17 +53,14 @@ namespace CK.Monitoring
         {
         }
 
-        LogFilter IActivityMonitorBoundClient.MinimalFilter => LogFilter.Undefined;
+        LogFilter IActivityMonitorBoundClient.MinimalFilter => _central.MinimalFilter;
 
         bool IActivityMonitorBoundClient.IsDead => _central.IsDisposed;
 
         internal bool IsBoundToMonitor => _monitorSource != null; 
 
-        internal void OnCentralDisposed()
-        {
-            _monitorSource?.SignalChange();
-        }
-
+        internal void OnGrandOutputDisposedOrMinimalFilterChanged() => _monitorSource?.SignalChange();
+        
         void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
         {
             if( _central.IsDisposed ) return;

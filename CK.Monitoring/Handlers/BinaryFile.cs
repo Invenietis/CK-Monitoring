@@ -1,7 +1,5 @@
 using CK.Core;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace CK.Monitoring.Handlers
 {
@@ -13,8 +11,6 @@ namespace CK.Monitoring.Handlers
         MonitorBinaryFileOutput _file;
         BinaryFileConfiguration _config;
         int _countHousekeeping;
-        private TimeSpan _minTimespan;
-        int _maxKbToKeep;
 
         /// <summary>
         /// Initializes a new <see cref="BinaryFile"/> bound to its <see cref="BinaryFileConfiguration"/>.
@@ -26,8 +22,6 @@ namespace CK.Monitoring.Handlers
             _file = new MonitorBinaryFileOutput( config.Path, config.MaxCountPerFile, config.UseGzipCompression );
             _config = config;
             _countHousekeeping = _config.HousekeepingRate;
-            _minTimespan = _config.MinimumTimeSpanToKeep;
-            _maxKbToKeep = _config.MaximumTotalKbToKeep;
         }
 
         /// <summary>
@@ -78,8 +72,12 @@ namespace CK.Monitoring.Handlers
             if( cF == null || cF.Path != _config.Path ) return false;
             if( _config.UseGzipCompression != cF.UseGzipCompression )
             {
+                var f = new MonitorBinaryFileOutput( _config.Path, cF.MaxCountPerFile, cF.UseGzipCompression );
+                // If the initialization of the new file fails (should not happen), we fail to apply the configuration:
+                // this handler will be Deactivated and another one will be created... and it may work. Who knows...
+                if( !f.Initialize( m ) ) return false;
                 _file.Close();
-                _file = new MonitorBinaryFileOutput( _config.Path, _config.MaxCountPerFile, _config.UseGzipCompression );
+                _file = f;
             }
             else
             {
