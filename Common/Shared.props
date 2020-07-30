@@ -1,7 +1,7 @@
-<Project>
+﻿<Project>
   <!-- Shared dependency versions -->
   <PropertyGroup>
-    <CKActivityMonitorVersion>13.3.1--0001-develop</CKActivityMonitorVersion>
+    <CKActivityMonitorVersion>0.0.0--02wpt36-local+v13.3.0</CKActivityMonitorVersion>
   </PropertyGroup>
   <!--<SourceLink>: is enabled only for ContinuousIntegrationBuild build. -->
   <ItemGroup Condition=" '$(ContinuousIntegrationBuild)' == 'true' ">
@@ -34,7 +34,7 @@
   <!--</BasicDefinitions>-->
   <!--<StandardProperties>-->
   <PropertyGroup>
-    <RepositoryUrl>https://github.com/Invenietis/CK-Monitoring.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Invenietis/CK-Monitoring</RepositoryUrl>
     <ProductName>CK</ProductName>
     <Company>Signature Code</Company>
     <Authors>Signature Code</Authors>
