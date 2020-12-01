@@ -9,8 +9,8 @@
     <PackageReference Include="CK.AspNet.Tester" Version="3.1.2--0004-develop" />
     <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="$(CKActivityMonitorVersion)" />
     <PackageReference Include="nunit" Version="3.12.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.16.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.6.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\CK.Monitoring.Hosting\CK.Monitoring.Hosting.csproj" />
