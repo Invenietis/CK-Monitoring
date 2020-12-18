@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Text;
 using CK.Core;
 using Pastel;
 
@@ -110,12 +111,14 @@ namespace CK.Monitoring.Handlers
                        'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
                        'u', 'v', 'w', 'x', 'y', 'z',
                        '+', '/'};
-
+        StringBuilder _sb = new StringBuilder();
         void DisplayFormattedEntry( MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel )
         {
+            _sb.Clear();
             ConsoleColor prevForegroundColor = System.Console.ForegroundColor;
             ConsoleColor prevBackgroundColor = System.Console.BackgroundColor;
-            System.Console.Write( entry.FormattedDate + " " );
+            _sb.Append( entry.FormattedDate )
+                .Append( ' ' );
             if( _currentMonitor != entry.MonitorId )
             {
                 _currentMonitor = entry.MonitorId;
@@ -124,17 +127,17 @@ namespace CK.Monitoring.Handlers
             if( _config.EnableMonitorIdColorFlag )
             {
                 string monitorId = entry.MonitorId;
-                System.Console.Write( monitorId[0] );
+                _sb.Append( monitorId[0] );
                 for( int i = 1; i < monitorId.Length; i++ )
                 {
                     int b64 = _b64e.IndexOf( s => s == monitorId[i] );
                     if( b64 != -1 )
                     {
-                        System.Console.Write( monitorId[i].ToString().Pastel( _foregroundColor[b64 / 16] ).PastelBg( _colors[b64] ) );
+                        _sb.Append( monitorId[i].ToString().Pastel( _foregroundColor[b64 / 16] ).PastelBg( _colors[b64] ) );
                     }
                     else
                     {
-                        System.Console.Write( monitorId[i].ToString() );
+                        _sb.Append( monitorId[i] );
                     }
                 }
             }
@@ -145,25 +148,18 @@ namespace CK.Monitoring.Handlers
                     System.Console.ForegroundColor = prevBackgroundColor;
                     System.Console.BackgroundColor = prevForegroundColor;
                 }
-                System.Console.Write( entry.MonitorId );
+                _sb.Append( entry.MonitorId.Pastel( System.Console.ForegroundColor ).PastelBg( System.Console.BackgroundColor ) );
             }
 
 
-            ConsoleSetColor();
-            System.Console.Write( " " + entry.LogLevel + " " );
-            ConsoleResetColor();
-            System.Console.Write( entry.IndentationPrefix );
-            ConsoleSetColor();
-            System.Console.WriteLine( entry.EntryText );
-            ConsoleResetColor();
-
-            void ConsoleSetColor() =>
-                ColoredActivityMonitorConsoleClient.DefaultSetColor( _config.BackgroundColor, LogLevel.Mask & logLevel );
-            void ConsoleResetColor()
-            {
-                System.Console.ForegroundColor = prevForegroundColor;
-                System.Console.BackgroundColor = prevBackgroundColor;
-            }
+            (ConsoleColor background, ConsoleColor foreground) = ColoredActivityMonitorConsoleClient.DefaultColorTheme( prevBackgroundColor, logLevel & LogLevel.Mask );
+            _sb.Append( ' ' )
+                .Append( entry.LogLevel.ToString().Pastel( foreground ).PastelBg( background ) )
+                .Append( ' ' )
+                .Append( entry.IndentationPrefix )
+                .Append(entry.EntryText.Pastel( foreground ).PastelBg( background ) );
+            System.Console.WriteLine( _sb.ToString() );
+            _sb.Clear();
         }
 
         /// <summary>
