@@ -83,7 +83,7 @@ namespace CK.Monitoring.Handlers
         /// <returns>True if the configuration applied.</returns>
         public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
-            TextFileConfiguration cF = c as TextFileConfiguration;
+            TextFileConfiguration? cF = c as TextFileConfiguration;
             if( cF == null || cF.Path != _config.Path ) return false;
             _config = cF;
             _file.MaxCountPerFile = cF.MaxCountPerFile;

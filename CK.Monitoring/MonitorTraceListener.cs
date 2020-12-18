@@ -15,7 +15,6 @@ namespace CK.Monitoring
     {
         static readonly CKTrait _tag = ActivityMonitor.Tags.Register( nameof( TraceListener ) );
         readonly GrandOutput _grandOutput;
-        readonly bool _failFast;
 
         /// <summary>
         /// Creates a MonitorTraceListener instance.
@@ -28,13 +27,14 @@ namespace CK.Monitoring
         public MonitorTraceListener( GrandOutput grandOutput, bool failFast )
         {
             _grandOutput = grandOutput ?? throw new ArgumentNullException( nameof( grandOutput ) );
-            _failFast = failFast;
+            FailFast = failFast;
         }
 
         /// <summary>
         /// Gets whether a call to <see cref="Fail(string)"/> calls <see cref="Environment.FailFast(string)"/>.
+        /// This can be changed at runtime at any time.
         /// </summary>
-        public bool FailFast => _failFast;
+        public bool FailFast { get; set; }
 
         /// <summary>
         /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait)"/> with a <see cref="LogLevel.Trace"/>.
@@ -62,7 +62,7 @@ namespace CK.Monitoring
         public override void Fail( string message )
         {
             _grandOutput.ExternalLog( LogLevel.Fatal, message, _tag );
-            if( _failFast )
+            if( FailFast )
             {
                 _grandOutput.Dispose();
                 Environment.FailFast( message );
@@ -82,7 +82,7 @@ namespace CK.Monitoring
                 msg += ": " + detailMessage;
             }
             _grandOutput.ExternalLog( LogLevel.Fatal, msg, _tag );
-            if( _failFast )
+            if( FailFast )
             {
                 _grandOutput.Dispose();
                 Environment.FailFast( msg );

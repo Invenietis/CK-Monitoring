@@ -23,7 +23,7 @@ namespace CK.Monitoring
         readonly object _externalLogLock;
         DateTimeStamp _externalLogLastTime;
 
-        GrandOutputConfiguration[] _newConf;
+        GrandOutputConfiguration[]? _newConf;
         TimeSpan _timerDuration;
         long _deltaTicks;
         long _nextTicks;
@@ -79,7 +79,7 @@ namespace CK.Monitoring
         {
             var monitor = new ActivityMonitor( applyAutoConfigurations: false );
             // Simple pooling for initial configuration.
-            GrandOutputConfiguration[] newConf = _newConf;
+            GrandOutputConfiguration[]? newConf = _newConf;
             while( newConf == null )
             {
                 Thread.Sleep( 0 );
@@ -92,8 +92,9 @@ namespace CK.Monitoring
             {
                 bool hasEvent = _queue.TryTake( out GrandOutputEventInfo e, millisecondsTimeout: 100 );
                 newConf = _newConf;
+                Debug.Assert( newConf != null, "Except at the start, this is never null." );
                 if( newConf.Length > 0 ) DoConfigure( monitor, newConf );
-                List<IGrandOutputHandler> faulty = null;
+                List<IGrandOutputHandler>? faulty = null;
                 #region Process event if any.
                 if( hasEvent )
                 {
@@ -221,7 +222,7 @@ namespace CK.Monitoring
                 // No need to Dispose() this Process.
                 var thisProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var msg = $"GrandOutput.Default configuration n°{_configurationCount++} for '{thisProcess.ProcessName}' (PID:{thisProcess.Id},AppDomainId:{AppDomain.CurrentDomain.Id}) on machine {Environment.MachineName}, UserName: '{Environment.UserName}', CommandLine: '{Environment.CommandLine}', BaseDirectory: '{AppContext.BaseDirectory}'.";
-                ExternalLog( Core.LogLevel.Info | Core.LogLevel.IsFiltered, msg, null, null );
+                ExternalLog( Core.LogLevel.Info | Core.LogLevel.IsFiltered, msg, null, ActivityMonitor.Tags.Empty );
             }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
@@ -298,7 +299,7 @@ namespace CK.Monitoring
         }
 
 
-        public void ExternalLog( LogLevel level, string message, Exception ex, CKTrait tags )
+        public void ExternalLog( LogLevel level, string message, Exception? ex, CKTrait tags )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;

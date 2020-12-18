@@ -31,7 +31,7 @@ namespace CK.Monitoring
             internal int _firstDepth;
             internal DateTimeStamp _lastEntryTime;
             internal int _lastDepth;
-            internal Dictionary<CKTrait,int> _tags; 
+            internal Dictionary<CKTrait,int>? _tags; 
 
             internal LiveIndexedMonitor( Guid monitorId, MultiLogReader reader )
             {
@@ -153,56 +153,56 @@ namespace CK.Monitoring
             DateTimeStamp _firstEntryTime;
             DateTimeStamp _lastEntryTime;
             int _totalEntryCount;
-            IReadOnlyList<RawLogFileMonitorOccurence> _monitors;
-            Exception _error;
+            IReadOnlyList<RawLogFileMonitorOccurence>? _monitors;
+            Exception? _error;
             bool _badEndOfFile;
 
             /// <summary>
             /// Gets the file name.
             /// </summary>
-            public string FileName { get { return _fileName; } }
+            public string FileName => _fileName;
 
             /// <summary>
             /// Gets the first entry time.
             /// </summary>
-            public DateTimeStamp FirstEntryTime { get { return _firstEntryTime; } }
+            public DateTimeStamp FirstEntryTime => _firstEntryTime; 
             
             /// <summary>
             /// Gets the last entry time.
             /// </summary>
-            public DateTimeStamp LastEntryTime { get { return _lastEntryTime; } }
+            public DateTimeStamp LastEntryTime => _lastEntryTime;
 
             /// <summary>
             /// Gets the file version.
             /// </summary>
-            public int FileVersion { get { return _fileVersion; } }
+            public int FileVersion => _fileVersion;
             
             /// <summary>
             /// Gets the total number of entries.
             /// </summary>
-            public int TotalEntryCount { get { return _totalEntryCount; } }
+            public int TotalEntryCount => _totalEntryCount;
             
             /// <summary>
             /// Gets whether this file does not end with the end of stream marker (a zero byte).
             /// </summary>
-            public bool BadEndOfFile { get { return _badEndOfFile; } }
+            public bool BadEndOfFile => _badEndOfFile;
 
             /// <summary>
             /// Gets whether no <see cref="Error"/> occurred and there is no <see cref="BadEndOfFile"/>.
             /// </summary>
-            public bool IsValidFile { get { return !_badEndOfFile && _error == null; } }
+            public bool IsValidFile => !_badEndOfFile && _error == null;
 
             /// <summary>
             /// Gets the <see cref="Exception"/> that occurred while reading file.
             /// </summary>
-            public Exception Error { get { return _error; } }
+            public Exception? Error => _error;
             
             /// <summary>
             /// Gets the different monitors that appear in this file.
             /// </summary>
-            public IReadOnlyList<RawLogFileMonitorOccurence> Monitors { get { return _monitors; } }
+            public IReadOnlyList<RawLogFileMonitorOccurence> Monitors => _monitors!;
 
-            internal object InitializerLock;
+            internal object? InitializerLock;
 
             internal RawLogFile( string fileName )
             {
