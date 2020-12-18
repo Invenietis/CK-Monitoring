@@ -6,7 +6,7 @@ using System.Linq;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// Configure a <see cref="GrandOutput"/>.
+    /// Configures a <see cref="GrandOutput"/>.
     /// </summary>
     public class GrandOutputConfiguration
     {
