@@ -60,11 +60,13 @@ namespace CK.Monitoring
         /// </para>
         /// <para>
         /// The default GrandOutput handles Critical errors (by subscribing to <see cref="CriticalErrorCollector.OnErrorFromBackgroundThreads"/>)
-        /// and registers a <see cref="MonitorTraceListener"/> in the <see cref="Trace.Listeners"/> collection that has <see cref="MonitorTraceListener.FailFast"/>
-        /// sets to true and, by default, clears any existing trace listeners.
+        /// and adds a <see cref="MonitorTraceListener"/> in the <see cref="Trace.Listeners"/> collection that has <see cref="MonitorTraceListener.FailFast"/>
+        /// sets to true.
         /// </para>
         /// <para>
-        /// If the behavior regarding <see cref="Trace.Listeners"/> must be changed, please exploit the the listeners collection that is wide open to any modifications.
+        /// If the behavior regarding <see cref="Trace.Listeners"/> must be changed, please exploit the the listeners collection that is wide open to any modifications
+        /// and the fact that <see cref="MonitorTraceListener"/> exposes its associated grand output and that <see cref="MonitorTraceListener.FailFast"/> can be changed
+        /// at any time.
         /// </para>
         /// <para>
         /// The Default GrandOutput can safely be <see cref="Dispose()"/> at any time: disposing the Default 
@@ -383,11 +385,9 @@ namespace CK.Monitoring
                     if( _default == this )
                     {
                         ActivityMonitor.AutoConfiguration -= AutoRegisterDefault;
-                        if( _traceListener != null )
-                        {
-                            Trace.Listeners.Remove( _traceListener );
-                            _traceListener = null;
-                        }
+                        Debug.Assert( _traceListener != null );
+                        Trace.Listeners.Remove( _traceListener );
+                        _traceListener = null;
                         _default = null;
 
                     }

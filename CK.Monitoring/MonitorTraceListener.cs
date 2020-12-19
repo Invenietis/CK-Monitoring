@@ -14,19 +14,18 @@ namespace CK.Monitoring
     public class MonitorTraceListener : TraceListener
     {
         static readonly CKTrait _tag = ActivityMonitor.Tags.Register( nameof( TraceListener ) );
-        readonly GrandOutput _grandOutput;
 
         /// <summary>
         /// Creates a MonitorTraceListener instance.
         /// </summary>
-        /// <param name="grandOutput">The <see cref="GrandOutput"/> to send traces to.</param>
+        /// <param name="grandOutput">The <see cref="Monitoring.GrandOutput"/> to send traces to.</param>
         /// <param name="failFast">
         /// When true <see cref="Environment.FailFast(string)"/> will terminate the application on <see cref="Debug.Assert(bool)"/>, <see cref="Trace.Assert(bool)"/>,
         /// <see cref="Debug.Fail(string)"/> and <see cref="Trace.Fail(string)"/>.
         /// </param>
         public MonitorTraceListener( GrandOutput grandOutput, bool failFast )
         {
-            _grandOutput = grandOutput ?? throw new ArgumentNullException( nameof( grandOutput ) );
+            GrandOutput = grandOutput ?? throw new ArgumentNullException( nameof( grandOutput ) );
             FailFast = failFast;
         }
 
@@ -37,12 +36,17 @@ namespace CK.Monitoring
         public bool FailFast { get; set; }
 
         /// <summary>
+        /// Gets the associated grand output.
+        /// </summary>
+        public GrandOutput GrandOutput { get; }
+
+        /// <summary>
         /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait)"/> with a <see cref="LogLevel.Trace"/>.
         /// </summary>
         /// <param name="message">The text to log.</param>
         public override void Write( string message )
         {
-            _grandOutput.ExternalLog( LogLevel.Trace, message, _tag );
+            GrandOutput.ExternalLog( LogLevel.Trace, message, _tag );
         }
 
         /// <summary>
@@ -51,7 +55,7 @@ namespace CK.Monitoring
         /// <param name="message">The text to log.</param>
         public override void WriteLine( string message )
         {
-            _grandOutput.ExternalLog( LogLevel.Trace, message, _tag );
+            GrandOutput.ExternalLog( LogLevel.Trace, message, _tag );
         }
 
         /// <summary>
@@ -61,10 +65,10 @@ namespace CK.Monitoring
         /// <param name="message">The text to log.</param>
         public override void Fail( string message )
         {
-            _grandOutput.ExternalLog( LogLevel.Fatal, message, _tag );
+            GrandOutput.ExternalLog( LogLevel.Fatal, message, _tag );
             if( FailFast )
             {
-                _grandOutput.Dispose();
+                GrandOutput.Dispose();
                 Environment.FailFast( message );
             }
         }
@@ -81,10 +85,10 @@ namespace CK.Monitoring
             {
                 msg += ": " + detailMessage;
             }
-            _grandOutput.ExternalLog( LogLevel.Fatal, msg, _tag );
+            GrandOutput.ExternalLog( LogLevel.Fatal, msg, _tag );
             if( FailFast )
             {
-                _grandOutput.Dispose();
+                GrandOutput.Dispose();
                 Environment.FailFast( msg );
             }
         }
@@ -99,7 +103,7 @@ namespace CK.Monitoring
         /// <param name="message">A message to write.</param>
         public override void TraceEvent( TraceEventCache eventCache, string source, TraceEventType eventType, int id, string message )
         {
-            _grandOutput.ExternalLog( GetLogLevel( eventType ), BuildMessage( message, null, source, id ), _tag );
+            GrandOutput.ExternalLog( GetLogLevel( eventType ), BuildMessage( message, null, source, id ), _tag );
         }
 
         /// <summary>
@@ -113,7 +117,7 @@ namespace CK.Monitoring
         /// <param name="args">The message arguments.</param>
         public override void TraceEvent( TraceEventCache eventCache, string source, TraceEventType eventType, int id, string format, params object[] args )
         {
-            _grandOutput.ExternalLog( GetLogLevel( eventType ), BuildMessage( format, args, source, id ), _tag );
+            GrandOutput.ExternalLog( GetLogLevel( eventType ), BuildMessage( format, args, source, id ), _tag );
         }
 
         static LogLevel GetLogLevel( TraceEventType eventType )
