@@ -60,7 +60,7 @@ namespace Microsoft.Extensions.Hosting
         /// bounds the configuration from the given configuration section.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// </summary>
-        /// <param name="builder">This Web host builder</param>
+        /// <param name="builder">This Web host builder.</param>
         /// <param name="grandOutput">The target <see cref="GrandOutput"/>.</param>
         /// <param name="section">The configuration section.</param>
         /// <returns>The builder.</returns>

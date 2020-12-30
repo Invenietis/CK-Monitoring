@@ -6,7 +6,7 @@ using System.Linq;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// Configure a <see cref="GrandOutput"/>.
+    /// Configures a <see cref="GrandOutput"/>.
     /// </summary>
     public class GrandOutputConfiguration
     {
@@ -19,7 +19,7 @@ namespace CK.Monitoring
         public TimeSpan? TimerDuration { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets a <see cref="LogFilter"/> that will eventually affects all the <see cref="IActivityMonitor.ActualFilter"/> of
+        /// Gets or sets a <see cref="LogFilter"/> that will eventually affect all the <see cref="IActivityMonitor.ActualFilter"/> of
         /// monitors that are bound to the <see cref="GrandOutput"/> (through the <see cref="GrandOutputClient"/>).
         /// This, when not null, impacts the <see cref="GrandOutput.MinimalFilter"/> property that defaults
         /// to <see cref="LogFilter.Undefined"/>: by default, there is no impact on each <see cref="IActivityMonitor.ActualFilter"/>.

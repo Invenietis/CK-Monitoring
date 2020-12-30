@@ -43,13 +43,13 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets the exception data if any (can be not null only when <see cref="LogType"/> is <see cref="LogEntryType.OpenGroup"/>: exceptions are exclusively carried by groups).
         /// </summary>
-        CKExceptionData Exception { get; }
+        CKExceptionData? Exception { get; }
 
         /// <summary>
         /// Gets the file name of the source code that emitted the log.
         /// Null when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
         /// </summary>
-        string FileName { get; }
+        string? FileName { get; }
 
         /// <summary>
         /// Gets the line number in the source code <see cref="FileName"/> that emitted the log.
@@ -61,7 +61,7 @@ namespace CK.Monitoring
         /// Gets any group conclusion. 
         /// Always null except of course when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
         /// </summary>
-        IReadOnlyList<ActivityLogGroupConclusion> Conclusions { get; }
+        IReadOnlyList<ActivityLogGroupConclusion>? Conclusions { get; }
 
         /// <summary>
         /// Writes the entry in a <see cref="BinaryWriter"/>.
