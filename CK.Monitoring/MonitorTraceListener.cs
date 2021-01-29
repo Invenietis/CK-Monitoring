@@ -7,10 +7,33 @@ using System.Text;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// An ActivityMonitor trace listener that sends System.Diagnostic traces to the provided GrandOutput
+    /// A trace listener that sends System.Diagnostic traces to the provided GrandOutput
     /// using <see cref="GrandOutput.ExternalLog(LogLevel,string,Exception,CKTrait)"/>.
     /// All log entries sent by it have the tag "TraceListener".
+    /// When <see cref="FailFast"/> is true, a <see cref="MonitoringFailFastException"/> is thrown instead of
+    /// calling <see cref="Environment.FailFast(string)"/>.
+    /// <para>
+    /// The <see cref="GrandOutput.Default"/> creates an instance of this listener and, by default,
+    /// removes all the other ones.
+    /// See the detailed comment of <see cref="GrandOutput.EnsureActiveDefault(GrandOutputConfiguration, bool)"/>.
+    /// </para>
+    /// <para>
+    /// If the behavior regarding <see cref="Trace.Listeners"/> must be changed, please exploit this <see cref="TraceListenerCollection"/> that is wide open
+    /// to any modifications and the fact that <see cref="MonitorTraceListener"/> exposes its associated grand output and
+    /// that <see cref="MonitorTraceListener.FailFast"/> can be changed at any time.
+    /// </para>
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// After a lot of throughts and experiments we concluded that fail fast on <see cref="Debug.Assert(bool)"/> and other <see cref="Trace.Fail(string)"/>
+    /// should be an opt-in choice: at the early stage of a project, we often deploy applications compiled in Debug and such deployments should behave
+    /// as most as possible as Release ones.
+    /// <para>
+    /// We generally don't use the "fail fast" approach in our architecture. One of the main reason is the using IDisposable (kind of) RAII pattern that
+    /// is heavily used in .Net, fail fast breaks this pattern .
+    /// </para>
+    /// </para>
+    /// </remarks>
     public class MonitorTraceListener : TraceListener
     {
         static readonly CKTrait _tag = ActivityMonitor.Tags.Register( nameof( TraceListener ) );
@@ -22,6 +45,7 @@ namespace CK.Monitoring
         /// <param name="failFast">
         /// When true <see cref="Environment.FailFast(string)"/> will terminate the application on <see cref="Debug.Assert(bool)"/>, <see cref="Trace.Assert(bool)"/>,
         /// <see cref="Debug.Fail(string)"/> and <see cref="Trace.Fail(string)"/>.
+        /// See this <see cref="MonitorTraceListener"/>'s remarks section to understand why this should be false.
         /// </param>
         public MonitorTraceListener( GrandOutput grandOutput, bool failFast )
         {
@@ -71,6 +95,10 @@ namespace CK.Monitoring
                 GrandOutput.Dispose();
                 Environment.FailFast( message );
             }
+            else
+            {
+                throw new MonitoringFailFastException( message );
+            }
         }
 
         /// <summary>
@@ -90,6 +118,10 @@ namespace CK.Monitoring
             {
                 GrandOutput.Dispose();
                 Environment.FailFast( msg );
+            }
+            else
+            {
+                throw new MonitoringFailFastException( msg );
             }
         }
 
@@ -145,7 +177,7 @@ namespace CK.Monitoring
             }
         }
 
-        static string BuildMessage( string format, object[] args = null, string source = null, int? id = null )
+        static string BuildMessage( string format, object[]? args = null, string? source = null, int? id = null )
         {
             StringBuilder sb = new StringBuilder();
             if( !string.IsNullOrEmpty( source ) ) sb.Append( $"[{source}] " );
