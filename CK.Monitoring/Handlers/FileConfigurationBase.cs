@@ -49,7 +49,7 @@ namespace CK.Monitoring.Handlers
         /// it is a sub path in <see cref="LogFile.RootLogPath"/>.
         /// It defaults to null: it must be specified.
         /// </summary>
-        public string Path { get; set; }
+        public string? Path { get; set; }
 
         /// <summary>
         /// Gets or sets the maximal count of entries per file.
