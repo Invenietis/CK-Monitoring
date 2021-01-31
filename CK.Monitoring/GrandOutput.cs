@@ -52,28 +52,30 @@ namespace CK.Monitoring
         /// are cleared before registering a <see cref="MonitorTraceListener"/> associated to this default grand output.
         /// See remarks.
         /// </param>
-        /// <returns>The Default GrandOutput has by default its <see cref="HandleCriticalErrors"/> sets to true.</returns>
+        /// <returns>The Default GrandOutput that has been created or reconfigured.</returns>
         /// <remarks>
         /// <para>
         /// This method is thread-safe (a simple lock protects it) and uses a <see cref="ActivityMonitor.AutoConfiguration"/> action 
         /// that uses <see cref="EnsureGrandOutputClient(IActivityMonitor)"/> on newly created ActivityMonitor.
         /// </para>
         /// <para>
-        /// The default GrandOutput handles Critical errors (by subscribing to <see cref="CriticalErrorCollector.OnErrorFromBackgroundThreads"/>)
-        /// and adds a <see cref="MonitorTraceListener"/> in the <see cref="Trace.Listeners"/> collection that has <see cref="MonitorTraceListener.FailFast"/>
-        /// sets to true.
+        /// The Default GrandOutput has by default its <see cref="HandleCriticalErrors"/> sets to true: it handles Critical errors (by subscribing
+        /// to <see cref="CriticalErrorCollector.OnErrorFromBackgroundThreads"/>).
         /// </para>
         /// <para>
-        /// If the behavior regarding <see cref="Trace.Listeners"/> must be changed, please exploit the the listeners collection that is wide open to any modifications
-        /// and the fact that <see cref="MonitorTraceListener"/> exposes its associated grand output and that <see cref="MonitorTraceListener.FailFast"/> can be changed
-        /// at any time.
+        /// The Default GrandOutput also adds a <see cref="MonitorTraceListener"/> in the <see cref="Trace.Listeners"/> collection that
+        /// has <see cref="MonitorTraceListener.FailFast"/> sets to false: <see cref="MonitoringFailFastException"/> are thrown instead of
+        /// calling <see cref="Environment.FailFast(string)"/>.
+        /// If this behavior must be changed, please exploit the <see cref="Trace.Listeners"/> that is a <see cref="TraceListenerCollection"/>, wide open
+        /// to any modifications, and the fact that <see cref="MonitorTraceListener"/> exposes its associated grand output and
+        /// that <see cref="MonitorTraceListener.FailFast"/> property can be changed at any time.
         /// </para>
         /// <para>
-        /// The Default GrandOutput can safely be <see cref="Dispose()"/> at any time: disposing the Default 
+        /// The GrandOutput.Default can safely be <see cref="Dispose()"/> at any time: disposing the Default 
         /// sets it to null.
         /// </para>
         /// </remarks>
-        static public GrandOutput EnsureActiveDefault( GrandOutputConfiguration configuration, bool clearExistingTraceListeners = true )
+        static public GrandOutput EnsureActiveDefault( GrandOutputConfiguration? configuration = null, bool clearExistingTraceListeners = true )
         {
             lock( _defaultLock )
             {
@@ -88,7 +90,7 @@ namespace CK.Monitoring
                     }
                     _default = new GrandOutput( true, configuration, true );
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
-                    _traceListener = new MonitorTraceListener( _default, true );
+                    _traceListener = new MonitorTraceListener( _default, failFast: false );
                     if( clearExistingTraceListeners ) Trace.Listeners.Clear();
                     Trace.Listeners.Add( _traceListener );
                 }
@@ -130,13 +132,13 @@ namespace CK.Monitoring
         /// same without the "Configuration" suffix.
         /// </summary>
         static public Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler = config =>
-         {
-             string name = config.GetType().GetTypeInfo().FullName;
-             if( !name.EndsWith( "Configuration" ) ) throw new Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
-             name = config.GetType().AssemblyQualifiedName.Replace( "Configuration,", "," );
-             Type t = Type.GetType( name, throwOnError: true );
-             return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } );
-         };
+            {
+                string name = config.GetType().GetTypeInfo().FullName;
+                if( !name.EndsWith( "Configuration" ) ) throw new Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
+                name = config.GetType().AssemblyQualifiedName.Replace( "Configuration,", "," );
+                Type t = Type.GetType( name, throwOnError: true );
+                return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } );
+            };
 
         static GrandOutput()
         {

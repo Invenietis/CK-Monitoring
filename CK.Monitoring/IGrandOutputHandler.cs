@@ -6,7 +6,7 @@ namespace CK.Monitoring
     /// <summary>
     /// Handler interface.
     /// Object implementing this interface must expose a public constructor that accepts
-    /// a configuration object.
+    /// its associated <see cref="IHandlerConfiguration"/> object.
     /// </summary>
     public interface IGrandOutputHandler
     {
