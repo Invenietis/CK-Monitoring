@@ -5,7 +5,7 @@ namespace CK.Core
 {
     static class LocalSenderExtension
     {
-        public static void SendLine( this IActivityMonitor @this, LogLevel level, string text, Exception? ex, [CallerFilePath]string fileName = null, [CallerLineNumber]int lineNumber = 0 )
+        public static void SendLine( this IActivityMonitor @this, LogLevel level, string? text, Exception? ex, [CallerFilePath]string fileName = null, [CallerLineNumber]int lineNumber = 0 )
         {
             if( @this.ShouldLogLine( level, fileName, lineNumber ) )
             {
@@ -13,7 +13,7 @@ namespace CK.Core
             }
         }
 
-        public static IDisposable OpenGroup( this IActivityMonitor @this, LogLevel level, string text, Exception? ex, [CallerFilePath]string fileName = null, [CallerLineNumber]int lineNumber = 0 )
+        public static IDisposable OpenGroup( this IActivityMonitor @this, LogLevel level, string? text, Exception? ex, [CallerFilePath]string fileName = null, [CallerLineNumber]int lineNumber = 0 )
         {
             if( @this.ShouldLogGroup( level, fileName, lineNumber ) )
             {

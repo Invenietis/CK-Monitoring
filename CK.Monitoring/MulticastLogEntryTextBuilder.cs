@@ -3,6 +3,7 @@ using CK.Text;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 
 namespace CK.Monitoring
@@ -125,7 +126,7 @@ namespace CK.Monitoring
             /// The Indentation of the log.
             /// </summary>
             public readonly string IndentationPrefix;
-                
+
             /// <summary>
             /// Part 1: the formatted date of the entry.
             /// </summary>
@@ -156,7 +157,7 @@ namespace CK.Monitoring
         /// <param name="logEntry">Entry to format.</param>
         /// <param name="entrySeparator">Separate the two entries when needed. Default null resolve to <see cref="Environment.NewLine"/>.</param>
         /// <returns>Formatted log entries.</returns>
-        public string FormatEntryString(IMulticastLogEntry logEntry, string entrySeparator = null)
+        public string FormatEntryString( IMulticastLogEntry logEntry, string? entrySeparator = null )
         {
             if( entrySeparator == null ) entrySeparator = Environment.NewLine;
             var logOutput = FormatEntry( logEntry );
@@ -185,7 +186,7 @@ namespace CK.Monitoring
             char logLevel = CharLogLevel( logEntry );
             string indentationPrefix = ActivityMonitorTextHelperClient.GetMultilinePrefixWithDepth( logEntry.Text != null ? logEntry.GroupDepth : logEntry.GroupDepth - 1 );
 
-            if( !_monitorNames.TryGetValue( logEntry.MonitorId, out string monitorId ) )
+            if( !_monitorNames.TryGetValue( logEntry.MonitorId, out string? monitorId ) )
             {
                 string _monitorResetLog = "";
                 if( _monitorNames.Count == _maxMonitorCount )
@@ -222,14 +223,25 @@ namespace CK.Monitoring
                 _builder.Append( "< " );
                 if( logEntry.Conclusions.Count > 0 )
                 {
-                    _builder.Append( " | " ).Append( logEntry.Conclusions.Count ).Append( " conclusion" );
-                    if( logEntry.Conclusions.Count > 1 ) _builder.Append( 's' );
-                    _builder.Append( ':' ).AppendLine();
-                    multiLinePrefix += "   | ";
-                    foreach( var c in logEntry.Conclusions )
+                    if( logEntry.Conclusions.Count == 1 )
                     {
-                        _builder.AppendMultiLine( multiLinePrefix, c.Text, true );
+                        _builder.AppendMultiLine( multiLinePrefix, logEntry.Conclusions.Single().Text, false );
                     }
+                    else
+                    {
+                        _builder.Append( " | " ).Append( logEntry.Conclusions.Count ).Append( " conclusion" );
+                        if( logEntry.Conclusions.Count > 1 ) _builder.Append( 's' );
+                        _builder.Append( ':' ).AppendLine();
+                        multiLinePrefix += "   | ";
+                        bool first = true;
+                        foreach( var c in logEntry.Conclusions )
+                        {
+                            if( !first ) _builder.AppendLine();
+                            first = false;
+                            _builder.AppendMultiLine( multiLinePrefix, c.Text, true );
+                        }
+                    }
+
                 }
             }
             string outputLine = _builder.ToString();
