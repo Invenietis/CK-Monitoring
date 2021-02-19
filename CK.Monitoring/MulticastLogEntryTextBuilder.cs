@@ -233,8 +233,11 @@ namespace CK.Monitoring
                         if( logEntry.Conclusions.Count > 1 ) _builder.Append( 's' );
                         _builder.Append( ':' ).AppendLine();
                         multiLinePrefix += "   | ";
+                        bool first = true;
                         foreach( var c in logEntry.Conclusions )
                         {
+                            if( !first ) _builder.AppendLine();
+                            first = false;
                             _builder.AppendMultiLine( multiLinePrefix, c.Text, true );
                         }
                     }

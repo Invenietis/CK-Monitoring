@@ -240,6 +240,8 @@ namespace CK.Monitoring.Tests
                 .Replace( "My second conclusion.", "" )
                 .Replace( " ", "" )
                 .Replace( "|", "" )
+                .Replace( "\n", "" )
+                .Replace( "\r", "" )
                 .Should().BeEmpty();
 
         }
