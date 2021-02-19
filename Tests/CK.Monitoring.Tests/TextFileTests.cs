@@ -235,6 +235,13 @@ namespace CK.Monitoring.Tests
             text.Should().Contain( "Something must be said" );
             text.Should().Contain( "My very first conclusion." );
             text.Should().Contain( "My second conclusion." );
+            string lineWithSecondConclusion = text.Split( "\n" ).Single( s => s.Contains( "My second conclusion." ) );
+            lineWithSecondConclusion
+                .Replace( "My second conclusion.", "" )
+                .Replace( " ", "" )
+                .Replace( "|", "" )
+                .Should().BeEmpty();
+
         }
 
         [Test]

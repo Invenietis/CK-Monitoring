@@ -18,8 +18,8 @@ namespace CK.Monitoring
         readonly bool _useGzipCompression;
 
         int _maxCountPerFile;
-        string _basePath;
-        FileStream _output;
+        string? _basePath;
+        FileStream? _output;
         DateTime _openedTimeUtc;
         int _countRemainder;
         int _fileBufferSize;
@@ -63,9 +63,9 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="m">A monitor (must not be null).</param>
         /// <returns>The final path to use (ends with '\'). Null if unable to compute the path.</returns>
-        string ComputeBasePath( IActivityMonitor m )
+        string? ComputeBasePath( IActivityMonitor m )
         {
-            string rootPath = null;
+            string? rootPath = null;
             if( String.IsNullOrWhiteSpace( _configPath ) ) m.SendLine( LogLevel.Error, "The configured path is empty.", null );
             else if( FileUtil.IndexOfInvalidPathChars( _configPath ) >= 0 ) m.SendLine( LogLevel.Error, $"The configured path '{_configPath}' is invalid.", null );
             else
@@ -73,7 +73,7 @@ namespace CK.Monitoring
                 rootPath = _configPath;
                 if( !Path.IsPathRooted( rootPath ) )
                 {
-                    string rootLogPath = LogFile.RootLogPath;
+                    string? rootLogPath = LogFile.RootLogPath;
                     if( String.IsNullOrWhiteSpace( rootLogPath ) ) m.SendLine( LogLevel.Error, $"The relative path '{_configPath}' requires that LogFile.RootLogPath be specified.", null );
                     else rootPath = Path.Combine( rootLogPath, _configPath );
                 }
@@ -109,7 +109,7 @@ namespace CK.Monitoring
         {
             if( _basePath != null ) return true;
             if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
-            string b = ComputeBasePath( monitor );
+            string? b = ComputeBasePath( monitor );
             if( b != null )
             {
                 try

@@ -12,7 +12,7 @@ namespace CK.Monitoring
     /// </summary>
     public class MonitorBinaryFileOutput : MonitorFileOutputBase
     {
-        CKBinaryWriter _writer;
+        CKBinaryWriter? _writer;
 
         /// <summary>
         /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.
@@ -84,7 +84,7 @@ namespace CK.Monitoring
         /// <param name="g">The group.</param>
         /// <param name="conclusions">Group's conclusions.</param>
         /// <param name="adapter">Multi-cast information to be able to write multi-cast entry when needed.</param>
-        public void UnicastWriteCloseGroup( IActivityLogGroup g, IReadOnlyList<ActivityLogGroupConclusion> conclusions, IMulticastLogInfo adapter )
+        public void UnicastWriteCloseGroup( IActivityLogGroup g, IReadOnlyList<ActivityLogGroupConclusion>? conclusions, IMulticastLogInfo adapter )
         {
             BeforeWriteEntry();
             LogEntry.WriteCloseGroup( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.GroupLevel, g.CloseLogTime, conclusions );
