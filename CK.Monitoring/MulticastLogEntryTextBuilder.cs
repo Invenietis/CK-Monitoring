@@ -59,7 +59,10 @@ namespace CK.Monitoring
         {
             _useDeltaTime = useDeltaTime;
             _builder = new StringBuilder();
-            _monitorNames = new Dictionary<Guid, string>();
+            _monitorNames = new Dictionary<Guid, string>
+            {
+                { Guid.Empty, "###" }
+            };
             _timeFormat = timeFormat;
             _timeFormatLength = DateTime.UtcNow.ToString( timeFormat ).Length;
             _blankSpacePrefix = new string( ' ', _timeFormatLength + 8 ); //timeString + ' ' + '~001' + ' ' + 'F' + ' '
@@ -189,9 +192,9 @@ namespace CK.Monitoring
             if( !_monitorNames.TryGetValue( logEntry.MonitorId, out string? monitorId ) )
             {
                 string _monitorResetLog = "";
-                if( _monitorNames.Count == _maxMonitorCount )
+                if( _monitorNames.Count - 1 == _maxMonitorCount )
                 {
-                    _monitorNames.Clear();
+                    ClearMonitorNames();
                     _monitorResetLog = $" Monitor reset count {_maxMonitorCount}.";
                 }
                 monitorId = B64ConvertInt( _monitorNames.Count );
@@ -268,12 +271,18 @@ namespace CK.Monitoring
             }
         }
 
+        void ClearMonitorNames()
+        {
+            _monitorNames.Clear();
+            _monitorNames.Add( Guid.Empty, "###" );
+        }
+
         /// <summary>
         /// Resets internal states (like monitor's numbering).
         /// </summary>
         public void Reset()
         {
-            _monitorNames.Clear();
+            ClearMonitorNames();
             _lastLogTime = DateTime.MinValue;
         }
     }
