@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using CK.Core;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CK.Monitoring
 {
@@ -63,7 +64,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitorId">The monitor's identifier.</param>
             /// <returns>The monitor or null if not found.</returns>
-            public Monitor FindMonitor( Guid monitorId ) => _monitors.GetValueWithDefault( monitorId, null );
+            public Monitor? FindMonitor( Guid monitorId ) => _monitors.GetValueWithDefault( monitorId, null );
         }
 
         /// <summary>
@@ -129,7 +130,7 @@ namespace CK.Monitoring
             {
                 readonly DateTimeStamp _firstLogTime;
                 readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
-                CKSortedArrayList<OneLogReader> _readers;
+                CKSortedArrayList<OneLogReader>? _readers;
 
                 public MultiFileReader( DateTimeStamp firstLogTime, IReadOnlyList<RawLogFileMonitorOccurence> files )
                 {
@@ -137,7 +138,7 @@ namespace CK.Monitoring
                     _files = files;
                 }
 
-                public IMulticastLogEntry Current { get { return _readers[0].Head.Entry; } }
+                public IMulticastLogEntry Current => _readers[0].Head.Entry;
 
                 class OneLogReader : IDisposable
                 {
@@ -193,6 +194,7 @@ namespace CK.Monitoring
                     }
                 }
 
+                [MemberNotNullWhen( true, nameof( _readers ) )]
                 public bool MoveNext()
                 {
                     if( _readers == null )
@@ -398,11 +400,11 @@ namespace CK.Monitoring
                 }
 
                 readonly WrappedList _entries;
-                readonly MultiFileReader _r;
+                readonly MultiFileReader? _r;
                 readonly int _pageLength;
                 readonly List<ParentedLogEntry> _currentPath;
 
-                internal LivePage( int initialGroupDepth, ParentedLogEntry[] entries, MultiFileReader r, int pageLength )
+                internal LivePage( int initialGroupDepth, ParentedLogEntry[] entries, MultiFileReader? r, int pageLength )
                 {
                     Debug.Assert( pageLength == entries.Length || entries.Length == 0 );
                     _r = r;

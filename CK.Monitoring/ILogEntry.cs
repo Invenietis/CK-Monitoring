@@ -1,5 +1,6 @@
 using CK.Core;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace CK.Monitoring
