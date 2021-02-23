@@ -88,7 +88,7 @@ namespace CK.Monitoring
                 _firstDepth = m._firstDepth;
                 _lastEntryTime = m._lastEntryTime;
                 _lastDepth = m._lastDepth;
-                _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Util.Array.Empty<KeyValuePair<CKTrait, int>>();
+                _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Array.Empty<KeyValuePair<CKTrait, int>>();
             }
 
             /// <summary>
@@ -484,7 +484,7 @@ namespace CK.Monitoring
                 {
                     return new LivePage( _firstDepth, new ParentedLogEntry[pageLength], r, pageLength );
                 }
-                return new LivePage( _firstDepth, Util.Array.Empty<ParentedLogEntry>(), null, pageLength );
+                return new LivePage( _firstDepth, Array.Empty<ParentedLogEntry>(), null, pageLength );
             }
 
             /// <summary>
