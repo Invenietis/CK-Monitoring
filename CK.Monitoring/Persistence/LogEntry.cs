@@ -360,7 +360,7 @@ namespace CK.Monitoring
         static ILogEntry ReadGroupClosed( int streamVersion, CKBinaryReader r, StreamLogType t, LogLevel logLevel )
         {
             DateTimeStamp time = new DateTimeStamp( DateTime.FromBinary( r.ReadInt64() ), (t & StreamLogType.HasUniquifier) != 0 ? r.ReadByte() : (Byte)0 );
-            ActivityLogGroupConclusion[] conclusions = Util.Array.Empty<ActivityLogGroupConclusion>();
+            ActivityLogGroupConclusion[] conclusions = Array.Empty<ActivityLogGroupConclusion>();
             if( (t & StreamLogType.HasConclusions) != 0 )
             {
                 int conclusionsCount = streamVersion < 6 ? r.ReadInt32() : r.ReadNonNegativeSmallInt32();
@@ -418,7 +418,7 @@ namespace CK.Monitoring
 
         static readonly string _missingLineText = "<Missing log data>";
         static readonly string _missingGroupText = "<Missing group>";
-        static readonly IReadOnlyList<ActivityLogGroupConclusion> _missingConclusions = Util.Array.Empty<ActivityLogGroupConclusion>();
+        static readonly IReadOnlyList<ActivityLogGroupConclusion> _missingConclusions = Array.Empty<ActivityLogGroupConclusion>();
 
         static internal ILogEntry CreateMissingLine( DateTimeStamp knownTime )
         {

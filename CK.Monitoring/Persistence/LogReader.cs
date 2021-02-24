@@ -41,7 +41,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="stream">Stream to read logs from.</param>
         /// <param name="streamVersion">Version of the log stream.</param>
-        /// <param name="headerLength">Length of the header. This will be substracted to the actual stream position to compute the <see cref="StreamOffset"/>.</param>
+        /// <param name="headerLength">Length of the header. This will be subtracted to the actual stream position to compute the <see cref="StreamOffset"/>.</param>
         /// <param name="mustClose">
         /// Defaults to true (the stream will be automatically closed).
         /// False to let the stream opened once this reader is disposed, the end of the log data is reached or an error is encountered.
@@ -198,7 +198,7 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Gets the <see cref="Current"/> entry if the underlying entry is a <see cref="IMulticastLogEntry"/>, null otherwise.
+        /// Gets the <see cref="Current"/> entry if the underlying entry is a <see cref="IMulticastLogEntry"/>, <see langword="null"/> otherwise.
         /// This captures the actual entry when a <see cref="CurrentFilter"/> is set (Current is then a mere Unicast entry).
         /// </summary>
         public IMulticastLogEntry? CurrentMulticast

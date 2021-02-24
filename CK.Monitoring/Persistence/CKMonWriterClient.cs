@@ -15,8 +15,8 @@ namespace CK.Monitoring
         readonly string _path;
         readonly int _maxCountPerFile;
         readonly LogFilter _minimalFilter;
-        IActivityMonitorImpl _source;
-        MonitorBinaryFileOutput _file;
+        IActivityMonitorImpl? _source;
+        MonitorBinaryFileOutput? _file;
         int _currentGroupDepth;
         LogEntryType _prevLogType;
         DateTimeStamp _prevlogTime;
@@ -53,7 +53,7 @@ namespace CK.Monitoring
 
         bool IActivityMonitorBoundClient.IsDead => false;
 
-        void IActivityMonitorBoundClient.SetMonitor( IActivityMonitorImpl source, bool forceBuggyRemove )
+        void IActivityMonitorBoundClient.SetMonitor( IActivityMonitorImpl? source, bool forceBuggyRemove )
         {
             if( source != null && _source != null ) throw ActivityMonitorClient.CreateMultipleRegisterOnBoundClientException( this );
             // Silently ignore null => null or monitor => same monitor.
@@ -73,7 +73,7 @@ namespace CK.Monitoring
                     // work (the error will appear in the Critical errors) but this avoids
                     // an exception to be thrown here.
                     var f = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
-                    if( f.Initialize( source.InternalMonitor ) )
+                    if( f.Initialize( _source.InternalMonitor ) )
                     {
                         var g = _source.CurrentGroup;
                         _currentGroupDepth = g != null ? g.Depth : 0;
@@ -177,7 +177,7 @@ namespace CK.Monitoring
                 _prevLogType = LogEntryType.OpenGroup;
             }
         }
-        void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( _file != null )
             {
@@ -187,7 +187,7 @@ namespace CK.Monitoring
                 _prevLogType = LogEntryType.CloseGroup;
             }
         }
-        void IActivityMonitorClient.OnGroupClosing( IActivityLogGroup group, ref List<ActivityLogGroupConclusion> conclusions )
+        void IActivityMonitorClient.OnGroupClosing( IActivityLogGroup group, ref List<ActivityLogGroupConclusion>? conclusions )
         {
         }
         void IActivityMonitorClient.OnTopicChanged( string newTopic, string fileName, int lineNumber )
