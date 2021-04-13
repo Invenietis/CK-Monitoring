@@ -1,7 +1,7 @@
 <Project>
   <!-- Shared dependency versions -->
   <PropertyGroup>
-    <CKActivityMonitorVersion>14.0.0</CKActivityMonitorVersion>
+    <CKActivityMonitorVersion>14.0.1-r01-00-0001-develop</CKActivityMonitorVersion>
   </PropertyGroup>
   <!--<SourceLink>: is enabled only for ContinuousIntegrationBuild build. -->
   <ItemGroup Condition=" '$(ContinuousIntegrationBuild)' == 'true' ">
