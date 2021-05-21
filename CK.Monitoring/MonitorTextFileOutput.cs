@@ -1,4 +1,5 @@
 using CK.Core;
+using System.Diagnostics;
 using System.IO;
 
 namespace CK.Monitoring
@@ -11,7 +12,7 @@ namespace CK.Monitoring
     public class MonitorTextFileOutput : MonitorFileOutputBase
     {
         readonly MulticastLogEntryTextBuilder _builder;
-        StreamWriter _writer;
+        StreamWriter? _writer;
         bool _canFlush;
 
         /// <summary>
@@ -34,6 +35,7 @@ namespace CK.Monitoring
         public void Write( IMulticastLogEntry e )
         {
             BeforeWriteEntry();
+            Debug.Assert( _writer != null );
             string formattedLines = _builder.FormatEntryString( e );
             _writer.WriteLine( formattedLines );
             _canFlush = true;
@@ -47,6 +49,7 @@ namespace CK.Monitoring
         {
             if( _canFlush )
             {
+                Debug.Assert( _writer != null );
                 _writer.Flush();
                 _canFlush = false;
             }
