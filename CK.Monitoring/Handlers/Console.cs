@@ -40,6 +40,15 @@ namespace CK.Monitoring.Handlers
         /// <returns>Always true.</returns>
         public bool Activate( IActivityMonitor m )
         {
+            // Ensure the System.Console colors are actually valid when starting.
+            // Linux consoles may start with an invalid and undocumented value (-1).
+            // In System.Console's source code, -1 is internally referenced as "UnknownColor".
+            if( !Enum.IsDefined( typeof(ConsoleColor), System.Console.BackgroundColor ) )
+                System.Console.BackgroundColor = ConsoleColor.Black;
+
+            if( !Enum.IsDefined( typeof(ConsoleColor), System.Console.ForegroundColor ) )
+                System.Console.ForegroundColor = ConsoleColor.White;
+
             return true;
         }
 
