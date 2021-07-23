@@ -86,7 +86,7 @@ namespace CK.Monitoring
                 newConf = _newConf;
             }
             _initialRegister( monitor );
-            monitor.SetTopic( GetType().FullName );
+            monitor.SetTopic( nameof( DispatcherSink ) );
             DoConfigure( monitor, newConf );
             while( !_queue.IsCompleted && !_forceClose )
             {

@@ -25,9 +25,9 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Gets the log text.
-        /// Null when when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
+        /// Null when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
         /// </summary>
-        string Text { get; }
+        string? Text { get; }
 
         /// <summary>
         /// Gets the tags for this entry.

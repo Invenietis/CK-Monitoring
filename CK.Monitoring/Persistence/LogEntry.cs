@@ -178,13 +178,14 @@ namespace CK.Monitoring
             WriteLogTypeAndLevel( w, t, level );
             w.Write( logTime.TimeUtc.ToBinary() );
             if( logTime.Uniquifier != 0 ) w.Write( logTime.Uniquifier );
-            if( (t & StreamLogType.HasTags) != 0 ) w.Write( tags!.ToString() ); // lgtm [cs/dereferenced-value-may-be-null]
+            if( (t & StreamLogType.HasTags) != 0 ) w.Write( tags!.ToString() );
             if( (t & StreamLogType.HasFileName) != 0 )
             {
+                Debug.Assert( fileName != null );
                 w.Write( fileName );
                 w.WriteNonNegativeSmallInt32( lineNumber );
             }
-            if( (t & StreamLogType.HasException) != 0 ) ex!.Write( w ); // lgtm [cs/dereferenced-value-may-be-null]
+            if( (t & StreamLogType.HasException) != 0 ) ex!.Write( w );
             if( (t & StreamLogType.IsTextTheExceptionMessage) == 0 ) w.Write( text );
         }
 
@@ -212,7 +213,7 @@ namespace CK.Monitoring
         /// <param name="level">Log level of the log entry.</param>
         /// <param name="closeTime">Time stamp of the group closing.</param>
         /// <param name="conclusions">Group conclusions.</param>
-        static public void WriteCloseGroup( CKBinaryWriter w, Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        static public void WriteCloseGroup( CKBinaryWriter w, Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( w == null ) throw new ArgumentNullException( "w" );
             StreamLogType type = StreamLogType.TypeGroupClosed | StreamLogType.IsMultiCast;
@@ -244,7 +245,7 @@ namespace CK.Monitoring
             }
         }
 
-        static void DoWriteCloseGroup( CKBinaryWriter w, StreamLogType t, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        static void DoWriteCloseGroup( CKBinaryWriter w, StreamLogType t, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( conclusions != null && conclusions.Count > 0 ) t |= StreamLogType.HasConclusions;
             if( closeTime.Uniquifier != 0 ) t |= StreamLogType.HasUniquifier;

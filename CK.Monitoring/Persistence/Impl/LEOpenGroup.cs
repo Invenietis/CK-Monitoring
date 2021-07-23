@@ -1,5 +1,6 @@
 using CK.Core;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace CK.Monitoring.Impl
 {
@@ -26,6 +27,7 @@ namespace CK.Monitoring.Impl
 
         public LEOpenGroup( LEMCOpenGroup e )
         {
+            Debug.Assert( e.Text != null );
             _text = e.Text;
             _time = e.LogTime;
             _fileName = e.FileName;
@@ -39,7 +41,7 @@ namespace CK.Monitoring.Impl
 
         public LogLevel LogLevel => _level;
 
-        public string Text => _text;
+        public string? Text => _text;
 
         public CKTrait Tags => _tags; 
 

@@ -72,6 +72,7 @@ namespace CK.Monitoring
         /// </summary>
         protected override void CloseCurrentFile()
         {
+            Debug.Assert( _writer != null, "Checked by CloseFile." );
             _writer.Flush();
             _writer.Dispose();
             _writer = null;

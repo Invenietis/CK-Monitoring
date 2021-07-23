@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using CK.Core;
 
@@ -50,6 +51,7 @@ namespace CK.Monitoring
         public void Write( ILogEntry e )
         {
             BeforeWriteEntry();
+            Debug.Assert( _writer != null );
             e.WriteLogEntry( _writer );
             AfterWriteEntry();
         }
@@ -62,6 +64,7 @@ namespace CK.Monitoring
         public void UnicastWrite( ActivityMonitorLogData data, IMulticastLogInfo adapter )
         {
             BeforeWriteEntry();
+            Debug.Assert( _writer != null );
             LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, false, data.Level, data.LogTime, data.Text, data.Tags, data.ExceptionData, data.FileName, data.LineNumber );
             AfterWriteEntry();
         }
@@ -74,6 +77,7 @@ namespace CK.Monitoring
         public void UnicastWriteOpenGroup( IActivityLogGroup g, IMulticastLogInfo adapter )
         {
             BeforeWriteEntry();
+            Debug.Assert( _writer != null );
             LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, true, g.GroupLevel, g.LogTime, g.GroupText, g.GroupTags, g.ExceptionData, g.FileName, g.LineNumber );
             AfterWriteEntry();
         }
@@ -87,6 +91,7 @@ namespace CK.Monitoring
         public void UnicastWriteCloseGroup( IActivityLogGroup g, IReadOnlyList<ActivityLogGroupConclusion>? conclusions, IMulticastLogInfo adapter )
         {
             BeforeWriteEntry();
+            Debug.Assert( _writer != null );
             LogEntry.WriteCloseGroup( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.GroupLevel, g.CloseLogTime, conclusions );
             AfterWriteEntry();
         }
@@ -111,6 +116,7 @@ namespace CK.Monitoring
         /// </summary>
         protected override void CloseCurrentFile()
         {
+            Debug.Assert( _writer != null, "Checked by CloseFile." );
             _writer.Write( (byte)0 );
             base.CloseCurrentFile();
             _writer.Dispose();

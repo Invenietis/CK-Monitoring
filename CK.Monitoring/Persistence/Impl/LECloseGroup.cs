@@ -25,15 +25,15 @@ namespace CK.Monitoring.Impl
 
         public LogEntryType LogType => LogEntryType.CloseGroup;
 
-        public string Text => null; 
+        public string? Text => null; 
 
         public LogLevel LogLevel => _level; 
 
         public DateTimeStamp LogTime => _time;
 
-        public CKExceptionData Exception => null; 
+        public CKExceptionData? Exception => null; 
 
-        public string FileName => null;
+        public string? FileName => null;
         
         public int LineNumber => 0; 
 

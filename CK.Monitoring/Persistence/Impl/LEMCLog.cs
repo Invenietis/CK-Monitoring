@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using CK.Core;
 
 namespace CK.Monitoring.Impl
@@ -29,6 +30,7 @@ namespace CK.Monitoring.Impl
 
         public override void WriteLogEntry( CKBinaryWriter w )
         {
+            Debug.Assert( Text != null, "Only LE(MC)CloseGroup has a null Text." );
             LogEntry.WriteLog( w, _monitorId, _previousEntryType, _previousLogTime, _depth, false, LogLevel, LogTime, Text, Tags, Exception, FileName, LineNumber );
         }
         

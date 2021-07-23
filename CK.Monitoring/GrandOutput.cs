@@ -133,11 +133,14 @@ namespace CK.Monitoring
         /// </summary>
         static public Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler = config =>
             {
-                string name = config.GetType().GetTypeInfo().FullName;
+                var t = config.GetType();
+                var name = t.FullName;
+                Debug.Assert( name != null && t.AssemblyQualifiedName != null );
                 if( !name.EndsWith( "Configuration" ) ) throw new Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
-                name = config.GetType().AssemblyQualifiedName.Replace( "Configuration,", "," );
-                Type t = Type.GetType( name, throwOnError: true );
-                return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } );
+                name = t.AssemblyQualifiedName.Replace( "Configuration,", "," );
+                t = Type.GetType( name, throwOnError: true );
+                Debug.Assert( t != null );
+                return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } )!;
             };
 
         static GrandOutput()
@@ -342,7 +345,7 @@ namespace CK.Monitoring
             }
         }
 
-        void CriticalErrorCollector_OnErrorFromBackgroundThreads( object sender, CriticalErrorCollector.ErrorEventArgs e )
+        void CriticalErrorCollector_OnErrorFromBackgroundThreads( object? sender, CriticalErrorCollector.ErrorEventArgs e )
         {
             int c = e.Errors.Count;
             while( --c >= 0 )
@@ -358,7 +361,7 @@ namespace CK.Monitoring
             {
                 for( int i = 0; i < _clients.Count; ++i )
                 {
-                    GrandOutputClient cw;
+                    GrandOutputClient? cw;
                     if( !_clients[i].TryGetTarget( out cw ) || !cw.IsBoundToMonitor )
                     {
                         _clients.RemoveAt( i-- );
@@ -405,7 +408,7 @@ namespace CK.Monitoring
             {
                 for( int i = 0; i < _clients.Count; ++i )
                 {
-                    GrandOutputClient cw;
+                    GrandOutputClient? cw;
                     if( _clients[i].TryGetTarget( out cw ) && cw.IsBoundToMonitor )
                     {
                         cw.OnGrandOutputDisposedOrMinimalFilterChanged();

@@ -111,13 +111,15 @@ namespace CK.Monitoring
 
             /// <summary>
             /// Creates and opens a <see cref="LogReader"/> that reads unicast entries only from this monitor.
-            /// The reader is initially positioned before the entry (i.e. <see cref="LogReader.MoveNext"/> must be called).
+            /// The reader is positioned on the entry (i.e. <see cref="LogReader.MoveNext"/> has been called).
             /// </summary>
             /// <param name="streamOffset">Initial stream position.</param>
             /// <returns>A log reader that will read only entries from this monitor.</returns>
-            public LogReader CreateFilteredReader( long streamOffset )
+            public LogReader CreateFilteredReaderAndMoveTo( long streamOffset )
             {
-                return LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                var r = LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                r.MoveNext();
+                return r;
             }
 
             /// <summary>
@@ -250,7 +252,7 @@ namespace CK.Monitoring
             void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<Guid, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
             {
                 bool newOccurrence = false;
-                RawLogFileMonitorOccurence occ;
+                RawLogFileMonitorOccurence? occ;
                 if( !monitorOccurrence.TryGetValue( log.MonitorId, out occ ) )
                 {
                     occ = new RawLogFileMonitorOccurence( this, log.MonitorId, streamOffset );
