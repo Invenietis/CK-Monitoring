@@ -216,8 +216,7 @@ namespace CK.Monitoring.Tests
 
             public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
             {
-                var conf = c as SlowSinkHandlerConfiguration;
-                if( conf != null )
+                if( c is SlowSinkHandlerConfiguration conf )
                 {
                     _delay = conf.Delay;
                     ActivatedDelay = _delay;

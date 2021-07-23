@@ -23,7 +23,7 @@ namespace CK.Monitoring
         FileStream? _output;
         DateTime _openedTimeUtc;
         int _countRemainder;
-        int _fileBufferSize;
+        readonly int _fileBufferSize;
 
         /// <summary>
         /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.

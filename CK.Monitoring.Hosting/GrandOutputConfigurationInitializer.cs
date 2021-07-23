@@ -179,8 +179,7 @@ namespace CK.Monitoring.Hosting
 
         void OnUnhandledException( object sender, UnhandledExceptionEventArgs e )
         {
-            var ex = e.ExceptionObject as Exception;
-            if( ex != null ) ActivityMonitor.CriticalErrorCollector.Add( ex, "UnhandledException" );
+            if( e.ExceptionObject is Exception ex ) ActivityMonitor.CriticalErrorCollector.Add( ex, "UnhandledException" );
             else
             {
                 string errText = e.ExceptionObject.ToString();

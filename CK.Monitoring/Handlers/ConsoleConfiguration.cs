@@ -22,9 +22,9 @@ namespace CK.Monitoring.Handlers
 
         /// <summary>
         /// Time format string used to display the DateTime before each logged line.
-        /// If not set, the format used will be "yyyy-MM-dd HH\hmm.ss.fff"
+        /// If not set, the format used will be "yyyy-MM-dd HH\hmm.ss.fff".
         /// </summary>
-        public string DateFormat { get; set; }
+        public string DateFormat { get; set; } = @"yyyy-MM-dd HH\hmm.ss.fff";
 
         /// <summary>
         /// When set to false, the log times are displayed with the +delta seconds from its minute: the full time appears

@@ -68,8 +68,8 @@ namespace CK.Monitoring.Handlers
         /// <returns>True if the configuration applied.</returns>
         public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
-            BinaryFileConfiguration cF = c as BinaryFileConfiguration;
-            if( cF == null || cF.Path != _config.Path ) return false;
+            if( c is not BinaryFileConfiguration cF || cF.Path != _config.Path ) return false;
+
             if( _config.UseGzipCompression != cF.UseGzipCompression )
             {
                 var f = new MonitorBinaryFileOutput( _config.Path, cF.MaxCountPerFile, cF.UseGzipCompression );

@@ -126,8 +126,7 @@ namespace CK.Monitoring
                     }
                 }
             }
-            var r = new LogReader( s, i.Version, i.HeaderLength );
-            r.CurrentFilter = filter;
+            var r = new LogReader( s, i.Version, i.HeaderLength ) { CurrentFilter = filter };
             return r;
         }
 

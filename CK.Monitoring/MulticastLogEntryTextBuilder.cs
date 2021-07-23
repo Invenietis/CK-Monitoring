@@ -260,15 +260,15 @@ namespace CK.Monitoring
         char CharLogLevel( IMulticastLogEntry e )
         {
             // Level is one char.
-            switch( e.LogLevel & LogLevel.Mask )
+            return (e.LogLevel & LogLevel.Mask) switch
             {
-                case LogLevel.Debug: return 'd';
-                case LogLevel.Trace: return ' ';
-                case LogLevel.Info: return 'i';
-                case LogLevel.Warn: return 'W';
-                case LogLevel.Error: return 'E';
-                default: return 'F';
-            }
+                LogLevel.Debug => 'd',
+                LogLevel.Trace => ' ',
+                LogLevel.Info => 'i',
+                LogLevel.Warn => 'W',
+                LogLevel.Error => 'E',
+                _ => 'F',
+            };
         }
 
         void ClearMonitorNames()

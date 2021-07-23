@@ -12,8 +12,6 @@ namespace CK.Monitoring.Handlers
         TextFileConfiguration _config;
         int _countFlush;
         int _countHousekeeping;
-        private TimeSpan _minTimespan;
-        int _maxKbToKeep;
 
         /// <summary>
         /// Initializes a new <see cref="TextFile"/> based on a <see cref="TextFileConfiguration"/>.
@@ -25,8 +23,6 @@ namespace CK.Monitoring.Handlers
             _file = new MonitorTextFileOutput( config.Path, config.MaxCountPerFile, false );
             _countFlush = _config.AutoFlushRate;
             _countHousekeeping = _config.HousekeepingRate;
-            _minTimespan = _config.MinimumTimeSpanToKeep;
-            _maxKbToKeep = _config.MaximumTotalKbToKeep;
         }
 
         /// <summary>
@@ -83,15 +79,12 @@ namespace CK.Monitoring.Handlers
         /// <returns>True if the configuration applied.</returns>
         public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
-            TextFileConfiguration? cF = c as TextFileConfiguration;
-            if( cF == null || cF.Path != _config.Path ) return false;
+            if( c is not TextFileConfiguration cF || cF.Path != _config.Path ) return false;
             _config = cF;
             _file.MaxCountPerFile = cF.MaxCountPerFile;
             _file.Flush();
             _countFlush = _config.AutoFlushRate;
             _countHousekeeping = _config.HousekeepingRate;
-            _minTimespan = _config.MinimumTimeSpanToKeep;
-            _maxKbToKeep = _config.MaximumTotalKbToKeep;
             return true;
         }
 

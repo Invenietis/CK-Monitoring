@@ -154,27 +154,16 @@ namespace CK.Monitoring
 
         static LogLevel GetLogLevel( TraceEventType eventType )
         {
-            switch( eventType )
+            return eventType switch
             {
-                case TraceEventType.Verbose:
-                    return LogLevel.Trace;
-                case TraceEventType.Information:
-                    return LogLevel.Info;
-                case TraceEventType.Warning:
-                    return LogLevel.Warn;
-                case TraceEventType.Error:
-                    return LogLevel.Error;
-                case TraceEventType.Critical:
-                    return LogLevel.Fatal;
-                case TraceEventType.Start:
-                case TraceEventType.Stop:
-                case TraceEventType.Resume:
-                case TraceEventType.Suspend:
-                case TraceEventType.Transfer:
-                    return LogLevel.Info;
-                default:
-                    return LogLevel.Trace;
-            }
+                TraceEventType.Verbose => LogLevel.Trace,
+                TraceEventType.Information => LogLevel.Info,
+                TraceEventType.Warning => LogLevel.Warn,
+                TraceEventType.Error => LogLevel.Error,
+                TraceEventType.Critical => LogLevel.Fatal,
+                TraceEventType.Start or TraceEventType.Stop or TraceEventType.Resume or TraceEventType.Suspend or TraceEventType.Transfer => LogLevel.Info,
+                _ => LogLevel.Trace,
+            };
         }
 
         static string BuildMessage( string format, object[]? args = null, string? source = null, int? id = null )
