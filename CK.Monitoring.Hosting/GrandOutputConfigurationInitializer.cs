@@ -158,7 +158,7 @@ namespace CK.Monitoring.Hosting
 
             if( hasGlobalDefaultFilter )
             {
-                // Always log the parse error, but only log a real change or the intitial configured level.
+                // Always log the parse error, but only log a real change or the initial configured level.
                 if( errorParsingGlobalDefaultFilter )
                 {
                     _target.ExternalLog( Core.LogLevel.Error, $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );

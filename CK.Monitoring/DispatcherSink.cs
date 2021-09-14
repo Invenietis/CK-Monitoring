@@ -246,12 +246,12 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Gets a cancellation token that is cancelled by Stop.
+        /// Gets a cancellation token that is canceled by Stop.
         /// </summary>
         public CancellationToken StoppingToken => _stopTokenSource.Token;
 
         /// <summary>
-        /// Starts stopping this sink, returning true iif this call
+        /// Starts stopping this sink, returning true if and only if this call
         /// actually stopped it.
         /// </summary>
         /// <returns>
