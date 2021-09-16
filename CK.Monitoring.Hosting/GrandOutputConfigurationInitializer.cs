@@ -125,7 +125,7 @@ namespace CK.Monitoring.Hosting
                 ActivityMonitor.DefaultFilter = defaultFilter;
             }
 
-            // If a GlobalDefaultFilter has been successsfuly parsed and we are reconfiguring and it is different than
+            // If a GlobalDefaultFilter has been successfully parsed and we are reconfiguring and it is different than
             // the current one, logs the change before applying the configuration.
             if( hasGlobalDefaultFilter
                 && !errorParsingGlobalDefaultFilter
