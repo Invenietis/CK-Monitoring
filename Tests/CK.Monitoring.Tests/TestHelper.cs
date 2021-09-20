@@ -13,8 +13,8 @@ namespace CK.Monitoring.Tests
     {
         static string _solutionFolder;
 
-        static IActivityMonitor _monitor;
-        static ActivityMonitorConsoleClient _console;
+        static readonly IActivityMonitor _monitor;
+        static readonly ActivityMonitorConsoleClient _console;
 
         static TestHelper()
         {

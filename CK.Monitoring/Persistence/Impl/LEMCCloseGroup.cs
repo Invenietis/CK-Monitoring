@@ -11,7 +11,13 @@ namespace CK.Monitoring.Impl
         readonly DateTimeStamp _previousLogTime;
         readonly LogEntryType _previousEntryType;
 
-        public LEMCCloseGroup( Guid monitorId, int depth, DateTimeStamp previousLogTime, LogEntryType previousEntryType, DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion> c )
+        public LEMCCloseGroup( Guid monitorId,
+                               int depth,
+                               DateTimeStamp previousLogTime,
+                               LogEntryType previousEntryType,
+                               DateTimeStamp t,
+                               LogLevel level,
+                               IReadOnlyList<ActivityLogGroupConclusion>? c )
             : base( t, level, c )
         {
             _monitorId = monitorId;

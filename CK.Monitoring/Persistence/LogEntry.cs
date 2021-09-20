@@ -98,7 +98,17 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static IMulticastLogEntry CreateMulticastOpenGroup( Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
+        public static IMulticastLogEntry CreateMulticastOpenGroup( Guid monitorId,
+                                                                   LogEntryType previousEntryType,
+                                                                   DateTimeStamp previousLogTime,
+                                                                   int depth,
+                                                                   string text,
+                                                                   DateTimeStamp t,
+                                                                   LogLevel level,
+                                                                   string? fileName,
+                                                                   int lineNumber,
+                                                                   CKTrait tags,
+                                                                   CKExceptionData? ex )
         {
             return new LEMCOpenGroup( monitorId, depth, previousLogTime, previousEntryType, text, t, fileName, lineNumber, level, tags, ex );
         }
@@ -114,7 +124,13 @@ namespace CK.Monitoring
         /// <param name="level">Log level of the log entry.</param>
         /// <param name="c">Group conclusions.</param>
         /// <returns>A log entry object.</returns>
-        public static IMulticastLogEntry CreateMulticastCloseGroup( Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion> c )
+        public static IMulticastLogEntry CreateMulticastCloseGroup( Guid monitorId,
+                                                                    LogEntryType previousEntryType,
+                                                                    DateTimeStamp previousLogTime,
+                                                                    int depth,
+                                                                    DateTimeStamp t,
+                                                                    LogLevel level,
+                                                                    IReadOnlyList<ActivityLogGroupConclusion>? c )
         {
             return new LEMCCloseGroup( monitorId, depth, previousLogTime, previousEntryType, t, level, c );
         }
@@ -178,13 +194,14 @@ namespace CK.Monitoring
             WriteLogTypeAndLevel( w, t, level );
             w.Write( logTime.TimeUtc.ToBinary() );
             if( logTime.Uniquifier != 0 ) w.Write( logTime.Uniquifier );
-            if( (t & StreamLogType.HasTags) != 0 ) w.Write( tags!.ToString() ); // lgtm [cs/dereferenced-value-may-be-null]
+            if( (t & StreamLogType.HasTags) != 0 ) w.Write( tags!.ToString() );
             if( (t & StreamLogType.HasFileName) != 0 )
             {
+                Debug.Assert( fileName != null );
                 w.Write( fileName );
                 w.WriteNonNegativeSmallInt32( lineNumber );
             }
-            if( (t & StreamLogType.HasException) != 0 ) ex!.Write( w ); // lgtm [cs/dereferenced-value-may-be-null]
+            if( (t & StreamLogType.HasException) != 0 ) ex!.Write( w );
             if( (t & StreamLogType.IsTextTheExceptionMessage) == 0 ) w.Write( text );
         }
 
@@ -195,7 +212,7 @@ namespace CK.Monitoring
         /// <param name="level">Log level of the log entry.</param>
         /// <param name="closeTime">Time stamp of the group closing.</param>
         /// <param name="conclusions">Group conclusions.</param>
-        static public void WriteCloseGroup( CKBinaryWriter w, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        static public void WriteCloseGroup( CKBinaryWriter w, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( w == null ) throw new ArgumentNullException( "w" );
             DoWriteCloseGroup( w, StreamLogType.TypeGroupClosed, level, closeTime, conclusions );
@@ -212,7 +229,7 @@ namespace CK.Monitoring
         /// <param name="level">Log level of the log entry.</param>
         /// <param name="closeTime">Time stamp of the group closing.</param>
         /// <param name="conclusions">Group conclusions.</param>
-        static public void WriteCloseGroup( CKBinaryWriter w, Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        static public void WriteCloseGroup( CKBinaryWriter w, Guid monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( w == null ) throw new ArgumentNullException( "w" );
             StreamLogType type = StreamLogType.TypeGroupClosed | StreamLogType.IsMultiCast;
@@ -244,7 +261,7 @@ namespace CK.Monitoring
             }
         }
 
-        static void DoWriteCloseGroup( CKBinaryWriter w, StreamLogType t, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        static void DoWriteCloseGroup( CKBinaryWriter w, StreamLogType t, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( conclusions != null && conclusions.Count > 0 ) t |= StreamLogType.HasConclusions;
             if( closeTime.Uniquifier != 0 ) t |= StreamLogType.HasUniquifier;
@@ -376,11 +393,7 @@ namespace CK.Monitoring
             {
                 return new LECloseGroup( time, logLevel, conclusions );
             }
-            Guid mId;
-            int depth;
-            LogEntryType prevType;
-            DateTimeStamp prevTime;
-            ReadMulticastFooter( streamVersion, r, t, out mId, out depth, out prevType, out prevTime );
+            ReadMulticastFooter( streamVersion, r, t, out Guid mId, out int depth, out LogEntryType prevType, out DateTimeStamp prevTime );
 
             return new LEMCCloseGroup( mId, depth, prevTime, prevType, time, logLevel, conclusions );
         }

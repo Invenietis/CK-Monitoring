@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CK.Core;
 using System.IO.Compression;
+using System.Diagnostics;
 
 namespace CK.Monitoring
 {
@@ -22,7 +23,7 @@ namespace CK.Monitoring
         FileStream? _output;
         DateTime _openedTimeUtc;
         int _countRemainder;
-        int _fileBufferSize;
+        readonly int _fileBufferSize;
 
         /// <summary>
         /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.
@@ -34,6 +35,7 @@ namespace CK.Monitoring
         /// <param name="useGzipCompression">True to gzip the file.</param>
         protected MonitorFileOutputBase( string configuredPath, string fileNameSuffix, int maxCountPerFile, bool useGzipCompression )
         {
+            if( configuredPath == null ) throw new ArgumentNullException( nameof( configuredPath ) );
             if( string.IsNullOrEmpty( fileNameSuffix ) ) throw new ArgumentException( nameof( fileNameSuffix ) );
             if( maxCountPerFile < 1 ) throw new ArgumentException( "Must be greater than 0.", nameof( maxCountPerFile ) );
             _configPath = configuredPath;
@@ -284,6 +286,7 @@ namespace CK.Monitoring
         /// </summary>
         protected virtual void CloseCurrentFile()
         {
+            Debug.Assert( _output != null && _basePath != null );
             string fName = _output.Name;
             _output.Dispose();
             if( _countRemainder == _maxCountPerFile )

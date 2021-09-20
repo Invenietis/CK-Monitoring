@@ -90,10 +90,12 @@ namespace CK.Monitoring
         /// <returns>Clone of this configuration.</returns>
         public GrandOutputConfiguration Clone()
         {
-            var c = new GrandOutputConfiguration();
-            c.TimerDuration = TimerDuration;
-            c.ExternalLogLevelFilter = ExternalLogLevelFilter;
-            c.MinimalFilter = MinimalFilter;
+            var c = new GrandOutputConfiguration
+            {
+                TimerDuration = TimerDuration,
+                ExternalLogLevelFilter = ExternalLogLevelFilter,
+                MinimalFilter = MinimalFilter
+            };
             c.Handlers.AddRange( Handlers.Select( h => h.Clone() ) );
             return c;
         }

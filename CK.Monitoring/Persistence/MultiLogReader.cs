@@ -24,7 +24,6 @@ namespace CK.Monitoring
 
         internal class LiveIndexedMonitor
         {
-            readonly MultiLogReader _reader;
             internal readonly Guid MonitorId;
             internal readonly List<RawLogFileMonitorOccurence> _files;
             internal DateTimeStamp _firstEntryTime;
@@ -33,10 +32,9 @@ namespace CK.Monitoring
             internal int _lastDepth;
             internal Dictionary<CKTrait,int>? _tags; 
 
-            internal LiveIndexedMonitor( Guid monitorId, MultiLogReader reader )
+            internal LiveIndexedMonitor( Guid monitorId )
             {
                 MonitorId = monitorId;
-                _reader = reader;
                 _files = new List<RawLogFileMonitorOccurence>();
                 _firstEntryTime = DateTimeStamp.MaxValue;
                 _lastEntryTime = DateTimeStamp.MinValue;
@@ -69,8 +67,7 @@ namespace CK.Monitoring
                         {
                             foreach( var t in log.Tags.AtomicTraits )
                             {
-                                int count;
-                                _tags.TryGetValue( t, out count );
+                                _tags.TryGetValue( t, out var count );
                                 _tags[t] = count + 1;
                             }
                         }
@@ -111,13 +108,15 @@ namespace CK.Monitoring
 
             /// <summary>
             /// Creates and opens a <see cref="LogReader"/> that reads unicast entries only from this monitor.
-            /// The reader is initially positioned before the entry (i.e. <see cref="LogReader.MoveNext"/> must be called).
+            /// The reader is positioned on the entry (i.e. <see cref="LogReader.MoveNext"/> has been called).
             /// </summary>
             /// <param name="streamOffset">Initial stream position.</param>
             /// <returns>A log reader that will read only entries from this monitor.</returns>
-            public LogReader CreateFilteredReader( long streamOffset )
+            public LogReader CreateFilteredReaderAndMoveTo( long streamOffset )
             {
-                return LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                var r = LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                r.MoveNext();
+                return r;
             }
 
             /// <summary>
@@ -225,8 +224,7 @@ namespace CK.Monitoring
                             _fileVersion = r.StreamVersion;
                             do
                             {
-                                var log = r.Current as IMulticastLogEntry;
-                                if( log != null )
+                                if( r.Current is IMulticastLogEntry log )
                                 {
                                     ++_totalEntryCount;
                                     if( _firstEntryTime > log.LogTime ) _firstEntryTime = log.LogTime;
@@ -250,8 +248,7 @@ namespace CK.Monitoring
             void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<Guid, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
             {
                 bool newOccurrence = false;
-                RawLogFileMonitorOccurence occ;
-                if( !monitorOccurrence.TryGetValue( log.MonitorId, out occ ) )
+                if( !monitorOccurrence.TryGetValue( log.MonitorId, out RawLogFileMonitorOccurence? occ ) )
                 {
                     occ = new RawLogFileMonitorOccurence( this, log.MonitorId, streamOffset );
                     monitorOccurrence.Add( log.MonitorId, occ );
@@ -295,15 +292,14 @@ namespace CK.Monitoring
         public List<RawLogFile> Add( IEnumerable<string> files )
         {
             List<RawLogFile> result = new List<RawLogFile>();
-            System.Threading.Tasks.Parallel.ForEach(files, s =>
-           {
-               bool newOne;
-               var f = Add(s, out newOne);
-               lock (result)
-               {
-                   if (!result.Contains(f)) result.Add(f);
-               }
-           });
+            System.Threading.Tasks.Parallel.ForEach( files, s =>
+            {
+                var f = Add( s, out bool newOne );
+                lock( result )
+                {
+                    if( !result.Contains( f ) ) result.Add( f );
+                }
+            } );
             return result;
         }
 
@@ -311,7 +307,7 @@ namespace CK.Monitoring
         /// Adds a file to this reader. This is thread safe (can be called from any thread at any time). 
         /// </summary>
         /// <param name="filePath">The path of the file to add.</param>
-        /// <param name="newFileIndex">True if the file has actually been added, false it it was already added.</param>
+        /// <param name="newFileIndex">True if the file has actually been added, false if it was already added.</param>
         /// <returns>The RawLogFile object (newly created or already existing).</returns>
         public RawLogFile Add( string filePath, out bool newFileIndex )
         {
@@ -348,7 +344,7 @@ namespace CK.Monitoring
         {
             Debug.Assert( fileOccurrence.MonitorId == log.MonitorId );
             Debug.Assert( !newOccurrence || (fileOccurrence.FirstEntryTime == log.LogTime && fileOccurrence.LastEntryTime == log.LogTime ) );
-            LiveIndexedMonitor m = _monitors.GetOrAdd( log.MonitorId, id => new LiveIndexedMonitor( id, this ) );
+            LiveIndexedMonitor m = _monitors.GetOrAdd( log.MonitorId, id => new LiveIndexedMonitor( id ) );
             m.Register( fileOccurrence, newOccurrence, streamOffset, log );
             return m;
         }

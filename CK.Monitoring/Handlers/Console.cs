@@ -14,8 +14,10 @@ namespace CK.Monitoring.Handlers
     {
         readonly MulticastLogEntryTextBuilder _builder;
         ConsoleConfiguration _config;
-        string _currentMonitor;
+        string? _currentMonitor;
         bool _monitorColorSwitch;
+        readonly StringBuilder _buffer;
+
         /// <summary>
         /// Initializes a new console handler.
         /// </summary>
@@ -23,6 +25,7 @@ namespace CK.Monitoring.Handlers
         public Console( ConsoleConfiguration config )
         {
             _config = config ?? throw new ArgumentNullException( "config" );
+            _buffer = new StringBuilder();
             if( string.IsNullOrWhiteSpace( config.DateFormat ) )
             {
                 _builder = new MulticastLogEntryTextBuilder( config.UseDeltaTime, true );
@@ -60,7 +63,7 @@ namespace CK.Monitoring.Handlers
         /// <returns>True if <paramref name="c"/> is a ConsoleConfiguration.</returns>
         public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
-            if( !(c is ConsoleConfiguration cf) ) return false;
+            if( c is not ConsoleConfiguration cf ) return false;
             _config = cf;
             return true;
         }
@@ -81,7 +84,6 @@ namespace CK.Monitoring.Handlers
         /// <param name="e">The log entry.</param>
         public void Handle( IActivityMonitor m, GrandOutputEventInfo e )
         {
-
             var entry = _builder.FormatEntry( e.Entry );
             if( entry.Key != null )
             {
@@ -120,13 +122,13 @@ namespace CK.Monitoring.Handlers
                        'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
                        'u', 'v', 'w', 'x', 'y', 'z',
                        '+', '/'};
-        StringBuilder _sb = new StringBuilder();
+
         void DisplayFormattedEntry( MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel )
         {
-            _sb.Clear();
+            _buffer.Clear();
             ConsoleColor prevForegroundColor = System.Console.ForegroundColor;
             ConsoleColor prevBackgroundColor = System.Console.BackgroundColor;
-            _sb.Append( entry.FormattedDate )
+            _buffer.Append( entry.FormattedDate )
                 .Append( ' ' );
             if( _currentMonitor != entry.MonitorId )
             {
@@ -136,17 +138,17 @@ namespace CK.Monitoring.Handlers
             if( _config.EnableMonitorIdColorFlag )
             {
                 string monitorId = entry.MonitorId;
-                _sb.Append( monitorId[0] );
+                _buffer.Append( monitorId[0] );
                 for( int i = 1; i < monitorId.Length; i++ )
                 {
                     int b64 = _b64e.IndexOf( s => s == monitorId[i] );
                     if( b64 != -1 )
                     {
-                        _sb.Append( monitorId[i].ToString().Pastel( _foregroundColor[b64 / 16] ).PastelBg( _colors[b64] ) );
+                        _buffer.Append( monitorId[i].ToString().Pastel( _foregroundColor[b64 / 16] ).PastelBg( _colors[b64] ) );
                     }
                     else
                     {
-                        _sb.Append( monitorId[i] );
+                        _buffer.Append( monitorId[i] );
                     }
                 }
             }
@@ -157,18 +159,18 @@ namespace CK.Monitoring.Handlers
                     System.Console.ForegroundColor = prevBackgroundColor;
                     System.Console.BackgroundColor = prevForegroundColor;
                 }
-                _sb.Append( entry.MonitorId.Pastel( System.Console.ForegroundColor ).PastelBg( System.Console.BackgroundColor ) );
+                _buffer.Append( entry.MonitorId.Pastel( System.Console.ForegroundColor ).PastelBg( System.Console.BackgroundColor ) );
             }
 
 
             (ConsoleColor background, ConsoleColor foreground) = ColoredActivityMonitorConsoleClient.DefaultColorTheme( prevBackgroundColor, logLevel & LogLevel.Mask );
-            _sb.Append( ' ' )
+            _buffer.Append( ' ' )
                 .Append( entry.LogLevel.ToString().Pastel( foreground ).PastelBg( background ) )
                 .Append( ' ' )
                 .Append( entry.IndentationPrefix )
                 .Append(entry.EntryText.Pastel( foreground ).PastelBg( background ) );
-            System.Console.WriteLine( _sb.ToString() );
-            _sb.Clear();
+            System.Console.WriteLine( _buffer.ToString() );
+            _buffer.Clear();
         }
 
         /// <summary>

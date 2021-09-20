@@ -125,7 +125,7 @@ namespace CK.Monitoring.Hosting
                 ActivityMonitor.DefaultFilter = defaultFilter;
             }
 
-            // If a GlobalDefaultFilter has been successsfuly parsed and we are reconfiguring and it is different than
+            // If a GlobalDefaultFilter has been successfully parsed and we are reconfiguring and it is different than
             // the current one, logs the change before applying the configuration.
             if( hasGlobalDefaultFilter
                 && !errorParsingGlobalDefaultFilter
@@ -158,7 +158,7 @@ namespace CK.Monitoring.Hosting
 
             if( hasGlobalDefaultFilter )
             {
-                // Always log the parse error, but only log a real change or the intitial configured level.
+                // Always log the parse error, but only log a real change or the initial configured level.
                 if( errorParsingGlobalDefaultFilter )
                 {
                     _target.ExternalLog( Core.LogLevel.Error, $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
@@ -179,8 +179,7 @@ namespace CK.Monitoring.Hosting
 
         void OnUnhandledException( object sender, UnhandledExceptionEventArgs e )
         {
-            var ex = e.ExceptionObject as Exception;
-            if( ex != null ) ActivityMonitor.CriticalErrorCollector.Add( ex, "UnhandledException" );
+            if( e.ExceptionObject is Exception ex ) ActivityMonitor.CriticalErrorCollector.Add( ex, "UnhandledException" );
             else
             {
                 string errText = e.ExceptionObject.ToString();
