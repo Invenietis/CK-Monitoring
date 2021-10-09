@@ -1,7 +1,7 @@
-﻿<Project>
+<Project>
   <!-- Shared dependency versions -->
   <PropertyGroup>
-    <CKActivityMonitorVersion>14.2.0</CKActivityMonitorVersion>
+    <CKActivityMonitorVersion>14.2.1--0003-develop</CKActivityMonitorVersion>
   </PropertyGroup>
   <!--<SourceLink>: is enabled only for ContinuousIntegrationBuild build. -->
   <ItemGroup Condition=" '$(ContinuousIntegrationBuild)' == 'true' ">
@@ -77,7 +77,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <!--</SourceLinkDebuggingWorkaround>-->
-
   <!--<Analyzers>-->
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="16.9.60" PrivateAssets="All" IncludeAssets="runtime;build;native;contentfiles;analyzers" />
