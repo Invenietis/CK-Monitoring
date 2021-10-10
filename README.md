@@ -8,7 +8,7 @@ CK-Monitoring is the log <a href="https://en.wikipedia.org/wiki/Sink_(computing)
 
 
 <a href="https://docs.microsoft.com/en-us/dotnet/csharp/"><img src="https://img.shields.io/badge/language-C%23-%23178600" title="Go To C# Documentation"></a>
-[![Build status](https://ci.appveyor.com/api/projects/status/pxo8hsxuhqw3ebqa?svg=true)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring)
+[![Build status](https://ci.appveyor.com/api/projects/status/pxo8hsxuhqw3ebqa?svg=true)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring)[![Licence](https://img.shields.io/github/license/Invenietis/CK-Monitoring.svg)](https://github.com/Invenietis/CK-Monitoring/blob/develop/LICENSE)
 
 > ⚠️If you are not already familliar with the [ActivityMonitor](https://github.com/Invenietis/CK-ActivityMonitor) i'll suggest to read it's [documentation](https://github.com/Invenietis/CK-ActivityMonitor) first.
 
