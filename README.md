@@ -255,4 +255,7 @@ Handler configurations must fulfill this even simpler contract:
     }
 ```
 
+</ul>
+</details>
+
 [![Build history](https://buildstats.info/appveyor/chart/Signature-OpenSource/ck-monitoring?buildCount=100)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring)
