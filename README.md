@@ -240,6 +240,7 @@ The `IGrandOutputHandler` that all handlers implement is a very simple interface
 </summary>
 <ul>
 Handler configurations must fulfill this even simpler contract:
+
 ```csharp
     /// <summary>
     /// Configuration interface.
