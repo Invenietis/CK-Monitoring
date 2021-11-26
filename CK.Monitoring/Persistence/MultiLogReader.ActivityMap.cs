@@ -64,7 +64,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitorId">The monitor's identifier.</param>
             /// <returns>The monitor or null if not found.</returns>
-            public Monitor? FindMonitor( Guid monitorId ) => _monitors.GetValueWithDefault( monitorId, null );
+            public Monitor? FindMonitor( Guid monitorId ) => _monitors.GetValueOrDefault( monitorId );
         }
 
         /// <summary>

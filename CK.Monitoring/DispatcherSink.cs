@@ -32,6 +32,7 @@ namespace CK.Monitoring
         volatile int _stopFlag;
         volatile bool _forceClose;
         readonly bool _isDefaultGrandOutput;
+        bool _unhandledExceptionTracking;
 
         public DispatcherSink(
             Action<IActivityMonitor> initialRegister,
@@ -107,7 +108,6 @@ namespace CK.Monitoring
                         catch( Exception ex )
                         {
                             var msg = $"{h.GetType().FullName}.Handle() crashed.";
-                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
                             monitor.SendLine( LogLevel.Fatal, msg, ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
@@ -128,7 +128,6 @@ namespace CK.Monitoring
                         catch( Exception ex )
                         {
                             var msg = $"{h.GetType().FullName}.OnTimer() crashed.";
-                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
                             monitor.SendLine( LogLevel.Fatal, msg, ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
@@ -161,6 +160,7 @@ namespace CK.Monitoring
             var c = newConf[newConf.Length - 1];    
             _filterChange( c.MinimalFilter, c.ExternalLogLevelFilter );
             if( c.TimerDuration.HasValue ) TimerDuration = c.TimerDuration.Value;
+            SetUnhandledExceptionTracking( c.TrackUnhandledExceptions ?? _isDefaultGrandOutput );
             List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
             for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
             {
@@ -182,7 +182,6 @@ namespace CK.Monitoring
                         var h = _handlers[iHandler];
                         // Existing _handlers[iHandler] crashed with the proposed c.Handlers[iConf].
                         var msg = $"Existing {h.GetType().FullName} crashed with the configuration {c.Handlers[iConf].GetType().FullName}.";
-                        ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
                         monitor.SendLine( LogLevel.Fatal, msg, ex );
                         // Since the handler can be compromised, we skip it from any subsequent
                         // attempt to reconfigure it and deactivate it.
@@ -213,7 +212,6 @@ namespace CK.Monitoring
                 catch( Exception ex )
                 {
                     var msg = $"While creating handler for {conf.GetType().FullName}.";
-                    ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
                     monitor.SendLine( LogLevel.Fatal, msg, ex );
                 }
             }
@@ -237,9 +235,7 @@ namespace CK.Monitoring
             }
             catch( Exception ex )
             {
-                var msg = $"Handler {h.GetType().FullName} crashed during {(activate?"activation":"de-activation")}.";
-                ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                monitor.SendLine( LogLevel.Fatal, msg, ex );
+                monitor.SendLine( LogLevel.Fatal, $"Handler {h.GetType().FullName} crashed during {(activate ? "activation" : "de-activation")}.", ex );
                 return false;
             }
             return true;
@@ -261,6 +257,7 @@ namespace CK.Monitoring
         {
             if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
             {
+                SetUnhandledExceptionTracking( false );
                 _stopTokenSource.Cancel();
                 _queue.CompleteAdding();
                 return true;
@@ -322,5 +319,45 @@ namespace CK.Monitoring
                         ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
             Handle( new GrandOutputEventInfo( e, String.Empty ) );
         }
+
+        void SetUnhandledExceptionTracking( bool trackUnhandledException )
+        {
+            if( trackUnhandledException != _unhandledExceptionTracking )
+            {
+                if( trackUnhandledException )
+                {
+                    AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+                }
+                else
+                {
+                    AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+                }
+                _unhandledExceptionTracking = trackUnhandledException;
+            }
+        }
+
+        void OnUnobservedTaskException( object? sender, UnobservedTaskExceptionEventArgs e )
+        {
+            ExternalLog( LogLevel.Fatal, "TaskScheduler.UnobservedTaskException raised.", e.Exception, GrandOutput.UnhandledException );
+            e.SetObserved();
+        }
+
+        void OnUnhandledException( object sender, UnhandledExceptionEventArgs e )
+        {
+            if( e.ExceptionObject is Exception ex )
+            {
+                ExternalLog( LogLevel.Fatal, "AppDomain.CurrentDomain.UnhandledException raised.", ex, GrandOutput.UnhandledException );
+            }
+            else
+            {
+                string? exText = e.ExceptionObject.ToString();
+                ExternalLog( LogLevel.Fatal, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'.", null, GrandOutput.UnhandledException );
+            }
+        }
+
+
+
     }
 }

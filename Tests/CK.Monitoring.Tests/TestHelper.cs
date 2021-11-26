@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using CK.Core;
 using NUnit.Framework;
-using CK.Text;
 
 namespace CK.Monitoring.Tests
 {

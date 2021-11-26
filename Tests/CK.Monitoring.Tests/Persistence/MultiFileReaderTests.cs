@@ -6,7 +6,6 @@ using CK.Core;
 using NUnit.Framework;
 using FluentAssertions;
 using System.Threading;
-using CK.Text;
 
 namespace CK.Monitoring.Tests.Persistence
 {

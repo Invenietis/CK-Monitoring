@@ -36,6 +36,16 @@ namespace CK.Monitoring
         public LogLevelFilter? ExternalLogLevelFilter { get; set; } = null;
 
         /// <summary>
+        /// Gets or sets whether unhandled exceptions from <see cref="AppDomain.UnhandledException"/>
+        /// and <see cref="System.Threading.Tasks.TaskScheduler.UnobservedTaskException"/> are sent to
+        /// the <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait?)"/>.
+        /// <para>
+        /// Defaults to true for the <see cref="GrandOutput.Default"/> instance and false for the other ones.
+        /// </para>
+        /// </summary>
+        public bool? TrackUnhandledExceptions { get; set; } = null;
+
+        /// <summary>
         /// Gets the list of handlers configuration.
         /// </summary>
         public List<IHandlerConfiguration> Handlers { get; } = new List<IHandlerConfiguration>();
@@ -59,6 +69,17 @@ namespace CK.Monitoring
         public GrandOutputConfiguration SetExternalLogLevelFilter( LogLevelFilter? filter )
         {
             ExternalLogLevelFilter = filter;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the <see cref="TrackUnhandledExceptions"/> (fluent interface).
+        /// </summary>
+        /// <param name="track">The value.</param>
+        /// <returns>This configuration.</returns>
+        public GrandOutputConfiguration SetTrackUnhandledExceptions( bool? track )
+        {
+            TrackUnhandledExceptions = track;
             return this;
         }
 
@@ -94,7 +115,8 @@ namespace CK.Monitoring
             {
                 TimerDuration = TimerDuration,
                 ExternalLogLevelFilter = ExternalLogLevelFilter,
-                MinimalFilter = MinimalFilter
+                MinimalFilter = MinimalFilter,
+                TrackUnhandledExceptions = TrackUnhandledExceptions
             };
             c.Handlers.AddRange( Handlers.Select( h => h.Clone() ) );
             return c;

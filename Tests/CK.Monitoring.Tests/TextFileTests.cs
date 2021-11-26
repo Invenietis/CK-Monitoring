@@ -6,7 +6,6 @@ using NUnit.Framework;
 using System.Threading.Tasks;
 using FluentAssertions;
 using System.Threading;
-using CK.Text;
 
 namespace CK.Monitoring.Tests
 {

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\Common\Shared.props" />
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net6.0</TargetFrameworks>
     <Description>Extends CK.ActivityMonitor with outputs and events serialization. GrandOutput collects centralized logs and dispatch them in configurable handlers.</Description>
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>

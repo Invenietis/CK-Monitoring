@@ -19,17 +19,15 @@ namespace CK.Monitoring
         readonly DispatcherSink _sink;
         LogFilter _minimalFilter;
 
-        int _handleCriticalErrors;
-
         static GrandOutput? _default;
         static MonitorTraceListener? _traceListener;
         static readonly object _defaultLock = new object();
 
         /// <summary>
-        /// The tag that marks all external log entry sent when <see cref="HandleCriticalErrors"/>
-        /// is true.
+        /// The tag that marks all external log entry sent by <see cref="AppDomain.UnhandledException"/>
+        /// and <see cref="System.Threading.Tasks.TaskScheduler.UnobservedTaskException"/>.
         /// </summary>
-        public static CKTrait CriticalErrorTag = ActivityMonitor.Tags.Context.FindOrCreate( "CriticalError" );
+        public static CKTrait UnhandledException = ActivityMonitor.Tags.Register( "UnhandledException" );
 
         /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
@@ -81,14 +79,13 @@ namespace CK.Monitoring
             {
                 if( _default == null )
                 {
-                    bool ensureStaticIntialization = LogFile.TrackActivityMonitorLoggingError; //lgtm [cs/useless-assignment-to-local]
                     if( configuration == null )
                     {
                         configuration = new GrandOutputConfiguration()
                                             .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
                         configuration.InternalClone = true;
                     }
-                    _default = new GrandOutput( true, configuration, true );
+                    _default = new GrandOutput( true, configuration );
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                     _traceListener = new MonitorTraceListener( _default, failFast: false );
                     if( clearExistingTraceListeners ) Trace.Listeners.Clear();
@@ -153,13 +150,12 @@ namespace CK.Monitoring
         /// Initializes a new <see cref="GrandOutput"/>. 
         /// </summary>
         /// <param name="config">The configuration.</param>
-        /// <param name="handleCriticalErrors">True to handle critical errors.</param>
-        public GrandOutput( GrandOutputConfiguration config, bool handleCriticalErrors = false )
-            : this( false, config, handleCriticalErrors )
+        public GrandOutput( GrandOutputConfiguration config )
+            : this( false, config )
         {
         }
 
-        GrandOutput( bool isDefault, GrandOutputConfiguration config, bool handleCriticalErrors )
+        GrandOutput( bool isDefault, GrandOutputConfiguration config )
         {
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
             // Creates the client list first.
@@ -174,7 +170,6 @@ namespace CK.Monitoring
                             DoGarbageDeadClients,
                             OnFiltersChanged,
                             isDefault );
-            HandleCriticalErrors = handleCriticalErrors;
             ApplyConfiguration( config, waitForApplication: true );
         }
 
@@ -317,44 +312,6 @@ namespace CK.Monitoring
         /// </summary>
         public IGrandOutputSink Sink => _sink;
 
-        /// <summary>
-        /// Gets or sets whether this GrandOutput subscribes to <see cref="ActivityMonitor.CriticalErrorCollector"/>
-        /// events and sends them by calling <see cref="ExternalLog(CK.Core.LogLevel, string, Exception, CKTrait)">ExternalLog</see>
-        /// with a <see cref="CriticalErrorTag"/> tag.
-        /// Defaults to true for the <see cref="Default"/> GrandOutput, false otherwise.
-        /// </summary>
-        public bool HandleCriticalErrors
-        {
-            get { return _handleCriticalErrors != 0; }
-            set
-            {
-                if( value )
-                {
-                    if( Interlocked.Exchange( ref _handleCriticalErrors, 1 ) == 0 )
-                    {
-                        ActivityMonitor.CriticalErrorCollector.OnErrorFromBackgroundThreads += CriticalErrorCollector_OnErrorFromBackgroundThreads;
-                    }
-                }
-                else
-                {
-                    if( Interlocked.Exchange( ref _handleCriticalErrors, 0 ) == 1 )
-                    {
-                        ActivityMonitor.CriticalErrorCollector.OnErrorFromBackgroundThreads -= CriticalErrorCollector_OnErrorFromBackgroundThreads;
-                    }
-                }
-            }
-        }
-
-        void CriticalErrorCollector_OnErrorFromBackgroundThreads( object? sender, CriticalErrorCollector.ErrorEventArgs e )
-        {
-            int c = e.Errors.Count;
-            while( --c >= 0 )
-            {
-                var err = e.Errors[c];
-                ExternalLog( LogLevel.Fatal, err.Comment, err.Exception, CriticalErrorTag );
-            }
-        }
-
         void DoGarbageDeadClients()
         {
             lock( _clients )
@@ -384,7 +341,6 @@ namespace CK.Monitoring
         {
             if( _sink.Stop() )
             {
-                HandleCriticalErrors = false;
                 lock( _defaultLock )
                 {
                     if( _default == this )

@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using CK.Core;
 using CK.Monitoring.Impl;
-using CK.Text;
 
 namespace CK.Monitoring
 {

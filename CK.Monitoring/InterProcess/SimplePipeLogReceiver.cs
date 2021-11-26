@@ -117,7 +117,7 @@ namespace CK.Monitoring.InterProcess
             catch( Exception ex )
             {
                 _endFlag = LogReceiverEndStatus.Error;
-                ActivityMonitor.CriticalErrorCollector.Add( ex, $"While {nameof( SimpleLogPipeReceiver)}.Run." );
+                _monitor.UnfilteredLog( null, LogLevel.Fatal, "While receiving pipe logs.", DateTimeStamp.UtcNow, ex );
             }
         }
 
