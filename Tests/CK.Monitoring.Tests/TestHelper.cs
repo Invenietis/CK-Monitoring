@@ -53,15 +53,6 @@ namespace CK.Monitoring.Tests
             }
         }
 
-        public static string CriticalErrorsFolder
-        {
-            get
-            {
-                if( _solutionFolder == null ) InitalizePaths();
-                return LogFile.RootLogPath + "CriticalErrors";
-            }
-        }
-
         public static List<StupidStringClient> ReadAllLogs( DirectoryInfo folder, bool recurse )
         {
             List<StupidStringClient> logs = new List<StupidStringClient>();
@@ -170,7 +161,6 @@ namespace CK.Monitoring.Tests
                 LogFile.RootLogPath = Path.Combine( _solutionFolder, "Tests", "CK.Monitoring.Tests", "Logs" );
                 ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {LogFile.RootLogPath}" );
             }
-            Assert.That( Directory.Exists( CriticalErrorsFolder ) );
         }
 
     }
