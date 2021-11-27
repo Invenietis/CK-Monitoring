@@ -24,7 +24,7 @@ namespace CK.Monitoring
                        'u', 'v', 'w', 'x', 'y', 'z',
                        '+', '/'};
         readonly StringBuilder _builder;
-        readonly Dictionary<Guid, string> _monitorNames;
+        readonly Dictionary<string, string> _monitorNames;
         DateTime _lastLogTime;
         readonly bool _useDeltaTime;
         readonly string _timeFormat;
@@ -58,9 +58,9 @@ namespace CK.Monitoring
         {
             _useDeltaTime = useDeltaTime;
             _builder = new StringBuilder();
-            _monitorNames = new Dictionary<Guid, string>
+            _monitorNames = new Dictionary<string, string>
             {
-                { Guid.Empty, "###" }
+                { GrandOutput.ExternalLogMonitorUniqueId, "###" }
             };
             _timeFormat = timeFormat;
             _timeFormatLength = DateTime.UtcNow.ToString( timeFormat ).Length;
@@ -273,7 +273,7 @@ namespace CK.Monitoring
         void ClearMonitorNames()
         {
             _monitorNames.Clear();
-            _monitorNames.Add( Guid.Empty, "###" );
+            _monitorNames.Add( GrandOutput.ExternalLogMonitorUniqueId, "###" );
         }
 
         /// <summary>

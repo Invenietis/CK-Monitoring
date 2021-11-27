@@ -14,7 +14,7 @@ namespace CK.Monitoring
     /// </summary>
     public sealed partial class MultiLogReader : IDisposable
     {
-        readonly ConcurrentDictionary<Guid,LiveIndexedMonitor> _monitors;
+        readonly ConcurrentDictionary<string,LiveIndexedMonitor> _monitors;
         readonly ConcurrentDictionary<string,RawLogFile> _files;
         readonly ReaderWriterLockSlim _lockWriteRead;
 
@@ -24,7 +24,7 @@ namespace CK.Monitoring
 
         internal class LiveIndexedMonitor
         {
-            internal readonly Guid MonitorId;
+            internal readonly string MonitorId;
             internal readonly List<RawLogFileMonitorOccurence> _files;
             internal DateTimeStamp _firstEntryTime;
             internal int _firstDepth;
@@ -32,7 +32,7 @@ namespace CK.Monitoring
             internal int _lastDepth;
             internal Dictionary<CKTrait,int>? _tags; 
 
-            internal LiveIndexedMonitor( Guid monitorId )
+            internal LiveIndexedMonitor( string monitorId )
             {
                 MonitorId = monitorId;
                 _files = new List<RawLogFileMonitorOccurence>();
@@ -88,7 +88,7 @@ namespace CK.Monitoring
             /// <summary>
             /// The monitor's identifier.
             /// </summary>
-            public readonly Guid MonitorId;
+            public readonly string MonitorId;
             /// <summary>
             /// First offset for this <see cref="MonitorId"/> in this <see cref="LogFile"/>.
             /// </summary>
@@ -132,7 +132,7 @@ namespace CK.Monitoring
                 return r;
             }
 
-            internal RawLogFileMonitorOccurence( RawLogFile f, Guid monitorId, long streamOffset )
+            internal RawLogFileMonitorOccurence( RawLogFile f, string monitorId, long streamOffset )
             {
                 LogFile = f;
                 MonitorId = monitorId;
@@ -215,7 +215,7 @@ namespace CK.Monitoring
             {
                 try
                 {
-                    var monitorOccurrences = new Dictionary<Guid, RawLogFileMonitorOccurence>();
+                    var monitorOccurrences = new Dictionary<string, RawLogFileMonitorOccurence>();
                     var monitorOccurrenceList = new List<RawLogFileMonitorOccurence>();
                     using( var r = LogReader.Open( _fileName ) )
                     {
@@ -245,7 +245,7 @@ namespace CK.Monitoring
                 }
             }
 
-            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<Guid, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
+            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<string, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
             {
                 bool newOccurrence = false;
                 if( !monitorOccurrence.TryGetValue( log.MonitorId, out RawLogFileMonitorOccurence? occ ) )
@@ -276,7 +276,7 @@ namespace CK.Monitoring
         /// </summary>
         public MultiLogReader()
         {
-            _monitors = new ConcurrentDictionary<Guid, LiveIndexedMonitor>();
+            _monitors = new ConcurrentDictionary<string, LiveIndexedMonitor>();
             _files = new ConcurrentDictionary<string, RawLogFile>( StringComparer.OrdinalIgnoreCase );
             _lockWriteRead = new ReaderWriterLockSlim();
             _globalInfoLock = new object();

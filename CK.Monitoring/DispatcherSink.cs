@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Toolkit.Diagnostics;
 
 namespace CK.Monitoring
 {
@@ -23,7 +24,7 @@ namespace CK.Monitoring
         readonly object _externalLogLock;
         DateTimeStamp _externalLogLastTime;
 
-        GrandOutputConfiguration[]? _newConf;
+        GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
         long _deltaTicks;
         long _nextTicks;
@@ -59,6 +60,7 @@ namespace CK.Monitoring
             _externalLogLock = new object();
             _externalLogLastTime = DateTimeStamp.MinValue;
             _isDefaultGrandOutput = isDefaultGrandOutput;
+            _newConf = Array.Empty<GrandOutputConfiguration>();
 
             _task.Start();
         }
@@ -80,8 +82,8 @@ namespace CK.Monitoring
         {
             var monitor = new ActivityMonitor( applyAutoConfigurations: false );
             // Simple pooling for initial configuration.
-            GrandOutputConfiguration[]? newConf = _newConf;
-            while( newConf == null )
+            GrandOutputConfiguration[] newConf = _newConf;
+            while( newConf.Length == 0 )
             {
                 Thread.Sleep( 0 );
                 newConf = _newConf;
@@ -107,8 +109,7 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            var msg = $"{h.GetType().FullName}.Handle() crashed.";
-                            monitor.SendLine( LogLevel.Fatal, msg, ex );
+                            monitor.Fatal( $"{h.GetType().ToTypeString()}.Handle() crashed.", ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -127,8 +128,7 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            var msg = $"{h.GetType().FullName}.OnTimer() crashed.";
-                            monitor.SendLine( LogLevel.Fatal, msg, ex );
+                            monitor.Fatal( $"{h.GetType().ToTypeString()}.OnTimer() crashed.", ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -154,7 +154,7 @@ namespace CK.Monitoring
             monitor.MonitorEnd();
         }
 
-        private void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
+        void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
             Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
             var c = newConf[newConf.Length - 1];    
@@ -181,8 +181,7 @@ namespace CK.Monitoring
                     {
                         var h = _handlers[iHandler];
                         // Existing _handlers[iHandler] crashed with the proposed c.Handlers[iConf].
-                        var msg = $"Existing {h.GetType().FullName} crashed with the configuration {c.Handlers[iConf].GetType().FullName}.";
-                        monitor.SendLine( LogLevel.Fatal, msg, ex );
+                        monitor.Fatal( $"Existing {h.GetType().ToTypeString()} crashed with the configuration {c.Handlers[iConf].GetType().ToTypeString()}.", ex );
                         // Since the handler can be compromised, we skip it from any subsequent
                         // attempt to reconfigure it and deactivate it.
                         _handlers.RemoveAt( iHandler-- );
@@ -211,8 +210,7 @@ namespace CK.Monitoring
                 }
                 catch( Exception ex )
                 {
-                    var msg = $"While creating handler for {conf.GetType().FullName}.";
-                    monitor.SendLine( LogLevel.Fatal, msg, ex );
+                    monitor.Fatal( $"While creating handler for {conf.GetType().ToTypeString()}.", ex );
                 }
             }
             if( _isDefaultGrandOutput )
@@ -220,7 +218,7 @@ namespace CK.Monitoring
                 // No need to Dispose() this Process.
                 var thisProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var msg = $"GrandOutput.Default configuration n°{_configurationCount++} for '{thisProcess.ProcessName}' (PID:{thisProcess.Id},AppDomainId:{AppDomain.CurrentDomain.Id}) on machine {Environment.MachineName}, UserName: '{Environment.UserName}', CommandLine: '{Environment.CommandLine}', BaseDirectory: '{AppContext.BaseDirectory}'.";
-                ExternalLog( Core.LogLevel.Info | Core.LogLevel.IsFiltered, msg, null, ActivityMonitor.Tags.Empty );
+                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, msg, null, ActivityMonitor.Tags.Empty );
             }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
@@ -235,7 +233,7 @@ namespace CK.Monitoring
             }
             catch( Exception ex )
             {
-                monitor.SendLine( LogLevel.Fatal, $"Handler {h.GetType().FullName} crashed during {(activate ? "activation" : "de-activation")}.", ex );
+                monitor.Fatal( $"Handler {h.GetType()} crashed during {(activate ? "activation" : "de-activation")}.", ex );
                 return false;
             }
             return true;
@@ -267,8 +265,10 @@ namespace CK.Monitoring
 
         public void Finalize( int millisecondsBeforeForceClose )
         {
+#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
             if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
             _task.Wait();
+#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
             _queue.Dispose();
             _stopTokenSource.Dispose();
         }
@@ -306,7 +306,7 @@ namespace CK.Monitoring
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
             var e = LogEntry.CreateMulticastLog(
-                        Guid.Empty,
+                        GrandOutput.ExternalLogMonitorUniqueId,
                         LogEntryType.Line,
                         prevLogTime,
                         depth: 0,

@@ -30,7 +30,7 @@ namespace CK.Monitoring.Handlers
         /// <param name="m"></param>
         public bool Activate( IActivityMonitor m )
         {
-            using( m.OpenGroup( LogLevel.Trace, $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile}).", null ) )
+            using( m.OpenTrace( $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile})." ) )
             {
                 return _file.Initialize( m );
             }
@@ -93,7 +93,7 @@ namespace CK.Monitoring.Handlers
         /// <param name="m">The monitor to use to track activity.</param>
         public void Deactivate( IActivityMonitor m )
         {
-            m.SendLine( LogLevel.Info, "Closing file for BinaryFile handler.", null );
+            m.Info( "Closing file for BinaryFile handler." );
             _file.Close();
         }
 

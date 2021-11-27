@@ -61,7 +61,7 @@ namespace CK.Monitoring
 
         internal void OnGrandOutputDisposedOrMinimalFilterChanged() => _monitorSource?.SignalChange();
         
-        void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
+        void IActivityMonitorClient.OnUnfilteredLog( ref ActivityMonitorLogData data )
         {
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
@@ -75,10 +75,10 @@ namespace CK.Monitoring
         {
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
-            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.GroupText, group.LogTime, group.GroupLevel, group.FileName, group.LineNumber, group.GroupTags, group.ExceptionData );
+            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.Data.Text, group.Data.LogTime, group.Data.Level, group.Data.FileName, group.Data.LineNumber, group.Data.Tags, group.Data.ExceptionData );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             ++_currentGroupDepth;
-            _prevlogTime = group.LogTime;
+            _prevlogTime = group.Data.LogTime;
             _prevLogType = LogEntryType.OpenGroup;
         }
 
@@ -90,7 +90,13 @@ namespace CK.Monitoring
         {
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
-            IMulticastLogEntry e = LogEntry.CreateMulticastCloseGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.CloseLogTime, group.GroupLevel, conclusions );
+            IMulticastLogEntry e = LogEntry.CreateMulticastCloseGroup( _monitorSource.UniqueId,
+                                                                       _prevLogType,
+                                                                       _prevlogTime,
+                                                                       _currentGroupDepth,
+                                                                       group.CloseLogTime,
+                                                                       group.Data.Level,
+                                                                       conclusions );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             --_currentGroupDepth;
             _prevlogTime = group.CloseLogTime;

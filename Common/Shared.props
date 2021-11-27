@@ -1,8 +1,4 @@
 <Project>
-  <!-- Shared dependency versions -->
-  <PropertyGroup>
-    <CKActivityMonitorVersion>0.0.0--03lgmn2-develop</CKActivityMonitorVersion>
-  </PropertyGroup>
   <!--<SourceLink>: is enabled only for ContinuousIntegrationBuild build. -->
   <ItemGroup Condition=" '$(ContinuousIntegrationBuild)' == 'true' ">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />

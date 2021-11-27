@@ -43,7 +43,6 @@ namespace CK.Monitoring.Hosting
         IConfigurationSection _section;
         IDisposable _changeToken;
         readonly bool _isDefaultGrandOutput;
-        bool _trackUnhandledException;
 
         public GrandOutputConfigurationInitializer( GrandOutput target )
         {

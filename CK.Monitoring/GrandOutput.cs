@@ -30,6 +30,11 @@ namespace CK.Monitoring
         public static CKTrait UnhandledException = ActivityMonitor.Tags.Register( "UnhandledException" );
 
         /// <summary>
+        /// The name of the fake monitor for external logs.
+        /// </summary>
+        public const string ExternalLogMonitorUniqueId = "§ext";
+
+        /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
         /// Note that <see cref="EnsureActiveDefault"/> must have been called, otherwise this static property is null
         /// and that this Default can be <see cref="Dispose()"/> at any time (this static property will be set back to null).

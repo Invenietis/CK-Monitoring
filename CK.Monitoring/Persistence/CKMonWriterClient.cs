@@ -18,8 +18,8 @@ namespace CK.Monitoring
         IActivityMonitorImpl? _source;
         MonitorBinaryFileOutput? _file;
         int _currentGroupDepth;
-        LogEntryType _prevLogType;
         DateTimeStamp _prevlogTime;
+        LogEntryType _prevLogType;
         readonly bool _useGzipCompression;
 
         /// <summary>
@@ -31,6 +31,7 @@ namespace CK.Monitoring
             : this( path, maxCountPerFile, LogFilter.Undefined, false )
         {
         }
+
         /// <summary>
         /// Initializes a new instance of <see cref="CKMonWriterClient"/> that can be registered to write compressed or uncompressed .ckmon file for this monitor.
         /// </summary>
@@ -125,7 +126,7 @@ namespace CK.Monitoring
         public bool IsOpened => _file != null; 
 
         #region Auto implementation of IMulticastLogInfo to call UnicastWrite on file.
-        Guid IMulticastLogInfo.MonitorId
+        string IMulticastLogInfo.MonitorId
         {
             get
             {
@@ -158,7 +159,8 @@ namespace CK.Monitoring
             }
         }
         #endregion
-        void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
+
+        void IActivityMonitorClient.OnUnfilteredLog( ref ActivityMonitorLogData data )
         {
             if( _file != null )
             {
@@ -173,7 +175,7 @@ namespace CK.Monitoring
             {
                 _file.UnicastWriteOpenGroup( group, this );
                 ++_currentGroupDepth;
-                _prevlogTime = group.LogTime;
+                _prevlogTime = group.Data.LogTime;
                 _prevLogType = LogEntryType.OpenGroup;
             }
         }

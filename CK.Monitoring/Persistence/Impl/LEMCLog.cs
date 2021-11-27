@@ -6,12 +6,12 @@ namespace CK.Monitoring.Impl
 {
     class LEMCLog : LELog, IMulticastLogEntry
     {
-        readonly Guid _monitorId;
+        readonly string _monitorId;
         readonly int _depth;
         readonly DateTimeStamp _previousLogTime;
         readonly LogEntryType _previousEntryType;
 
-        public LEMCLog( Guid monitorId, int depth, DateTimeStamp previousLogTime, LogEntryType previousEntryType, string text, DateTimeStamp t, string? fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData? ex )
+        public LEMCLog( string monitorId, int depth, DateTimeStamp previousLogTime, LogEntryType previousEntryType, string text, DateTimeStamp t, string? fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData? ex )
             : base( text, t, fileName, lineNumber, l, tags, ex )
         {
             _monitorId = monitorId;
@@ -20,7 +20,7 @@ namespace CK.Monitoring.Impl
             _previousLogTime = previousLogTime;
         }
 
-        public Guid MonitorId => _monitorId;
+        public string MonitorId => _monitorId;
 
         public int GroupDepth => _depth;
 

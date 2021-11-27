@@ -2,13 +2,11 @@
   <Import Project="..\Common\Shared.props" />
   <PropertyGroup>
     <TargetFrameworks>net6.0</TargetFrameworks>
-    <Description>Extends CK.ActivityMonitor with outputs and events serialization. GrandOutput collects centralized logs and dispatch them in configurable handlers.</Description>
-    <LangVersion>9.0</LangVersion>
+    <Description>Extends CK.ActivityMonitor with outputs and events serialization.
+    Main type is GrandOutput that collects centralized logs and dispatch them in configurable handlers.</Description>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.ActivityMonitor" Version="$(CKActivityMonitorVersion)" />
-    <PackageReference Include="TunnelVisionLabs.ReferenceAssemblyAnnotator" Version="1.0.0-alpha.160" PrivateAssets="all" />
-    <PackageDownload Include="Microsoft.NETCore.App.Ref" Version="[3.1.0]" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="0.0.0--03lrkzm-develop" />
   </ItemGroup>
 </Project>

@@ -27,8 +27,9 @@ namespace CK.Monitoring
         /// Current version stamp. Writes are done with this version, but reads MUST handle it.
         /// The first released version is 5.
         /// Version 7 supports the LogLevel.Debug level.
+        /// Version 8 uses a string as the monitor UniqueId instead of a Guid.
         /// </summary>
-        public const int CurrentStreamVersion = 7;
+        public const int CurrentStreamVersion = 8;
 
         /// <summary>
         /// The file header for .ckmon files starting from CurrentStreamVersion = 5.
@@ -138,7 +139,7 @@ namespace CK.Monitoring
             /// <summary>
             /// The filtered monitor identifier.
             /// </summary>
-            public readonly Guid MonitorId;
+            public readonly string MonitorId;
 
             /// <summary>
             /// The offset of the last entry in the stream (see <see cref="LogReader.StreamOffset"/>).
@@ -151,7 +152,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitorId">Monitor identifier to filter.</param>
             /// <param name="knownLastMonitorEntryOffset">Offset of the last entry in the stream (when known this enables to stop processing as soon as possible).</param>
-            public MulticastFilter( Guid monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
+            public MulticastFilter( string monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
             {
                 MonitorId = monitorId;
                 KnownLastMonitorEntryOffset = knownLastMonitorEntryOffset;
@@ -163,7 +164,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitor">Activity Monitor to filter.</param>
             public MulticastFilter( ActivityMonitor m )
-                : this( ((IUniqueId)m).UniqueId )
+                : this( m.UniqueId )
             {
             }
         }

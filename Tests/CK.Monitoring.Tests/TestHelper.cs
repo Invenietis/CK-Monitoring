@@ -96,7 +96,7 @@ namespace CK.Monitoring.Tests
         public static void ReplayLogs( DirectoryInfo directory, bool recurse, Func<MultiLogReader.Monitor, ActivityMonitor> monitorProvider, IActivityMonitor m = null )
         {
             var reader = new MultiLogReader();
-            using( m != null ? m.OpenTrace( $"Reading files from '{directory.FullName}' {(recurse ? "(recursive)" : null)}." ) : null )
+            using( m?.OpenTrace( $"Reading files from '{directory.FullName}' {(recurse ? "(recursive)" : null)}." ) )
             {
                 var files = reader.Add( directory.EnumerateFiles( "*.ckmon", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly ).Select( f => f.FullName ) );
                 if( files.Count == 0 )
@@ -117,7 +117,7 @@ namespace CK.Monitoring.Tests
                         var replay = monitorProvider( mon );
                         if( replay == null )
                         {
-                            if( m != null ) m.Info( $"Skipping activity from '{mon.MonitorId}'." );
+                            m?.Info( $"Skipping activity from '{mon.MonitorId}'." );
                         }
                         else
                         {
