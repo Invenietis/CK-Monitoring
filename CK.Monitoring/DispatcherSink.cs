@@ -109,7 +109,7 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            monitor.Fatal( $"{h.GetType().ToTypeString()}.Handle() crashed.", ex );
+                            monitor.Fatal( $"{h.GetType()}.Handle() crashed.", ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -128,7 +128,7 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            monitor.Fatal( $"{h.GetType().ToTypeString()}.OnTimer() crashed.", ex );
+                            monitor.Fatal( $"{h.GetType()}.OnTimer() crashed.", ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -181,7 +181,7 @@ namespace CK.Monitoring
                     {
                         var h = _handlers[iHandler];
                         // Existing _handlers[iHandler] crashed with the proposed c.Handlers[iConf].
-                        monitor.Fatal( $"Existing {h.GetType().ToTypeString()} crashed with the configuration {c.Handlers[iConf].GetType().ToTypeString()}.", ex );
+                        monitor.Fatal( $"Existing {h.GetType()} crashed with the configuration {c.Handlers[iConf].GetType()}.", ex );
                         // Since the handler can be compromised, we skip it from any subsequent
                         // attempt to reconfigure it and deactivate it.
                         _handlers.RemoveAt( iHandler-- );
@@ -210,7 +210,7 @@ namespace CK.Monitoring
                 }
                 catch( Exception ex )
                 {
-                    monitor.Fatal( $"While creating handler for {conf.GetType().ToTypeString()}.", ex );
+                    monitor.Fatal( $"While creating handler for {conf.GetType()}.", ex );
                 }
             }
             if( _isDefaultGrandOutput )
