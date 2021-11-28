@@ -307,7 +307,7 @@ namespace CK.Monitoring.Tests
             textConf.MinimumTimeSpanToKeep = TimeSpan.Zero; // Make minimum timespan
             var config = new GrandOutputConfiguration().AddHandler( textConf );
 
-            int lineLengthToLogToGet1000bytes = 1000 - 413;
+            int lineLengthToLogToGet1000bytes = 1050 - 413;
 
             // TEST DELETION BY SIZE
 
