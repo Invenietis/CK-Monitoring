@@ -39,7 +39,10 @@ namespace CK.Monitoring.Tests
             public void Dispose()
             {
                 _writer.WriteLine( "GOODBYE" );
-                _client.WaitForPipeDrain();
+                if( OperatingSystem.IsWindows() )
+                {
+                    _client.WaitForPipeDrain();
+                }
                 _writer.Dispose();
                 _client.Dispose();
             }

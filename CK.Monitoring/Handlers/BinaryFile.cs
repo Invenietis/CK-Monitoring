@@ -30,7 +30,7 @@ namespace CK.Monitoring.Handlers
         /// <param name="m"></param>
         public bool Activate( IActivityMonitor m )
         {
-            using( m.OpenGroup( LogLevel.Trace, $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile}).", null ) )
+            using( m.OpenTrace( $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile})." ) )
             {
                 return _file.Initialize( m );
             }
@@ -68,8 +68,8 @@ namespace CK.Monitoring.Handlers
         /// <returns>True if the configuration applied.</returns>
         public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
-            BinaryFileConfiguration cF = c as BinaryFileConfiguration;
-            if( cF == null || cF.Path != _config.Path ) return false;
+            if( c is not BinaryFileConfiguration cF || cF.Path != _config.Path ) return false;
+
             if( _config.UseGzipCompression != cF.UseGzipCompression )
             {
                 var f = new MonitorBinaryFileOutput( _config.Path, cF.MaxCountPerFile, cF.UseGzipCompression );
@@ -93,7 +93,7 @@ namespace CK.Monitoring.Handlers
         /// <param name="m">The monitor to use to track activity.</param>
         public void Deactivate( IActivityMonitor m )
         {
-            m.SendLine( LogLevel.Info, "Closing file for BinaryFile handler.", null );
+            m.Info( "Closing file for BinaryFile handler." );
             _file.Close();
         }
 

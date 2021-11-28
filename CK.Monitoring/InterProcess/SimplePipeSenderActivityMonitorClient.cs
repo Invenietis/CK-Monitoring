@@ -44,25 +44,25 @@ namespace CK.Monitoring.InterProcess
         {
         }
 
-        void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
-            LogEntry.WriteCloseGroup( _writer, group.GroupLevel, group.CloseLogTime, conclusions );
+            LogEntry.WriteCloseGroup( _writer, group.Data.Level, group.CloseLogTime, conclusions );
         }
 
-        void IActivityMonitorClient.OnGroupClosing( IActivityLogGroup group, ref List<ActivityLogGroupConclusion> conclusions )
+        void IActivityMonitorClient.OnGroupClosing( IActivityLogGroup group, ref List<ActivityLogGroupConclusion>? conclusions )
         {
         }
 
         void IActivityMonitorClient.OnOpenGroup( IActivityLogGroup group )
         {
-            LogEntry.WriteLog( _writer, true, group.GroupLevel, group.LogTime, group.GroupText, group.GroupTags, group.ExceptionData, group.FileName, group.LineNumber );
+            LogEntry.WriteLog( _writer, true, group.Data.Level, group.Data.LogTime, group.Data.Text, group.Data.Tags, group.Data.ExceptionData, group.Data.FileName, group.Data.LineNumber );
         }
 
-        void IActivityMonitorClient.OnTopicChanged( string newTopic, string fileName, int lineNumber )
+        void IActivityMonitorClient.OnTopicChanged( string newTopic, string? fileName, int lineNumber )
         {
         }
 
-        void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
+        void IActivityMonitorClient.OnUnfilteredLog( ref ActivityMonitorLogData data )
         {
             LogEntry.WriteLog( _writer, false, data.Level, data.LogTime, data.Text, data.Tags, data.ExceptionData, data.FileName, data.LineNumber );
         }

@@ -6,12 +6,18 @@ namespace CK.Monitoring.Impl
 {
     class LEMCCloseGroup : LECloseGroup, IMulticastLogEntry
     {
-        readonly Guid _monitorId;
+        readonly string _monitorId;
         readonly int _depth;
         readonly DateTimeStamp _previousLogTime;
         readonly LogEntryType _previousEntryType;
 
-        public LEMCCloseGroup( Guid monitorId, int depth, DateTimeStamp previousLogTime, LogEntryType previousEntryType, DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion> c )
+        public LEMCCloseGroup( string monitorId,
+                               int depth,
+                               DateTimeStamp previousLogTime,
+                               LogEntryType previousEntryType,
+                               DateTimeStamp t,
+                               LogLevel level,
+                               IReadOnlyList<ActivityLogGroupConclusion>? c )
             : base( t, level, c )
         {
             _monitorId = monitorId;
@@ -20,7 +26,7 @@ namespace CK.Monitoring.Impl
             _previousLogTime = previousLogTime;
         }
 
-        public Guid MonitorId => _monitorId; 
+        public string MonitorId => _monitorId; 
 
         public int GroupDepth => _depth;
 

@@ -6,7 +6,6 @@ using CK.Core;
 using NUnit.Framework;
 using FluentAssertions;
 using System.Threading;
-using CK.Text;
 
 namespace CK.Monitoring.Tests.Persistence
 {
@@ -23,7 +22,7 @@ namespace CK.Monitoring.Tests.Persistence
             var emptyConfig = new GrandOutputConfiguration();
             var binaryConfig = new GrandOutputConfiguration().AddHandler( new Handlers.BinaryFileConfiguration() { Path = "MissingEntries" } );
 
-            using( GrandOutput g = new GrandOutput( emptyConfig ) )
+            using( var g = new GrandOutput( emptyConfig ) )
             {
                 var m = new ActivityMonitor( false );
                 g.EnsureGrandOutputClient( m );
@@ -31,7 +30,7 @@ namespace CK.Monitoring.Tests.Persistence
                 g.ApplyConfiguration( emptyConfig, true );
                 m.Trace( "NoShow-2" );
                 // We must let the trace to be handled by the previous configuration:
-                // entries are not processed before a change of the config since
+                // entries are not processed before a change of the configuration since
                 // we want to apply the new configuration as soon as possible.
                 Thread.Sleep( 200 );
                 g.ApplyConfiguration( binaryConfig, true );
@@ -44,7 +43,7 @@ namespace CK.Monitoring.Tests.Persistence
             var c = replayed.Output.RegisterClient( new StupidStringClient() );
             TestHelper.ReplayLogs( new DirectoryInfo( folder ), true, mon => replayed, TestHelper.ConsoleMonitor );
             var entries = c.Entries.Select( e => e.Text ).Concatenate( "|" );
-            // We may have "<Missing log data>|Initializing..." followe by "<Missing log data>|Show-1" or the opposite.
+            // We may have "<Missing log data>|Initializing..." followed by "<Missing log data>|Show-1" or the opposite.
 
             entries.Should().Contain( "<Missing log data>|Initializing BinaryFile handler (MaxCountPerFile = 20000)." )
                             .And.Contain( "<Missing log data>|Show-1" );

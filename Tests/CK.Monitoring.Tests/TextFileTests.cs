@@ -6,7 +6,6 @@ using NUnit.Framework;
 using System.Threading.Tasks;
 using FluentAssertions;
 using System.Threading;
-using CK.Text;
 
 namespace CK.Monitoring.Tests
 {
@@ -235,6 +234,15 @@ namespace CK.Monitoring.Tests
             text.Should().Contain( "Something must be said" );
             text.Should().Contain( "My very first conclusion." );
             text.Should().Contain( "My second conclusion." );
+            string lineWithSecondConclusion = text.Split( "\n" ).Single( s => s.Contains( "My second conclusion." ) );
+            lineWithSecondConclusion
+                .Replace( "My second conclusion.", "" )
+                .Replace( " ", "" )
+                .Replace( "|", "" )
+                .Replace( "\n", "" )
+                .Replace( "\r", "" )
+                .Should().BeEmpty();
+
         }
 
         [Test]

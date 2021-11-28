@@ -14,7 +14,7 @@ namespace CK.Monitoring
     /// </summary>
     public sealed partial class MultiLogReader : IDisposable
     {
-        readonly ConcurrentDictionary<Guid,LiveIndexedMonitor> _monitors;
+        readonly ConcurrentDictionary<string,LiveIndexedMonitor> _monitors;
         readonly ConcurrentDictionary<string,RawLogFile> _files;
         readonly ReaderWriterLockSlim _lockWriteRead;
 
@@ -24,19 +24,17 @@ namespace CK.Monitoring
 
         internal class LiveIndexedMonitor
         {
-            readonly MultiLogReader _reader;
-            internal readonly Guid MonitorId;
+            internal readonly string MonitorId;
             internal readonly List<RawLogFileMonitorOccurence> _files;
             internal DateTimeStamp _firstEntryTime;
             internal int _firstDepth;
             internal DateTimeStamp _lastEntryTime;
             internal int _lastDepth;
-            internal Dictionary<CKTrait,int> _tags; 
+            internal Dictionary<CKTrait,int>? _tags; 
 
-            internal LiveIndexedMonitor( Guid monitorId, MultiLogReader reader )
+            internal LiveIndexedMonitor( string monitorId )
             {
                 MonitorId = monitorId;
-                _reader = reader;
                 _files = new List<RawLogFileMonitorOccurence>();
                 _firstEntryTime = DateTimeStamp.MaxValue;
                 _lastEntryTime = DateTimeStamp.MinValue;
@@ -69,8 +67,7 @@ namespace CK.Monitoring
                         {
                             foreach( var t in log.Tags.AtomicTraits )
                             {
-                                int count;
-                                _tags.TryGetValue( t, out count );
+                                _tags.TryGetValue( t, out var count );
                                 _tags[t] = count + 1;
                             }
                         }
@@ -91,7 +88,7 @@ namespace CK.Monitoring
             /// <summary>
             /// The monitor's identifier.
             /// </summary>
-            public readonly Guid MonitorId;
+            public readonly string MonitorId;
             /// <summary>
             /// First offset for this <see cref="MonitorId"/> in this <see cref="LogFile"/>.
             /// </summary>
@@ -111,13 +108,15 @@ namespace CK.Monitoring
 
             /// <summary>
             /// Creates and opens a <see cref="LogReader"/> that reads unicast entries only from this monitor.
-            /// The reader is initially positioned before the entry (i.e. <see cref="LogReader.MoveNext"/> must be called).
+            /// The reader is positioned on the entry (i.e. <see cref="LogReader.MoveNext"/> has been called).
             /// </summary>
             /// <param name="streamOffset">Initial stream position.</param>
             /// <returns>A log reader that will read only entries from this monitor.</returns>
-            public LogReader CreateFilteredReader( long streamOffset )
+            public LogReader CreateFilteredReaderAndMoveTo( long streamOffset )
             {
-                return LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                var r = LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                r.MoveNext();
+                return r;
             }
 
             /// <summary>
@@ -133,7 +132,7 @@ namespace CK.Monitoring
                 return r;
             }
 
-            internal RawLogFileMonitorOccurence( RawLogFile f, Guid monitorId, long streamOffset )
+            internal RawLogFileMonitorOccurence( RawLogFile f, string monitorId, long streamOffset )
             {
                 LogFile = f;
                 MonitorId = monitorId;
@@ -153,56 +152,56 @@ namespace CK.Monitoring
             DateTimeStamp _firstEntryTime;
             DateTimeStamp _lastEntryTime;
             int _totalEntryCount;
-            IReadOnlyList<RawLogFileMonitorOccurence> _monitors;
-            Exception _error;
+            IReadOnlyList<RawLogFileMonitorOccurence>? _monitors;
+            Exception? _error;
             bool _badEndOfFile;
 
             /// <summary>
             /// Gets the file name.
             /// </summary>
-            public string FileName { get { return _fileName; } }
+            public string FileName => _fileName;
 
             /// <summary>
             /// Gets the first entry time.
             /// </summary>
-            public DateTimeStamp FirstEntryTime { get { return _firstEntryTime; } }
+            public DateTimeStamp FirstEntryTime => _firstEntryTime; 
             
             /// <summary>
             /// Gets the last entry time.
             /// </summary>
-            public DateTimeStamp LastEntryTime { get { return _lastEntryTime; } }
+            public DateTimeStamp LastEntryTime => _lastEntryTime;
 
             /// <summary>
             /// Gets the file version.
             /// </summary>
-            public int FileVersion { get { return _fileVersion; } }
+            public int FileVersion => _fileVersion;
             
             /// <summary>
             /// Gets the total number of entries.
             /// </summary>
-            public int TotalEntryCount { get { return _totalEntryCount; } }
+            public int TotalEntryCount => _totalEntryCount;
             
             /// <summary>
             /// Gets whether this file does not end with the end of stream marker (a zero byte).
             /// </summary>
-            public bool BadEndOfFile { get { return _badEndOfFile; } }
+            public bool BadEndOfFile => _badEndOfFile;
 
             /// <summary>
             /// Gets whether no <see cref="Error"/> occurred and there is no <see cref="BadEndOfFile"/>.
             /// </summary>
-            public bool IsValidFile { get { return !_badEndOfFile && _error == null; } }
+            public bool IsValidFile => !_badEndOfFile && _error == null;
 
             /// <summary>
             /// Gets the <see cref="Exception"/> that occurred while reading file.
             /// </summary>
-            public Exception Error { get { return _error; } }
+            public Exception? Error => _error;
             
             /// <summary>
             /// Gets the different monitors that appear in this file.
             /// </summary>
-            public IReadOnlyList<RawLogFileMonitorOccurence> Monitors { get { return _monitors; } }
+            public IReadOnlyList<RawLogFileMonitorOccurence> Monitors => _monitors!;
 
-            internal object InitializerLock;
+            internal object? InitializerLock;
 
             internal RawLogFile( string fileName )
             {
@@ -216,7 +215,7 @@ namespace CK.Monitoring
             {
                 try
                 {
-                    var monitorOccurrences = new Dictionary<Guid, RawLogFileMonitorOccurence>();
+                    var monitorOccurrences = new Dictionary<string, RawLogFileMonitorOccurence>();
                     var monitorOccurrenceList = new List<RawLogFileMonitorOccurence>();
                     using( var r = LogReader.Open( _fileName ) )
                     {
@@ -225,8 +224,7 @@ namespace CK.Monitoring
                             _fileVersion = r.StreamVersion;
                             do
                             {
-                                var log = r.Current as IMulticastLogEntry;
-                                if( log != null )
+                                if( r.Current is IMulticastLogEntry log )
                                 {
                                     ++_totalEntryCount;
                                     if( _firstEntryTime > log.LogTime ) _firstEntryTime = log.LogTime;
@@ -247,11 +245,10 @@ namespace CK.Monitoring
                 }
             }
 
-            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<Guid, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
+            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<string, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
             {
                 bool newOccurrence = false;
-                RawLogFileMonitorOccurence occ;
-                if( !monitorOccurrence.TryGetValue( log.MonitorId, out occ ) )
+                if( !monitorOccurrence.TryGetValue( log.MonitorId, out RawLogFileMonitorOccurence? occ ) )
                 {
                     occ = new RawLogFileMonitorOccurence( this, log.MonitorId, streamOffset );
                     monitorOccurrence.Add( log.MonitorId, occ );
@@ -279,7 +276,7 @@ namespace CK.Monitoring
         /// </summary>
         public MultiLogReader()
         {
-            _monitors = new ConcurrentDictionary<Guid, LiveIndexedMonitor>();
+            _monitors = new ConcurrentDictionary<string, LiveIndexedMonitor>();
             _files = new ConcurrentDictionary<string, RawLogFile>( StringComparer.OrdinalIgnoreCase );
             _lockWriteRead = new ReaderWriterLockSlim();
             _globalInfoLock = new object();
@@ -295,15 +292,14 @@ namespace CK.Monitoring
         public List<RawLogFile> Add( IEnumerable<string> files )
         {
             List<RawLogFile> result = new List<RawLogFile>();
-            System.Threading.Tasks.Parallel.ForEach(files, s =>
-           {
-               bool newOne;
-               var f = Add(s, out newOne);
-               lock (result)
-               {
-                   if (!result.Contains(f)) result.Add(f);
-               }
-           });
+            System.Threading.Tasks.Parallel.ForEach( files, s =>
+            {
+                var f = Add( s, out bool newOne );
+                lock( result )
+                {
+                    if( !result.Contains( f ) ) result.Add( f );
+                }
+            } );
             return result;
         }
 
@@ -311,7 +307,7 @@ namespace CK.Monitoring
         /// Adds a file to this reader. This is thread safe (can be called from any thread at any time). 
         /// </summary>
         /// <param name="filePath">The path of the file to add.</param>
-        /// <param name="newFileIndex">True if the file has actually been added, false it it was already added.</param>
+        /// <param name="newFileIndex">True if the file has actually been added, false if it was already added.</param>
         /// <returns>The RawLogFile object (newly created or already existing).</returns>
         public RawLogFile Add( string filePath, out bool newFileIndex )
         {
@@ -348,7 +344,7 @@ namespace CK.Monitoring
         {
             Debug.Assert( fileOccurrence.MonitorId == log.MonitorId );
             Debug.Assert( !newOccurrence || (fileOccurrence.FirstEntryTime == log.LogTime && fileOccurrence.LastEntryTime == log.LogTime ) );
-            LiveIndexedMonitor m = _monitors.GetOrAdd( log.MonitorId, id => new LiveIndexedMonitor( id, this ) );
+            LiveIndexedMonitor m = _monitors.GetOrAdd( log.MonitorId, id => new LiveIndexedMonitor( id ) );
             m.Register( fileOccurrence, newOccurrence, streamOffset, log );
             return m;
         }

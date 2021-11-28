@@ -1,5 +1,6 @@
 using CK.Core;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace CK.Monitoring.Impl
 {
@@ -7,13 +8,13 @@ namespace CK.Monitoring.Impl
     {
         readonly string _text;
         readonly CKTrait _tags;
-        readonly string _fileName;
+        readonly string? _fileName;
         readonly int _lineNumber;
         readonly LogLevel _level;
-        readonly CKExceptionData _ex;
+        readonly CKExceptionData? _ex;
         readonly DateTimeStamp _time;
 
-        public LEOpenGroup( string text, DateTimeStamp t, string fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData ex )
+        public LEOpenGroup( string text, DateTimeStamp t, string? fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData? ex )
         {
             _text = text;
             _time = t;
@@ -26,6 +27,7 @@ namespace CK.Monitoring.Impl
 
         public LEOpenGroup( LEMCOpenGroup e )
         {
+            Debug.Assert( e.Text != null );
             _text = e.Text;
             _time = e.LogTime;
             _fileName = e.FileName;
@@ -39,19 +41,19 @@ namespace CK.Monitoring.Impl
 
         public LogLevel LogLevel => _level;
 
-        public string Text => _text;
+        public string? Text => _text;
 
         public CKTrait Tags => _tags; 
 
         public DateTimeStamp LogTime => _time; 
 
-        public CKExceptionData Exception => _ex;
+        public CKExceptionData? Exception => _ex;
 
-        public string FileName => _fileName;
+        public string? FileName => _fileName;
 
         public int LineNumber => _lineNumber; 
 
-        public IReadOnlyList<ActivityLogGroupConclusion> Conclusions => null; 
+        public IReadOnlyList<ActivityLogGroupConclusion>? Conclusions => null; 
 
         public virtual void WriteLogEntry( CKBinaryWriter w )
         {

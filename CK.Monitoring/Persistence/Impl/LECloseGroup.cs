@@ -1,4 +1,5 @@
 using CK.Core;
+using System;
 using System.Collections.Generic;
 
 namespace CK.Monitoring.Impl
@@ -9,10 +10,10 @@ namespace CK.Monitoring.Impl
         readonly IReadOnlyList<ActivityLogGroupConclusion> _conclusions;
         readonly DateTimeStamp _time;
 
-        public LECloseGroup( DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion> c ) 
+        public LECloseGroup( DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion>? c ) 
         {
             _time = t;
-            _conclusions = c;
+            _conclusions = c ?? Array.Empty<ActivityLogGroupConclusion>();
             _level = level;
         }
 
@@ -25,15 +26,15 @@ namespace CK.Monitoring.Impl
 
         public LogEntryType LogType => LogEntryType.CloseGroup;
 
-        public string Text => null; 
+        public string? Text => null; 
 
         public LogLevel LogLevel => _level; 
 
         public DateTimeStamp LogTime => _time;
 
-        public CKExceptionData Exception => null; 
+        public CKExceptionData? Exception => null; 
 
-        public string FileName => null;
+        public string? FileName => null;
         
         public int LineNumber => 0; 
 

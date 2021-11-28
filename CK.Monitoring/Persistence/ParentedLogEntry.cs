@@ -13,14 +13,14 @@ namespace CK.Monitoring
         /// <summary>
         /// Parent entry. Null when there is no group above.
         /// </summary>
-        public readonly ParentedLogEntry Parent;
+        public readonly ParentedLogEntry? Parent;
 
         /// <summary>
         /// The entry itself.
         /// </summary>
         public readonly ILogEntry Entry;
 
-        internal ParentedLogEntry( ParentedLogEntry parent, ILogEntry entry )
+        internal ParentedLogEntry( ParentedLogEntry? parent, ILogEntry entry )
         {
             Parent = parent;
             Entry = entry;

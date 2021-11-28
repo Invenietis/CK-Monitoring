@@ -43,7 +43,6 @@ namespace CK.Monitoring.Hosting
         IConfigurationSection _section;
         IDisposable _changeToken;
         readonly bool _isDefaultGrandOutput;
-        bool _trackUnhandledException;
 
         public GrandOutputConfigurationInitializer( GrandOutput target )
         {
@@ -85,56 +84,51 @@ namespace CK.Monitoring.Hosting
             _target.DisposingToken.Register( () =>
             {
                 _changeToken.Dispose();
-                ConfigureGlobalListeners( false, false );
+                _loggerProvider._running = false;
             } );
-        }
-
-        void ConfigureGlobalListeners( bool trackUnhandledException, bool dotNetLogs )
-        {
-            _loggerProvider._running = dotNetLogs;
-            if( trackUnhandledException != _trackUnhandledException )
-            {
-                if( trackUnhandledException )
-                {
-                    AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
-                    TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
-                }
-                else
-                {
-                    AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
-                    TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
-                }
-                _trackUnhandledException = trackUnhandledException;
-            }
         }
 
         void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
         {
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
 
-            bool obsoleteAspNetLogs = _section["HandleAspNetLogs"] != null;
-            bool dotNetLogs = !String.Equals( _section[obsoleteAspNetLogs ? "HandleAspNetLogs" : "HandleDotNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
+            // It has been Obsolete (Warn) for a long time. Now we throw. 
+            if( _section["HandleAspNetLogs"] != null )
+            {
+                throw new CKException( "Configuration name \"HandleAspNetLogs\" is obsolete: please use \"HandleDotNetLogs\" instead." );
+            }
+            if( _section["LogUnhandledExceptions"] != null )
+            {
+                throw new CKException( "Configuration name \"LogUnhandledExceptions\" is not used anymore, it is now on the GrandOutput: use \"GrandOutput.TrackUnhandledExceptions\" instead (defaults to true)." );
+            }
+
+            bool dotNetLogs = !String.Equals( _section["HandleDotNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
 
             LogFilter defaultFilter = LogFilter.Undefined;
             bool hasGlobalDefaultFilter = _section["GlobalDefaultFilter"] != null;
             bool errorParsingGlobalDefaultFilter = hasGlobalDefaultFilter && !LogFilter.TryParse( _section["GlobalDefaultFilter"], out defaultFilter );
 
-            // On first initialization, configure the filter as early as possible.
-            if( hasGlobalDefaultFilter && !errorParsingGlobalDefaultFilter && initialConfigMustWaitForApplication )
+            if( hasGlobalDefaultFilter && !errorParsingGlobalDefaultFilter )
             {
-                ActivityMonitor.DefaultFilter = defaultFilter;
-            }
-
-            // If a GlobalDefaultFilter has been successsfuly parsed and we are reconfiguring and it is different than
-            // the current one, logs the change before applying the configuration.
-            if( hasGlobalDefaultFilter
-                && !errorParsingGlobalDefaultFilter
-                && !initialConfigMustWaitForApplication
-                && defaultFilter != ActivityMonitor.DefaultFilter )
-            {
-                Debug.Assert( _target != null, "Since !initialConfigMustWaitForApplication." );
-                _target.ExternalLog( Core.LogLevel.Info, $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}'." );
-                ActivityMonitor.DefaultFilter = defaultFilter;
+                if( initialConfigMustWaitForApplication )
+                {
+                    // On first initialization, configure the filter as early as possible.
+                    if( defaultFilter.Group != LogLevelFilter.None && defaultFilter.Line != LogLevelFilter.None )
+                    {
+                        ActivityMonitor.DefaultFilter = defaultFilter;
+                    }
+                    // If the filter is invalid (a None appears}, keep the default Trace. 
+                }
+                else
+                {
+                    // If a GlobalDefaultFilter has been successfully parsed and we are reconfiguring and it is different than
+                    // the current one, logs the change and applies the configuration.
+                    if( defaultFilter != ActivityMonitor.DefaultFilter )
+                    {
+                        Debug.Assert( _target != null, "Since !initialConfigMustWaitForApplication." );
+                        defaultFilter = SetGlobalDefaultFilter( defaultFilter );
+                    }
+                }
             }
 
             GrandOutputConfiguration c = CreateConfigurationFromSection( _section );
@@ -146,46 +140,32 @@ namespace CK.Monitoring.Hosting
             }
             else _target.ApplyConfiguration( c, initialConfigMustWaitForApplication );
 
-            ConfigureGlobalListeners( trackUnhandledException, dotNetLogs );
+            _loggerProvider._running = dotNetLogs;
             
-            // On the initial configuration (initialConfigMustWaitForApplication is true), we wait until the
-            // configuration is operational. Otherwise, during reconfiguration, we don't wait and here
-            // we don't care if the obsolete warning goes to the previous or next configured output.
-            if( obsoleteAspNetLogs )
-            {
-                _target.ExternalLog( Core.LogLevel.Warn, "Configuration name \"HandleAspNetLogs\" is obsolete: please use \"HandleDotNetLogs\" instead. " );
-            }
-
             if( hasGlobalDefaultFilter )
             {
-                // Always log the parse error, but only log a real change or the intitial configured level.
+                // Always log the parse error, but only log and applies if this is the initial configuration.
                 if( errorParsingGlobalDefaultFilter )
                 {
                     _target.ExternalLog( Core.LogLevel.Error, $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
                 }
-                else if( defaultFilter != ActivityMonitor.DefaultFilter || initialConfigMustWaitForApplication )
+                else if( initialConfigMustWaitForApplication )
                 {
-                    _target.ExternalLog( Core.LogLevel.Info, $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}' (previously '{ActivityMonitor.DefaultFilter}'))." );
-                    ActivityMonitor.DefaultFilter = defaultFilter;
+                    SetGlobalDefaultFilter( defaultFilter );
                 }
             }
         }
 
-        void OnUnobservedTaskException( object sender, UnobservedTaskExceptionEventArgs e )
+        LogFilter SetGlobalDefaultFilter( LogFilter defaultFilter )
         {
-            ActivityMonitor.CriticalErrorCollector.Add( e.Exception, "UnobservedTaskException" );
-            e.SetObserved();
-        }
-
-        void OnUnhandledException( object sender, UnhandledExceptionEventArgs e )
-        {
-            var ex = e.ExceptionObject as Exception;
-            if( ex != null ) ActivityMonitor.CriticalErrorCollector.Add( ex, "UnhandledException" );
-            else
+            if( defaultFilter.Group == LogLevelFilter.None || defaultFilter.Line == LogLevelFilter.None )
             {
-                string errText = e.ExceptionObject.ToString();
-                _target.ExternalLog( Core.LogLevel.Fatal, errText, GrandOutput.CriticalErrorTag );
+                _target.ExternalLog( Core.LogLevel.Error, $"Invalid GlobalDefaultFilter = '{defaultFilter}'. using default 'Trace'." );
+                defaultFilter = LogFilter.Trace;
             }
+            _target.ExternalLog( Core.LogLevel.Info, $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}'." );
+            ActivityMonitor.DefaultFilter = defaultFilter;
+            return defaultFilter;
         }
 
         static GrandOutputConfiguration CreateConfigurationFromSection( IConfigurationSection section )
@@ -203,7 +183,7 @@ namespace CK.Monitoring.Hosting
                     // Checks for single value and not section.
                     // This is required for handlers that have no configuration properties:
                     // "Handlers": { "Console": true } does the job.
-                    // The only case of "falsiness" we consider here is "false": we ignore the key in this case.
+                    // The only case of "falseness" we consider here is "false": we ignore the key in this case.
                     string value = hConfig.Value;
                     if( !String.IsNullOrWhiteSpace( value )
                         && String.Equals( value, "false", StringComparison.OrdinalIgnoreCase ) ) continue;
@@ -232,13 +212,12 @@ namespace CK.Monitoring.Hosting
                     {
                         if( string.IsNullOrEmpty( configTypeProperty ) )
                         {
-                            ActivityMonitor.CriticalErrorCollector.Add( new CKException( $"Unable to resolve type '{hConfig.Key}'." ), nameof( GrandOutputConfigurationInitializer ) );
+                            throw new CKException( $"Unable to resolve type '{hConfig.Key}'." );
                         }
                         else
                         {
-                            ActivityMonitor.CriticalErrorCollector.Add( new CKException( $"Unable to resolve type '{configTypeProperty}' (from Handlers.{hConfig.Key}.ConfigurationType) or '{hConfig.Key}'." ), nameof( GrandOutputConfigurationInitializer ) );
+                            throw new CKException( $"Unable to resolve type '{configTypeProperty}' (from Handlers.{hConfig.Key}.ConfigurationType) or '{hConfig.Key}'." );
                         }
-                        continue;
                     }
                     try
                     {
@@ -254,14 +233,14 @@ namespace CK.Monitoring.Hosting
                     }
                     catch( Exception ex )
                     {
-                        ActivityMonitor.CriticalErrorCollector.Add( ex, nameof( GrandOutputConfigurationInitializer ) );
+                        throw new CKException( $"Unable to initialize the GrandOutput.", ex );
                     }
                 }
             }
             else
             {
                 c = new GrandOutputConfiguration()
-                    .AddHandler( new CK.Monitoring.Handlers.TextFileConfiguration() { Path = "Text" } );
+                    .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
             }
 
             return c;

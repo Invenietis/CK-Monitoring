@@ -2,6 +2,7 @@ using CK.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -12,22 +13,23 @@ namespace CK.Monitoring
     /// </summary>
     public sealed class LogReader : IEnumerator<ILogEntry>
     {
-        Stream _stream;
-        CKBinaryReader _binaryReader;
+        Stream? _stream;
+        CKBinaryReader? _binaryReader;
         readonly int _streamVersion;
         readonly int _headerLength;
-        ILogEntry _current;
-        IMulticastLogEntry _currentMulticast;
+        ILogEntry? _current;
+        IMulticastLogEntry? _currentMulticast;
         long _currentPosition;
-        Exception _readException;
+        Exception? _readException;
         bool _badEndOfFille;
 
         /// <summary>
         /// Current version stamp. Writes are done with this version, but reads MUST handle it.
         /// The first released version is 5.
         /// Version 7 supports the LogLevel.Debug level.
+        /// Version 8 uses a string as the monitor UniqueId instead of a Guid.
         /// </summary>
-        public const int CurrentStreamVersion = 7;
+        public const int CurrentStreamVersion = 8;
 
         /// <summary>
         /// The file header for .ckmon files starting from CurrentStreamVersion = 5.
@@ -40,7 +42,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="stream">Stream to read logs from.</param>
         /// <param name="streamVersion">Version of the log stream.</param>
-        /// <param name="headerLength">Length of the header. This will be substracted to the actual stream position to compute the <see cref="StreamOffset"/>.</param>
+        /// <param name="headerLength">Length of the header. This will be subtracted to the actual stream position to compute the <see cref="StreamOffset"/>.</param>
         /// <param name="mustClose">
         /// Defaults to true (the stream will be automatically closed).
         /// False to let the stream opened once this reader is disposed, the end of the log data is reached or an error is encountered.
@@ -71,10 +73,10 @@ namespace CK.Monitoring
         /// The file can be compressed using GZipStream, in which case the header will be the magic GZIP header: 1F 8B.
         /// New header (applies to version 5), the file will start with 43 4B 4D 4F 4E (CKMON in ASCII), followed by the version number, instead of only the version number.
         /// </remarks>
-        public static LogReader Open( string path, long dataOffset = 0, MulticastFilter filter = null )
+        public static LogReader Open( string path, long dataOffset = 0, MulticastFilter? filter = null )
         {
             if( path == null ) throw new ArgumentNullException( "path" );
-            FileStream fs = null;
+            FileStream? fs = null;
             try
             {
                 fs = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.SequentialScan );
@@ -103,7 +105,7 @@ namespace CK.Monitoring
         /// The file can be compressed using GZipStream, in which case the header will be the magic GZIP header: 1F 8B.
         /// New header (applies to version 5), the file will start with 43 4B 4D 4F 4E (CKMON in ASCII), followed by the version number, instead of only the version number.
         /// </remarks>
-        public static LogReader Open( Stream seekableStream, long dataOffset = 0, MulticastFilter filter = null )
+        public static LogReader Open( Stream seekableStream, long dataOffset = 0, MulticastFilter? filter = null )
         {
             if( seekableStream == null ) throw new ArgumentNullException( "seekableStream" );
             if( !seekableStream.CanSeek ) throw new ArgumentException( "Stream must support seek operations.", "seekableStream" );
@@ -125,8 +127,7 @@ namespace CK.Monitoring
                     }
                 }
             }
-            var r = new LogReader( s, i.Version, i.HeaderLength );
-            r.CurrentFilter = filter;
+            var r = new LogReader( s, i.Version, i.HeaderLength ) { CurrentFilter = filter };
             return r;
         }
 
@@ -138,7 +139,7 @@ namespace CK.Monitoring
             /// <summary>
             /// The filtered monitor identifier.
             /// </summary>
-            public readonly Guid MonitorId;
+            public readonly string MonitorId;
 
             /// <summary>
             /// The offset of the last entry in the stream (see <see cref="LogReader.StreamOffset"/>).
@@ -151,7 +152,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitorId">Monitor identifier to filter.</param>
             /// <param name="knownLastMonitorEntryOffset">Offset of the last entry in the stream (when known this enables to stop processing as soon as possible).</param>
-            public MulticastFilter( Guid monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
+            public MulticastFilter( string monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
             {
                 MonitorId = monitorId;
                 KnownLastMonitorEntryOffset = knownLastMonitorEntryOffset;
@@ -163,7 +164,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitor">Activity Monitor to filter.</param>
             public MulticastFilter( ActivityMonitor m )
-                : this( ((IUniqueId)m).UniqueId )
+                : this( m.UniqueId )
             {
             }
         }
@@ -176,7 +177,7 @@ namespace CK.Monitoring
         /// Note that the <see cref="Current"/> will be <see cref="ILogEntry"/> objects: multi-cast entry properties (<see cref="IMulticastLogInfo.MonitorId"/> 
         /// and <see cref="IMulticastLogEntry.GroupDepth"/>) are no more available when a filter is set.
         /// </remarks>
-        public MulticastFilter CurrentFilter { get; set; }
+        public MulticastFilter? CurrentFilter { get; set; }
 
         /// <summary>
         /// Gets the stream version. It is available only after the first call to <see cref="MoveNext"/>.
@@ -197,10 +198,10 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Gets the <see cref="Current"/> entry if the underlying entry is a <see cref="IMulticastLogEntry"/>, null otherwise.
+        /// Gets the <see cref="Current"/> entry if the underlying entry is a <see cref="IMulticastLogEntry"/>, <see langword="null"/> otherwise.
         /// This captures the actual entry when a <see cref="CurrentFilter"/> is set (Current is then a mere Unicast entry).
         /// </summary>
-        public IMulticastLogEntry CurrentMulticast
+        public IMulticastLogEntry? CurrentMulticast
         {
             get
             {
@@ -212,7 +213,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets the exception that may have been thrown when reading the file.
         /// </summary>
-        public Exception ReadException => _readException; 
+        public Exception? ReadException => _readException; 
 
         /// <summary>
         /// Gets whether the end of file has been reached and the file is missing the final 0 byte marker.
@@ -271,6 +272,7 @@ namespace CK.Monitoring
 
         void ReadNextEntry()
         {
+            Debug.Assert( _binaryReader != null );
             try
             {
                 _current = LogEntry.Read( _binaryReader, _streamVersion, out _badEndOfFille );
@@ -291,6 +293,7 @@ namespace CK.Monitoring
         {
             if( _stream != null )
             {
+                Debug.Assert( _binaryReader != null );
                 _current = null;
                 _binaryReader.Dispose();
                 _stream = null;

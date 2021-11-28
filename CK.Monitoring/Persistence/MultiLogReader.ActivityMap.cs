@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using CK.Core;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CK.Monitoring
 {
@@ -17,7 +18,7 @@ namespace CK.Monitoring
             readonly IReadOnlyCollection<RawLogFile> _allFiles;
             readonly IReadOnlyCollection<RawLogFile> _validFiles;
             readonly IReadOnlyList<Monitor> _monitorList;
-            readonly Dictionary<Guid, Monitor> _monitors;
+            readonly Dictionary<string, Monitor> _monitors;
             readonly DateTime _firstEntryDate;
             readonly DateTime _lastEntryDate;
 
@@ -63,7 +64,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitorId">The monitor's identifier.</param>
             /// <returns>The monitor or null if not found.</returns>
-            public Monitor FindMonitor( Guid monitorId ) => _monitors.GetValueWithDefault( monitorId, null );
+            public Monitor? FindMonitor( string monitorId ) => _monitors.GetValueOrDefault( monitorId );
         }
 
         /// <summary>
@@ -71,7 +72,7 @@ namespace CK.Monitoring
         /// </summary>
         public class Monitor
         {
-            readonly Guid _monitorId;
+            readonly string _monitorId;
             readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
             readonly DateTimeStamp _firstEntryTime;
             readonly int _firstDepth;
@@ -87,13 +88,13 @@ namespace CK.Monitoring
                 _firstDepth = m._firstDepth;
                 _lastEntryTime = m._lastEntryTime;
                 _lastDepth = m._lastDepth;
-                _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Util.Array.Empty<KeyValuePair<CKTrait, int>>();
+                _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Array.Empty<KeyValuePair<CKTrait, int>>();
             }
 
             /// <summary>
             /// Gets the monitor's identifier.
             /// </summary>
-            public Guid MonitorId => _monitorId;
+            public string MonitorId => _monitorId;
 
             /// <summary>
             /// Gets the different files where entries from this monitor appear.
@@ -129,7 +130,7 @@ namespace CK.Monitoring
             {
                 readonly DateTimeStamp _firstLogTime;
                 readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
-                CKSortedArrayList<OneLogReader> _readers;
+                CKSortedArrayList<OneLogReader>? _readers;
 
                 public MultiFileReader( DateTimeStamp firstLogTime, IReadOnlyList<RawLogFileMonitorOccurence> files )
                 {
@@ -137,27 +138,37 @@ namespace CK.Monitoring
                     _files = files;
                 }
 
-                public IMulticastLogEntry Current { get { return _readers[0].Head.Entry; } }
+                public IMulticastLogEntry Current
+                {
+                    get
+                    {
+                        Debug.Assert( _readers != null, "MemberNotNullWhen on MoveNext doesn't work." );
+                        return _readers[0].Head.Entry;
+                    }
+                }
 
                 class OneLogReader : IDisposable
                 {
                     public MulticastLogEntryWithOffset Head;
-                    LogReader _reader;
+                    LogReader? _reader;
                     public readonly RawLogFileMonitorOccurence File;
                     public readonly int FirstGroupDepth;
 
                     public OneLogReader( RawLogFileMonitorOccurence file, DateTimeStamp firstLogTime )
+                        : this( file, file.CreateFilteredReaderAndMoveTo( firstLogTime ) )
                     {
-                        File = file;
-                        _reader = file.CreateFilteredReaderAndMoveTo( firstLogTime );
-                        FirstGroupDepth = _reader.CurrentMulticast.GroupDepth;
-                        Head = _reader.CurrentMulticastWithOffset;
                     }
 
                     public OneLogReader( RawLogFileMonitorOccurence file, long offset )
+                        : this( file, file.CreateFilteredReaderAndMoveTo( offset ) )
                     {
-                        _reader = file.CreateFilteredReader( offset );
-                        _reader.MoveNext();
+                    }
+
+                    OneLogReader( RawLogFileMonitorOccurence file, LogReader positioned )
+                    {
+                        File = file;
+                        _reader = positioned;
+                        Debug.Assert( _reader.CurrentMulticast != null );
                         FirstGroupDepth = _reader.CurrentMulticast.GroupDepth;
                         Head = _reader.CurrentMulticastWithOffset;
                     }
@@ -193,6 +204,7 @@ namespace CK.Monitoring
                     }
                 }
 
+                [MemberNotNullWhen( true, nameof( _readers ) )]
                 public bool MoveNext()
                 {
                     if( _readers == null )
@@ -224,6 +236,7 @@ namespace CK.Monitoring
 
                 void RemoveDuplicateAround( int idx )
                 {
+                    Debug.Assert( _readers != null );
                     // We can not be intelligent here:
                     // - The CKSortedArrayList does not guaranty a stable sort: the new reader position
                     //   should be checked around again.
@@ -235,6 +248,7 @@ namespace CK.Monitoring
 
                 void RemoveAllDuplicates()
                 {
+                    Debug.Assert( _readers != null );
                     bool doItAgain;
                     do
                     {
@@ -249,6 +263,7 @@ namespace CK.Monitoring
 
                 bool RemoveDuplicate( int i1, int i2 )
                 {
+                    Debug.Assert( _readers != null );
                     var first = _readers[i1];
                     var second = _readers[i2];
                     if( first.Head.Entry.LogTime == second.Head.Entry.LogTime )
@@ -312,13 +327,13 @@ namespace CK.Monitoring
 
                     internal void FillPage( MultiFileReader r, List<ParentedLogEntry> path )
                     {
-                        ILogEntry lastPrevEntry = Count > 0 ? Entries[Count - 1].Entry : null;
+                        ILogEntry? lastPrevEntry = Count > 0 ? Entries[Count - 1].Entry : null;
                         Count = DoFillPage( r, path, lastPrevEntry );
                     }
 
-                    int DoFillPage( MultiFileReader r, List<ParentedLogEntry> path, ILogEntry lastPrevEntry )
+                    int DoFillPage( MultiFileReader r, List<ParentedLogEntry> path, ILogEntry? lastPrevEntry )
                     {
-                        ParentedLogEntry parent = path.Count > 0 ? path[path.Count - 1] : null;
+                        ParentedLogEntry? parent = path.Count > 0 ? path[path.Count - 1] : null;
                         int i = 0;
                         do
                         {
@@ -349,14 +364,14 @@ namespace CK.Monitoring
                                 DateTimeStamp prevTime = entry.PreviousEntryType == LogEntryType.OpenGroup ? entry.PreviousLogTime : DateTimeStamp.Unknown;
                                 if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingOpenGroup( prevTime ) ) ) return i;
                             }
-                            // If we know the the time and type of the previous entry and this does not correspond to 
+                            // If we know the time and type of the previous entry and this does not correspond to 
                             // our predecessor, we inject a missing line.
                             // This is necessarily a line that we inject here thanks to the open/close adjustment above.
                             // If the log type of the known previous entry is Open or Close group, it means that there are incoherent group depths... and 
                             // we ignore this pathological case.
                             if( entry.PreviousEntryType != LogEntryType.None )
                             {
-                                ILogEntry prevEntry = i > 0 ? Entries[i - 1].Entry : lastPrevEntry;
+                                ILogEntry? prevEntry = i > 0 ? Entries[i - 1].Entry : lastPrevEntry;
                                 if( prevEntry == null || prevEntry.LogTime != entry.PreviousLogTime )
                                 {
                                     if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingLine( entry.PreviousLogTime ) ) ) return i;
@@ -369,7 +384,7 @@ namespace CK.Monitoring
                         return i;
                     }
 
-                    bool AppendEntry( List<ParentedLogEntry> path, ref ParentedLogEntry parent, ref int i, ILogEntry e )
+                    bool AppendEntry( List<ParentedLogEntry> path, ref ParentedLogEntry? parent, ref int i, ILogEntry e )
                     {
                         Debug.Assert( e.LogType != LogEntryType.None );
                         if( e.LogType == LogEntryType.CloseGroup )
@@ -398,17 +413,17 @@ namespace CK.Monitoring
                 }
 
                 readonly WrappedList _entries;
-                readonly MultiFileReader _r;
+                readonly MultiFileReader? _r;
                 readonly int _pageLength;
                 readonly List<ParentedLogEntry> _currentPath;
 
-                internal LivePage( int initialGroupDepth, ParentedLogEntry[] entries, MultiFileReader r, int pageLength )
+                internal LivePage( int initialGroupDepth, ParentedLogEntry[] entries, MultiFileReader? r, int pageLength )
                 {
                     Debug.Assert( pageLength == entries.Length || entries.Length == 0 );
                     _r = r;
                     _pageLength = pageLength;
                     _currentPath = new List<ParentedLogEntry>();
-                    ParentedLogEntry e = null;
+                    ParentedLogEntry? e = null;
                     for( int i = 0; i < initialGroupDepth; ++i )
                     {
                         ParentedLogEntry g = new ParentedLogEntry( e, LogEntry.CreateMissingOpenGroup( DateTimeStamp.Unknown ) );
@@ -482,7 +497,7 @@ namespace CK.Monitoring
                 {
                     return new LivePage( _firstDepth, new ParentedLogEntry[pageLength], r, pageLength );
                 }
-                return new LivePage( _firstDepth, Util.Array.Empty<ParentedLogEntry>(), null, pageLength );
+                return new LivePage( _firstDepth, Array.Empty<ParentedLogEntry>(), null, pageLength );
             }
 
             /// <summary>
@@ -505,9 +520,9 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="replay">The target monitor. Can not be null.</param>
             /// <param name="m">Optional monitor (nothing is logged when null).</param>
-            public void Replay( IActivityMonitor replay, IActivityMonitor m = null )
+            public void Replay( IActivityMonitor replay, IActivityMonitor? monitor = null )
             {
-                using( m != null ? m.OpenGroup( LogLevel.Info, string.Format( "Replaying activity from '{0}'.", MonitorId ), null ) : null )
+                using( monitor?.OpenInfo( $"Replaying activity from '{MonitorId}'." ) )
                 {
                     int nbMissing = 0;
                     int nbTotal = 0;
@@ -525,19 +540,23 @@ namespace CK.Monitoring
                             switch( e.Entry.LogType )
                             {
                                 case LogEntryType.Line:
-                                    replay.UnfilteredLog( e.Entry.Tags, level, e.Entry.Text, e.Entry.LogTime, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    var d = new ActivityMonitorLogData( level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    d.SetExplicitLogTime( e.Entry.LogTime );
+                                    replay.UnfilteredLog( ref d );
                                     break;
                                 case LogEntryType.OpenGroup:
-                                    replay.UnfilteredOpenGroup( e.Entry.Tags, level, null, e.Entry.Text, e.Entry.LogTime, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    d = new ActivityMonitorLogData( level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    d.SetExplicitLogTime( e.Entry.LogTime );
+                                    replay.UnfilteredOpenGroup( ref d );
                                     break;
                                 case LogEntryType.CloseGroup:
-                                    replay.CloseGroup( e.Entry.LogTime, e.Entry.Conclusions );
+                                    replay.CloseGroup( e.Entry.Conclusions, e.Entry.LogTime );
                                     break;
                             }
                         }
                         page.ForwardPage();
                     }
-                    if( m != null ) m.CloseGroup( String.Format( "Replayed {0} entries ({1} missing).", nbTotal, nbMissing ) );
+                    monitor?.CloseGroup( $"Replayed {nbTotal} entries ({nbMissing} missing)." );
                 }
             }
         }

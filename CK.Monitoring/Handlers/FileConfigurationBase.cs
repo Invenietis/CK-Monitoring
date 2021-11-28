@@ -47,9 +47,9 @@ namespace CK.Monitoring.Handlers
         /// <summary>
         /// Gets or sets the path of the file. When not rooted (see <see cref="System.IO.Path.IsPathRooted"/>),
         /// it is a sub path in <see cref="LogFile.RootLogPath"/>.
-        /// It defaults to null: it must be specified.
+        /// It defaults to the empty string: it must be specified.
         /// </summary>
-        public string Path { get; set; }
+        public string Path { get; set; } = String.Empty;
 
         /// <summary>
         /// Gets or sets the maximal count of entries per file.

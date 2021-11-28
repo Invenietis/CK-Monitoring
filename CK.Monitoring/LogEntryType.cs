@@ -5,7 +5,7 @@ namespace CK.Monitoring
     /// <summary>
     /// Type of a <see cref="ILogEntry"/>.
     /// </summary>
-    public enum LogEntryType
+    public enum LogEntryType : byte
     {
         /// <summary>
         /// Non applicable.

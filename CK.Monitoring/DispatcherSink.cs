@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Toolkit.Diagnostics;
 
 namespace CK.Monitoring
 {
@@ -32,6 +33,7 @@ namespace CK.Monitoring
         volatile int _stopFlag;
         volatile bool _forceClose;
         readonly bool _isDefaultGrandOutput;
+        bool _unhandledExceptionTracking;
 
         public DispatcherSink(
             Action<IActivityMonitor> initialRegister,
@@ -58,6 +60,7 @@ namespace CK.Monitoring
             _externalLogLock = new object();
             _externalLogLastTime = DateTimeStamp.MinValue;
             _isDefaultGrandOutput = isDefaultGrandOutput;
+            _newConf = Array.Empty<GrandOutputConfiguration>();
 
             _task.Start();
         }
@@ -80,20 +83,21 @@ namespace CK.Monitoring
             var monitor = new ActivityMonitor( applyAutoConfigurations: false );
             // Simple pooling for initial configuration.
             GrandOutputConfiguration[] newConf = _newConf;
-            while( newConf == null )
+            while( newConf.Length == 0 )
             {
                 Thread.Sleep( 0 );
                 newConf = _newConf;
             }
             _initialRegister( monitor );
-            monitor.SetTopic( GetType().FullName );
+            monitor.SetTopic( "CK.Monitoring.DispatcherSink" );
             DoConfigure( monitor, newConf );
             while( !_queue.IsCompleted && !_forceClose )
             {
                 bool hasEvent = _queue.TryTake( out GrandOutputEventInfo e, millisecondsTimeout: 100 );
                 newConf = _newConf;
+                Debug.Assert( newConf != null, "Except at the start, this is never null." );
                 if( newConf.Length > 0 ) DoConfigure( monitor, newConf );
-                List<IGrandOutputHandler> faulty = null;
+                List<IGrandOutputHandler>? faulty = null;
                 #region Process event if any.
                 if( hasEvent )
                 {
@@ -105,9 +109,7 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            var msg = $"{h.GetType().FullName}.Handle() crashed.";
-                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                            monitor.SendLine( LogLevel.Fatal, msg, ex );
+                            monitor.Fatal( $"{h.GetType()}.Handle() crashed.", ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -126,9 +128,7 @@ namespace CK.Monitoring
                         }
                         catch( Exception ex )
                         {
-                            var msg = $"{h.GetType().FullName}.OnTimer() crashed.";
-                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                            monitor.SendLine( LogLevel.Fatal, msg, ex );
+                            monitor.Fatal( $"{h.GetType()}.OnTimer() crashed.", ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
@@ -154,12 +154,13 @@ namespace CK.Monitoring
             monitor.MonitorEnd();
         }
 
-        private void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
+        void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
             Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
             var c = newConf[newConf.Length - 1];    
             _filterChange( c.MinimalFilter, c.ExternalLogLevelFilter );
             if( c.TimerDuration.HasValue ) TimerDuration = c.TimerDuration.Value;
+            SetUnhandledExceptionTracking( c.TrackUnhandledExceptions ?? _isDefaultGrandOutput );
             List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
             for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
             {
@@ -180,9 +181,7 @@ namespace CK.Monitoring
                     {
                         var h = _handlers[iHandler];
                         // Existing _handlers[iHandler] crashed with the proposed c.Handlers[iConf].
-                        var msg = $"Existing {h.GetType().FullName} crashed with the configuration {c.Handlers[iConf].GetType().FullName}.";
-                        ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                        monitor.SendLine( LogLevel.Fatal, msg, ex );
+                        monitor.Fatal( $"Existing {h.GetType()} crashed with the configuration {c.Handlers[iConf].GetType()}.", ex );
                         // Since the handler can be compromised, we skip it from any subsequent
                         // attempt to reconfigure it and deactivate it.
                         _handlers.RemoveAt( iHandler-- );
@@ -211,9 +210,7 @@ namespace CK.Monitoring
                 }
                 catch( Exception ex )
                 {
-                    var msg = $"While creating handler for {conf.GetType().FullName}.";
-                    ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                    monitor.SendLine( LogLevel.Fatal, msg, ex );
+                    monitor.Fatal( $"While creating handler for {conf.GetType()}.", ex );
                 }
             }
             if( _isDefaultGrandOutput )
@@ -221,7 +218,7 @@ namespace CK.Monitoring
                 // No need to Dispose() this Process.
                 var thisProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var msg = $"GrandOutput.Default configuration n°{_configurationCount++} for '{thisProcess.ProcessName}' (PID:{thisProcess.Id},AppDomainId:{AppDomain.CurrentDomain.Id}) on machine {Environment.MachineName}, UserName: '{Environment.UserName}', CommandLine: '{Environment.CommandLine}', BaseDirectory: '{AppContext.BaseDirectory}'.";
-                ExternalLog( Core.LogLevel.Info | Core.LogLevel.IsFiltered, msg, null, null );
+                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, msg, null, ActivityMonitor.Tags.Empty );
             }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
@@ -236,21 +233,19 @@ namespace CK.Monitoring
             }
             catch( Exception ex )
             {
-                var msg = $"Handler {h.GetType().FullName} crashed during {(activate?"activation":"de-activation")}.";
-                ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                monitor.SendLine( LogLevel.Fatal, msg, ex );
+                monitor.Fatal( $"Handler {h.GetType()} crashed during {(activate ? "activation" : "de-activation")}.", ex );
                 return false;
             }
             return true;
         }
 
         /// <summary>
-        /// Gets a cancellation token that is cancelled by Stop.
+        /// Gets a cancellation token that is canceled by Stop.
         /// </summary>
         public CancellationToken StoppingToken => _stopTokenSource.Token;
 
         /// <summary>
-        /// Starts stopping this sink, returning true iif this call
+        /// Starts stopping this sink, returning true if and only if this call
         /// actually stopped it.
         /// </summary>
         /// <returns>
@@ -260,6 +255,7 @@ namespace CK.Monitoring
         {
             if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
             {
+                SetUnhandledExceptionTracking( false );
                 _stopTokenSource.Cancel();
                 _queue.CompleteAdding();
                 return true;
@@ -269,8 +265,10 @@ namespace CK.Monitoring
 
         public void Finalize( int millisecondsBeforeForceClose )
         {
+#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
             if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
             _task.Wait();
+#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
             _queue.Dispose();
             _stopTokenSource.Dispose();
         }
@@ -298,7 +296,7 @@ namespace CK.Monitoring
         }
 
 
-        public void ExternalLog( LogLevel level, string message, Exception ex, CKTrait tags )
+        public void ExternalLog( LogLevel level, string message, Exception? ex, CKTrait tags )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -308,7 +306,7 @@ namespace CK.Monitoring
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
             var e = LogEntry.CreateMulticastLog(
-                        Guid.Empty,
+                        GrandOutput.ExternalLogMonitorUniqueId,
                         LogEntryType.Line,
                         prevLogTime,
                         depth: 0,
@@ -321,5 +319,45 @@ namespace CK.Monitoring
                         ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
             Handle( new GrandOutputEventInfo( e, String.Empty ) );
         }
+
+        void SetUnhandledExceptionTracking( bool trackUnhandledException )
+        {
+            if( trackUnhandledException != _unhandledExceptionTracking )
+            {
+                if( trackUnhandledException )
+                {
+                    AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+                }
+                else
+                {
+                    AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+                }
+                _unhandledExceptionTracking = trackUnhandledException;
+            }
+        }
+
+        void OnUnobservedTaskException( object? sender, UnobservedTaskExceptionEventArgs e )
+        {
+            ExternalLog( LogLevel.Fatal, "TaskScheduler.UnobservedTaskException raised.", e.Exception, GrandOutput.UnhandledException );
+            e.SetObserved();
+        }
+
+        void OnUnhandledException( object sender, UnhandledExceptionEventArgs e )
+        {
+            if( e.ExceptionObject is Exception ex )
+            {
+                ExternalLog( LogLevel.Fatal, "AppDomain.CurrentDomain.UnhandledException raised.", ex, GrandOutput.UnhandledException );
+            }
+            else
+            {
+                string? exText = e.ExceptionObject.ToString();
+                ExternalLog( LogLevel.Fatal, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'.", null, GrandOutput.UnhandledException );
+            }
+        }
+
+
+
     }
 }

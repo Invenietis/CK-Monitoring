@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using CK.Core;
 
@@ -12,7 +13,7 @@ namespace CK.Monitoring
     /// </summary>
     public class MonitorBinaryFileOutput : MonitorFileOutputBase
     {
-        CKBinaryWriter _writer;
+        CKBinaryWriter? _writer;
 
         /// <summary>
         /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".ckmon" extension.
@@ -36,8 +37,8 @@ namespace CK.Monitoring
         /// <param name="monitorId">Monitor identifier.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="useGzipCompression">True to gzip the file.</param>
-        public MonitorBinaryFileOutput( string configuredPath, Guid monitorId, int maxCountPerFile, bool useGzipCompression )
-            : base( configuredPath, '-' + monitorId.ToString( "B" ) + ".ckmon", maxCountPerFile, useGzipCompression )
+        public MonitorBinaryFileOutput( string configuredPath, string monitorId, int maxCountPerFile, bool useGzipCompression )
+            : base( configuredPath, '-' + monitorId + ".ckmon", maxCountPerFile, useGzipCompression )
         {
         }
 
@@ -50,6 +51,7 @@ namespace CK.Monitoring
         public void Write( ILogEntry e )
         {
             BeforeWriteEntry();
+            Debug.Assert( _writer != null );
             e.WriteLogEntry( _writer );
             AfterWriteEntry();
         }
@@ -62,6 +64,7 @@ namespace CK.Monitoring
         public void UnicastWrite( ActivityMonitorLogData data, IMulticastLogInfo adapter )
         {
             BeforeWriteEntry();
+            Debug.Assert( _writer != null );
             LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, false, data.Level, data.LogTime, data.Text, data.Tags, data.ExceptionData, data.FileName, data.LineNumber );
             AfterWriteEntry();
         }
@@ -74,7 +77,8 @@ namespace CK.Monitoring
         public void UnicastWriteOpenGroup( IActivityLogGroup g, IMulticastLogInfo adapter )
         {
             BeforeWriteEntry();
-            LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, true, g.GroupLevel, g.LogTime, g.GroupText, g.GroupTags, g.ExceptionData, g.FileName, g.LineNumber );
+            Debug.Assert( _writer != null );
+            LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, true, g.Data.Level, g.Data.LogTime, g.Data.Text, g.Data.Tags, g.Data.ExceptionData, g.Data.FileName, g.Data.LineNumber );
             AfterWriteEntry();
         }
 
@@ -84,10 +88,11 @@ namespace CK.Monitoring
         /// <param name="g">The group.</param>
         /// <param name="conclusions">Group's conclusions.</param>
         /// <param name="adapter">Multi-cast information to be able to write multi-cast entry when needed.</param>
-        public void UnicastWriteCloseGroup( IActivityLogGroup g, IReadOnlyList<ActivityLogGroupConclusion> conclusions, IMulticastLogInfo adapter )
+        public void UnicastWriteCloseGroup( IActivityLogGroup g, IReadOnlyList<ActivityLogGroupConclusion>? conclusions, IMulticastLogInfo adapter )
         {
             BeforeWriteEntry();
-            LogEntry.WriteCloseGroup( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.GroupLevel, g.CloseLogTime, conclusions );
+            Debug.Assert( _writer != null );
+            LogEntry.WriteCloseGroup( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.Data.Level, g.CloseLogTime, conclusions );
             AfterWriteEntry();
         }
 
@@ -111,6 +116,7 @@ namespace CK.Monitoring
         /// </summary>
         protected override void CloseCurrentFile()
         {
+            Debug.Assert( _writer != null, "Checked by CloseFile." );
             _writer.Write( (byte)0 );
             base.CloseCurrentFile();
             _writer.Dispose();

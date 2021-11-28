@@ -13,7 +13,7 @@ namespace CK.Monitoring
     public sealed class GrandOutputClient : IActivityMonitorBoundClient
     {
         readonly GrandOutput _central;
-        IActivityMonitorImpl _monitorSource;
+        IActivityMonitorImpl? _monitorSource;
 
         int _currentGroupDepth;
         LogEntryType _prevLogType;
@@ -27,7 +27,7 @@ namespace CK.Monitoring
         /// <summary>
         /// forceBuggyRemove is not used here since this client is not lockable.
         /// </summary>
-        void IActivityMonitorBoundClient.SetMonitor( IActivityMonitorImpl source, bool forceBuggyRemove )
+        void IActivityMonitorBoundClient.SetMonitor( IActivityMonitorImpl? source, bool forceBuggyRemove )
         {
             if( source != null && _monitorSource != null ) throw ActivityMonitorClient.CreateMultipleRegisterOnBoundClientException( this );
             // Silently ignore null => null or monitor => same monitor.
@@ -49,7 +49,7 @@ namespace CK.Monitoring
         /// </summary>
         public GrandOutput Central => _central; 
 
-        void IActivityMonitorClient.OnTopicChanged( string newTopic, string fileName, int lineNumber )
+        void IActivityMonitorClient.OnTopicChanged( string newTopic, string? fileName, int lineNumber )
         {
         }
 
@@ -61,9 +61,10 @@ namespace CK.Monitoring
 
         internal void OnGrandOutputDisposedOrMinimalFilterChanged() => _monitorSource?.SignalChange();
         
-        void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
+        void IActivityMonitorClient.OnUnfilteredLog( ref ActivityMonitorLogData data )
         {
             if( _central.IsDisposed ) return;
+            Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
             IMulticastLogEntry e = LogEntry.CreateMulticastLog( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, data.Text, data.LogTime, data.Level, data.FileName, data.LineNumber, data.Tags, data.ExceptionData );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             _prevlogTime = data.LogTime;
@@ -73,21 +74,29 @@ namespace CK.Monitoring
         void IActivityMonitorClient.OnOpenGroup( IActivityLogGroup group )
         {
             if( _central.IsDisposed ) return;
-            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.GroupText, group.LogTime, group.GroupLevel, group.FileName, group.LineNumber, group.GroupTags, group.ExceptionData );
+            Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
+            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.Data.Text, group.Data.LogTime, group.Data.Level, group.Data.FileName, group.Data.LineNumber, group.Data.Tags, group.Data.ExceptionData );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             ++_currentGroupDepth;
-            _prevlogTime = group.LogTime;
+            _prevlogTime = group.Data.LogTime;
             _prevLogType = LogEntryType.OpenGroup;
         }
 
-        void IActivityMonitorClient.OnGroupClosing( IActivityLogGroup group, ref List<ActivityLogGroupConclusion> conclusions )
+        void IActivityMonitorClient.OnGroupClosing( IActivityLogGroup group, ref List<ActivityLogGroupConclusion>? conclusions )
         {
         }
 
-        void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
+        void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( _central.IsDisposed ) return;
-            IMulticastLogEntry e = LogEntry.CreateMulticastCloseGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.CloseLogTime, group.GroupLevel, conclusions );
+            Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
+            IMulticastLogEntry e = LogEntry.CreateMulticastCloseGroup( _monitorSource.UniqueId,
+                                                                       _prevLogType,
+                                                                       _prevlogTime,
+                                                                       _currentGroupDepth,
+                                                                       group.CloseLogTime,
+                                                                       group.Data.Level,
+                                                                       conclusions );
             _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
             --_currentGroupDepth;
             _prevlogTime = group.CloseLogTime;

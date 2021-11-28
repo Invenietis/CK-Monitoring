@@ -11,7 +11,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets the monitor identifier.
         /// </summary>
-        Guid MonitorId { get; }
+        string MonitorId { get; }
 
         /// <summary>
         /// Gets the depth of the entry in the source <see cref="MonitorId"/>.
