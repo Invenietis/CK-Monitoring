@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -18,7 +19,7 @@ namespace CK.Monitoring.Hosting
         /// <summary>
         /// Simply dispose the associated GrandOutput when the server close.
         /// </summary>
-        class HostedService : IHostedService, IDisposable
+        sealed class HostedService : IHostedService, IDisposable
         {
             readonly GrandOutput _grandOutput;
 
@@ -54,7 +55,7 @@ namespace CK.Monitoring.Hosting
         {
             builder.ConfigureLogging( ( ctx, loggingBuilder ) =>
             {
-                Initialize( ctx.HostingEnvironment, loggingBuilder, configSection( ctx.Configuration ) );
+                Initialize( ctx.HostingEnvironment, loggingBuilder, ctx.Configuration, configSection( ctx.Configuration ) );
             } );
             builder.ConfigureServices( services =>
             {
@@ -64,12 +65,23 @@ namespace CK.Monitoring.Hosting
             } );
         }
 
-        void Initialize( IHostEnvironment env, ILoggingBuilder dotNetLogs, IConfigurationSection section )
+        void Initialize( IHostEnvironment env, ILoggingBuilder dotNetLogs, IConfiguration globalConfiguration, IConfigurationSection section )
         {
             _section = section;
-            if( _isDefaultGrandOutput && LogFile.RootLogPath == null )
+            if( _isDefaultGrandOutput )
             {
-                LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
+                if( LogFile.RootLogPath == null )
+                {
+                    LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
+                }
+                // Temporary.
+                if( !section.Exists() || !section.GetSection( nameof( GrandOutput ) ).Exists() )
+                {
+                    if( globalConfiguration.GetSection( "Monitoring" ).Exists() )
+                    {
+                        throw new CKException( "The \"Monitoring\" section MUST NOW be renamed \"CK-Monitoring\"." );
+                    }
+                }
             }
 
             ApplyDynamicConfiguration( initialConfigMustWaitForApplication: true );
@@ -152,9 +164,30 @@ namespace CK.Monitoring.Hosting
                 }
                 _target.ExternalLog( Core.LogLevel.Fatal, $"While applying dynamic configuration.", ex );
             }
-
             _loggerProvider._running = dotNetLogs;
-            
+
+            // Applying Tags.
+            var tags = new List<(CKTrait, LogClamper)>();
+            var rawTags = _section.GetSection( "Tags" ).Get<string[][]>();
+            if( rawTags != null && rawTags.Length > 0 )
+            {
+                foreach( var bi in rawTags )
+                {
+                    var t = ActivityMonitor.Tags.Register( bi[0] );
+                    if( !t.IsEmpty && LogClamper.TryParse( bi[1], out var c ) )
+                    {
+                        tags.Add( (t, c) );
+                    }
+                    else
+                    {
+                        if( t.IsEmpty )
+                            _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring Tags entry '{bi[0]},{bi[1]}'. Tag is empty" );
+                        else _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring Tags entry '{bi[0]},{bi[1]}'. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                    }
+                }
+            }
+            ActivityMonitor.TagFilter.SetFilters( tags );
+
             if( hasGlobalDefaultFilter )
             {
                 // Always log the parse error, but only log and applies if this is the initial configuration.
@@ -184,7 +217,7 @@ namespace CK.Monitoring.Hosting
         static GrandOutputConfiguration CreateConfigurationFromSection( IConfigurationSection section )
         {
             GrandOutputConfiguration c;
-            var gSection = section.GetSection( "GrandOutput" );
+            var gSection = section.GetSection( nameof( GrandOutput ) );
             if( gSection.Exists() )
             {
                 var ctorPotentialParams = new[] { typeof( IConfigurationSection ) };
