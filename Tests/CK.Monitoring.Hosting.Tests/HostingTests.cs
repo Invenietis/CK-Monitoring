@@ -13,48 +13,18 @@ namespace CK.Monitoring.Hosting.Tests
     [TestFixture]
     public partial class HostingTests
     {
-        [Test]
-        public async Task GlobalDefaultFilter_configuration_works()
-        {
-            var config = new DynamicConfigurationSource();
-            config["Monitoring:GlobalDefaultFilter"] = "Debug";
-            config["Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
 
-            DemoSinkHandler.Reset();
+        [Test]
+        public void IActivityMonitor_and_ActivityMonitor_resolve_to_the_same_object()
+        {
             var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
                         .UseMonitoring()
                         .Build();
-            await host.StartAsync();
-            var m = new ActivityMonitor( "The topic!" );
-            m.MinimalFilter.Should().Be( LogFilter.Undefined );
-            m.ActualFilter.Should().Be( LogFilter.Undefined );
-            ActivityMonitor.DefaultFilter.Should().Be( LogFilter.Debug );
-            m.Debug( "Hop!" );
 
-            config["Monitoring:GlobalDefaultFilter"] = "Release";
-
-            ActivityMonitor.DefaultFilter.Should().Be( LogFilter.Release );
-            m.Debug( "Not visible! (1)" );
-
-            config["Monitoring:GlobalDefaultFilter"] = "Terse";
-            ActivityMonitor.DefaultFilter.Should().Be( LogFilter.Terse );
-            m.Debug( "Not visible! (2)" );
-
-            config["Monitoring:GlobalDefaultFilter"] = "Debug";
-            ActivityMonitor.DefaultFilter.Should().Be( LogFilter.Debug, "The global ActivityMonitor.DefaultFilter is Debug again." );
-            m.Debug( "Back in game." );
-
-            await host.StopAsync();
-
-            DemoSinkHandler.LogEvents.Select( e => e.Entry.Text ).Should()
-                   .Contain( "Topic: The topic!" )
-                   .And.Contain( "Hop!" )
-                   .And.NotContain( "Not visible! (1)" )
-                   .And.NotContain( "Not visible! (2)" )
-                   .And.Contain( "Back in game." );
+            var ia = host.Services.GetRequiredService<IActivityMonitor>();
+            var a = host.Services.GetRequiredService<ActivityMonitor>();
+            ia.Should().BeSameAs( a );
         }
-
 
         [Test]
         public void GrandOutput_MinimalFilter_configuration_works()
@@ -95,15 +65,30 @@ namespace CK.Monitoring.Hosting.Tests
         }
 
         [Test]
-        public void IActivityMonitor_and_ActivityMonitor_resolve_to_the_same_object()
+        public async Task Invalid_configurations_are_skipped_and_errors_go_to_the_current_handlers_Async()
         {
+            DemoSinkHandler.Reset();
+            var config = new DynamicConfigurationSource();
+            config["Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
             var host = new HostBuilder()
+                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
                         .UseMonitoring()
                         .Build();
+            await host.StartAsync();
 
-            var ia = host.Services.GetRequiredService<IActivityMonitor>();
-            var a = host.Services.GetRequiredService<ActivityMonitor>();
-            ia.Should().BeSameAs( a );
+            var m = new ActivityMonitor( "The topic!" );
+
+            m.Info( "BEFORE" );
+            config["Monitoring:GrandOutput:Handlers:Invalid Handler"] = "true";
+            m.Info( "AFTER" );
+
+            await host.StopAsync();
+
+            DemoSinkHandler.LogEvents.Select( e => e.Entry.Text ).Should()
+                   .Contain( "Topic: The topic!" )
+                   .And.Contain( "BEFORE" )
+                   .And.Contain( "While applying dynamic configuration." )
+                   .And.Contain( "AFTER" );
         }
 
     }

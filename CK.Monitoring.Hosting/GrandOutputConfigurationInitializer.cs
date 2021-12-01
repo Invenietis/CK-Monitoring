@@ -90,8 +90,6 @@ namespace CK.Monitoring.Hosting
 
         void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
         {
-            bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
-
             // It has been Obsolete (Warn) for a long time. Now we throw. 
             if( _section["HandleAspNetLogs"] != null )
             {
@@ -131,14 +129,29 @@ namespace CK.Monitoring.Hosting
                 }
             }
 
-            GrandOutputConfiguration c = CreateConfigurationFromSection( _section );
-            if( _target == null )
+            try
             {
-                Debug.Assert( _isDefaultGrandOutput && initialConfigMustWaitForApplication );
-                _target = GrandOutput.EnsureActiveDefault( c );
-                _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
+                GrandOutputConfiguration c = CreateConfigurationFromSection( _section );
+                if( _target == null )
+                {
+                    Debug.Assert( _isDefaultGrandOutput && initialConfigMustWaitForApplication );
+                    _target = GrandOutput.EnsureActiveDefault( c );
+                    _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
+                }
+                else _target.ApplyConfiguration( c, initialConfigMustWaitForApplication );
             }
-            else _target.ApplyConfiguration( c, initialConfigMustWaitForApplication );
+            catch( Exception ex )
+            {
+                if( _target == null )
+                {
+                    // Using the default "Text" log configuration.
+                    // If this fails (!), let the exception breaks the whole initialization since this
+                    // is really unrecoverable.
+                    _target = GrandOutput.EnsureActiveDefault();
+                    _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
+                }
+                _target.ExternalLog( Core.LogLevel.Fatal, $"While applying dynamic configuration.", ex );
+            }
 
             _loggerProvider._running = dotNetLogs;
             
@@ -219,22 +232,15 @@ namespace CK.Monitoring.Hosting
                             throw new CKException( $"Unable to resolve type '{configTypeProperty}' (from Handlers.{hConfig.Key}.ConfigurationType) or '{hConfig.Key}'." );
                         }
                     }
-                    try
+                    var ctorWithConfig = resolved.GetConstructor( ctorPotentialParams );
+                    object config;
+                    if( ctorWithConfig != null ) config = ctorWithConfig.Invoke( new[] { hConfig } );
+                    else
                     {
-                        var ctorWithConfig = resolved.GetConstructor( ctorPotentialParams );
-                        object config;
-                        if( ctorWithConfig != null ) config = ctorWithConfig.Invoke( new[] { hConfig } );
-                        else
-                        {
-                            config = Activator.CreateInstance( resolved );
-                            hConfig.Bind( config );
-                        }
-                        c.AddHandler( (IHandlerConfiguration)config );
+                        config = Activator.CreateInstance( resolved );
+                        hConfig.Bind( config );
                     }
-                    catch( Exception ex )
-                    {
-                        throw new CKException( $"Unable to initialize the GrandOutput.", ex );
-                    }
+                    c.AddHandler( (IHandlerConfiguration)config );
                 }
             }
             else
@@ -242,7 +248,6 @@ namespace CK.Monitoring.Hosting
                 c = new GrandOutputConfiguration()
                     .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
             }
-
             return c;
         }
 
