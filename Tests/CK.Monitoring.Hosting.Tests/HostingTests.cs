@@ -201,6 +201,8 @@ namespace CK.Monitoring.Hosting.Tests
                 m.Trace( Machine | Sql, "Yes again!" );
                 m.Trace( "DONE!" );
 
+                System.Threading.Thread.Sleep( 200 );
+
                 var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Select( e => e.Entry.Text ).Concatenate( System.Environment.NewLine );
                 texts.Should()
                        .Contain( "YES: Sql!" )
