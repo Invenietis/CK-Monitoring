@@ -167,26 +167,29 @@ namespace CK.Monitoring.Hosting
             _loggerProvider._running = dotNetLogs;
 
             // Applying Tags.
-            var tags = new List<(CKTrait, LogClamper)>();
-            var rawTags = _section.GetSection( "Tags" ).Get<string[][]>();
+            var rawTags = _section.GetSection( "TagFilters" ).Get<string[][]>();
             if( rawTags != null && rawTags.Length > 0 )
             {
+                var tags = new List<(CKTrait, LogClamper)>();
                 foreach( var bi in rawTags )
                 {
-                    var t = ActivityMonitor.Tags.Register( bi[0] );
-                    if( !t.IsEmpty && LogClamper.TryParse( bi[1], out var c ) )
+                    if( bi != null && bi[0] != null && bi[1] != null )
                     {
-                        tags.Add( (t, c) );
-                    }
-                    else
-                    {
-                        if( t.IsEmpty )
-                            _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring Tags entry '{bi[0]},{bi[1]}'. Tag is empty" );
-                        else _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring Tags entry '{bi[0]},{bi[1]}'. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                        var t = ActivityMonitor.Tags.Register( bi[0] );
+                        if( !t.IsEmpty && LogClamper.TryParse( bi[1], out var c ) )
+                        {
+                            tags.Add( (t, c) );
+                        }
+                        else
+                        {
+                            if( t.IsEmpty )
+                                _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Tag is empty" );
+                            else _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                        }
                     }
                 }
+                ActivityMonitor.TagFilter.SetFilters( tags );
             }
-            ActivityMonitor.TagFilter.SetFilters( tags );
 
             if( hasGlobalDefaultFilter )
             {

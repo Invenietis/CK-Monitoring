@@ -137,7 +137,7 @@ namespace CK.Monitoring.Hosting.Tests
         }
 
         [Test]
-        public async Task Tags_filtering_works_Async()
+        public async Task TagFilters_works_Async()
         {
             CKTrait Sql = ActivityMonitor.Tags.Register( "Sql" );
             CKTrait Machine = ActivityMonitor.Tags.Register( "Machine" );
@@ -146,10 +146,10 @@ namespace CK.Monitoring.Hosting.Tests
             var config = new DynamicConfigurationSource();
             config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Trace";
-            config["CK-Monitoring:Tags:0:0"] = "Sql";
-            config["CK-Monitoring:Tags:0:1"] = "Debug";
-            config["CK-Monitoring:Tags:1:0"] = "Machine";
-            config["CK-Monitoring:Tags:1:1"] = "Release!";
+            config["CK-Monitoring:TagFilters:0:0"] = "Sql";
+            config["CK-Monitoring:TagFilters:0:1"] = "Debug";
+            config["CK-Monitoring:TagFilters:1:0"] = "Machine";
+            config["CK-Monitoring:TagFilters:1:1"] = "Release!";
 
             var host = new HostBuilder()
                         .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
@@ -159,19 +159,57 @@ namespace CK.Monitoring.Hosting.Tests
 
             var m = new ActivityMonitor();
 
-            m.Debug( Sql, "YES: Sql!" );
-            m.Trace( Machine, "NOSHOW" );
-            m.Trace( Machine|Sql, "Yes again!" );
+            RunWithTagFilters( Sql, Machine, m );
 
+            // Removing the TagFilters totally should keep the current filters.
+            using( config.StartBatch() )
+            {
+                config.Remove( "CK-Monitoring:TagFilters:0:0" );
+                config.Remove( "CK-Monitoring:TagFilters:0:1" );
+                config.Remove( "CK-Monitoring:TagFilters:1:0" );
+                config.Remove( "CK-Monitoring:TagFilters:1:1" );
+            }
+
+            await Task.Delay( 200 );
+
+            RunWithTagFilters( Sql, Machine, m );
+
+            config["CK-Monitoring:TagFilters:0"] = "";
+
+            await Task.Delay( 200 );
+
+            m.Debug( Sql, "NOP! This is in Debug!" );
+            m.Trace( Machine, "SHOW!" );
+            m.Trace( Machine | Sql, "Yes again!" );
             m.Trace( "DONE!" );
-            await host.StopAsync();
+
+            await Task.Delay( 200 );
 
             var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Select( e => e.Entry.Text ).Concatenate( System.Environment.NewLine );
             texts.Should()
-                   .Contain( "YES: Sql!" )
+                   .Contain( "SHOW!" )
                    .And.Contain( "Yes again!" )
-                   .And.NotContain( "NOSHOW" )
+                   .And.NotContain( "NOP! This is in Debug!" )
                    .And.Contain( "DONE!" );
+
+            await host.StopAsync();
+
+            static void RunWithTagFilters( CKTrait Sql, CKTrait Machine, ActivityMonitor m )
+            {
+                m.Debug( Sql, "YES: Sql!" );
+                m.Trace( Machine, "NOSHOW" );
+                m.Trace( Machine | Sql, "Yes again!" );
+                m.Trace( "DONE!" );
+
+                var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Select( e => e.Entry.Text ).Concatenate( System.Environment.NewLine );
+                texts.Should()
+                       .Contain( "YES: Sql!" )
+                       .And.Contain( "Yes again!" )
+                       .And.NotContain( "NOSHOW" )
+                       .And.Contain( "DONE!" );
+
+                DemoSinkHandler.Reset();
+            }
         }
 
     }
