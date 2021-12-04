@@ -84,12 +84,12 @@ namespace CK.Monitoring.Handlers
         /// <param name="e">The log entry.</param>
         public void Handle( IActivityMonitor m, GrandOutputEventInfo e )
         {
-            var entry = _builder.FormatEntry( e.Entry );
-            if( entry.Key != null )
+            var f = _builder.FormatEntry( e.Entry );
+            if( f.Before.IsValid )
             {
-                DisplayFormattedEntry( entry.Key.Value, LogLevel.Info );
+                DisplayFormattedEntry( in f.Before, LogLevel.Info );
             }
-            DisplayFormattedEntry( entry.Value, e.Entry.LogLevel );
+            DisplayFormattedEntry( in f.Entry, e.Entry.LogLevel );
         }
 
         static readonly Color[] _colors = new Color[] { //handpicked
@@ -123,7 +123,7 @@ namespace CK.Monitoring.Handlers
                        'u', 'v', 'w', 'x', 'y', 'z',
                        '+', '/'};
 
-        void DisplayFormattedEntry( MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel )
+        void DisplayFormattedEntry( in MulticastLogEntryTextBuilder.FormattedEntry entry, LogLevel logLevel )
         {
             _buffer.Clear();
             ConsoleColor prevForegroundColor = System.Console.ForegroundColor;
@@ -168,7 +168,7 @@ namespace CK.Monitoring.Handlers
                 .Append( entry.LogLevel.ToString().Pastel( foreground ).PastelBg( background ) )
                 .Append( ' ' )
                 .Append( entry.IndentationPrefix )
-                .Append(entry.EntryText.Pastel( foreground ).PastelBg( background ) );
+                .Append( entry.EntryText.Pastel( foreground ).PastelBg( background ) );
             System.Console.WriteLine( _buffer.ToString() );
             _buffer.Clear();
         }
