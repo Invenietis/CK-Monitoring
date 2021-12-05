@@ -15,12 +15,25 @@ namespace Microsoft.Extensions.Hosting
     public static class HostBuilderMonitoringHostExtensions
     {
         /// <summary>
-        /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration from the given configuration section path.
+        /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration to the configuration section "CK-Monitoring".
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
+        /// </summary>
+        /// <param name="builder">Host builder</param>
+        /// <returns>The builder.</returns>
+        public static IHostBuilder UseCKMonitoring( this IHostBuilder builder )
+        {
+            return DoUseMonitoring( builder, null, c => c.GetSection( "CK-Monitoring" ) );
+        }
+
+        /// <summary>
+        /// The configuration for the default <see cref="GrandOutput.Default"/> section must now always be "CK-Monitoring".
+        /// Application settings and other configuration sources MUST be updated accordingly.
+        /// <see cref="UseCKMonitoring(IHostBuilder)"/> must now be called.
         /// </summary>
         /// <param name="builder">Host builder</param>
         /// <param name="configurationPath">The path of the monitoring configuration in the global configuration.</param>
         /// <returns>The builder.</returns>
+        [Obsolete( "Call UseCKMonitoring and updates the configuration section to be \"CK-Monitoring\".", true )]
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, string configurationPath = "Monitoring" )
         {
             return DoUseMonitoring( builder, null, c => c.GetSection( configurationPath ) );
@@ -35,7 +48,7 @@ namespace Microsoft.Extensions.Hosting
         /// <param name="grandOutput">The target <see cref="GrandOutput"/>.</param>
         /// <param name="configurationPath">The path of the monitoring configuration in the global configuration.</param>
         /// <returns>The builder.</returns>
-        public static IHostBuilder UseMonitoring( this IHostBuilder builder, GrandOutput grandOutput, string configurationPath = "Monitoring" )
+        public static IHostBuilder UseMonitoring( this IHostBuilder builder, GrandOutput grandOutput, string configurationPath )
         {
             if( grandOutput == null ) throw new ArgumentNullException( nameof( grandOutput ) );
             if( grandOutput == GrandOutput.Default ) throw new ArgumentException( "The GrandOutput must not be the default one.", nameof( grandOutput ) );
@@ -43,12 +56,14 @@ namespace Microsoft.Extensions.Hosting
         }
 
         /// <summary>
-        /// Configures the <see cref="GrandOutput.Default"/> based on the given configuration section.
-        /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
+        /// The configuration for the default <see cref="GrandOutput.Default"/> section must now always be "CK-Monitoring".
+        /// Application settings and other configuration sources MUST be updated accordingly.
+        /// <see cref="UseCKMonitoring(IHostBuilder)"/> must now be called.
         /// </summary>
         /// <param name="builder">This host builder</param>
         /// <param name="section">The configuration section. Must not be null.</param>
         /// <returns>The builder.</returns>
+        [Obsolete( "Call UseCKMonitoring and updates the configuration section to be \"CK-Monitoring\".", true )]
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, IConfigurationSection section )
         {
             if( section == null ) throw new ArgumentNullException( nameof( section ) );

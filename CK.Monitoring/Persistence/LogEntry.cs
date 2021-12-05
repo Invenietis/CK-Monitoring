@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using CK.Core;
 using CK.Monitoring.Impl;
-using Microsoft.Toolkit.Diagnostics;
 
 namespace CK.Monitoring
 {
@@ -155,7 +154,7 @@ namespace CK.Monitoring
         /// <param name="lineNumber">Source line number of the log entry</param>
         static public void WriteLog( CKBinaryWriter w, string monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, bool isOpenGroup, LogLevel level, DateTimeStamp logTime, string text, CKTrait tags, CKExceptionData? ex, string? fileName, int lineNumber )
         {
-            Guard.IsNotNull( w, nameof( w ) );
+            Throw.OnNullArgument( w );
             StreamLogType type = StreamLogType.IsMultiCast | (isOpenGroup ? StreamLogType.TypeOpenGroup : StreamLogType.TypeLine);
             type = UpdateTypeWithPrevious( type, previousEntryType, ref previousLogTime );
             DoWriteLog( w, type, level, logTime, text, tags, ex, fileName, lineNumber );
@@ -231,7 +230,7 @@ namespace CK.Monitoring
         /// <param name="conclusions">Group conclusions.</param>
         static public void WriteCloseGroup( CKBinaryWriter w, string monitorId, LogEntryType previousEntryType, DateTimeStamp previousLogTime, int depth, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
-            Guard.IsNotNull( w, nameof( w ) );
+            Throw.OnNullArgument( w );
             StreamLogType type = StreamLogType.TypeGroupClosed | StreamLogType.IsMultiCast;
             type = UpdateTypeWithPrevious( type, previousEntryType, ref previousLogTime );
             DoWriteCloseGroup( w, type, level, closeTime, conclusions );
