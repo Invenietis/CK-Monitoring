@@ -1,14 +1,9 @@
 using Cake.Common.IO;
 using Cake.Core;
-
 using Cake.Core.Diagnostics;
-using SimpleGitVersion;
-
-
 
 namespace CodeCake
 {
-    
     public partial class Build : CodeCakeHost
     {
         public Build()
