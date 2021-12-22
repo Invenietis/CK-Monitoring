@@ -210,9 +210,8 @@ namespace CK.Monitoring
                         // Skip currently-opened temporary file
                         continue;
                     }
-
-                    string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 4 );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) )
+                    var datePart = file.Name.AsSpan( 2 );
+                    if( FileUtil.TryMatchFileNameUniqueTimeUtcFormat( ref datePart, out DateTime d ) )
                     {
                         if( d >= minDate )
                         {
@@ -226,8 +225,8 @@ namespace CK.Monitoring
                 // Final files are <date> + _fileNameSuffix (see CloseCurrentFile())
                 else if( file.Name.EndsWith( _fileNameSuffix ) )
                 {
-                    string datePart = file.Name.Substring( 0, file.Name.Length - _fileNameSuffix.Length );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) )
+                    var datePart = file.Name.AsSpan();
+                    if( FileUtil.TryMatchFileNameUniqueTimeUtcFormat( ref datePart, out DateTime d ) )
                     {
                         if( d >= minDate )
                         {
