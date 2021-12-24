@@ -188,7 +188,7 @@ namespace CK.Monitoring.Hosting
                         }
                     }
                 }
-                ActivityMonitor.TagFilter.SetFilters( tags );
+                ActivityMonitor.Tags.SetFilters( tags );
             }
 
             if( hasGlobalDefaultFilter )
