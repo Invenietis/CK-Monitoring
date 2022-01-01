@@ -14,29 +14,6 @@ namespace CK.Monitoring
             _stream = new GZipStream( stream, CompressionMode.Decompress );
         }
 
-        #if NET451 || NET46
-        public override IAsyncResult BeginRead( byte[] array, int offset, int count, AsyncCallback asyncCallback, object asyncState )
-        {
-            return _stream.BeginRead( array, offset, count, asyncCallback, asyncState );
-        }
-
-        public override IAsyncResult BeginWrite( byte[] array, int offset, int count, AsyncCallback asyncCallback, object asyncState )
-        {
-            throw new NotSupportedException();
-        }
-        
-        public override int EndRead( IAsyncResult asyncResult )
-        {
-            int read = _stream.EndRead( asyncResult );
-            _position += read;
-            return read;
-        }
-        
-        public override void EndWrite( IAsyncResult asyncResult )
-        {
-        }
-        #endif
-
         protected override void Dispose( bool disposing )
         {
             if( disposing ) _stream.Dispose();

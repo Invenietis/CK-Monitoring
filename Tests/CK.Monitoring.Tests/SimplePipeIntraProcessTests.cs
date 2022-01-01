@@ -9,9 +9,6 @@ using CK.Monitoring.InterProcess;
 
 namespace CK.Monitoring.Tests
 {
-    // This fails with NUnit 2.6.4 GUI runner:
-    // A SafeHandle destructor raises an exception during Garbage Collection.
-#if !NET461
     [TestFixture]
     public class SimplePipeIntraProcessTests
     {
@@ -79,5 +76,4 @@ namespace CK.Monitoring.Tests
             }
         }
     }
-#endif
 }
