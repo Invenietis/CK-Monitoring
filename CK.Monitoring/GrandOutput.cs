@@ -27,7 +27,7 @@ namespace CK.Monitoring
         /// The tag that marks all external log entry sent by <see cref="AppDomain.UnhandledException"/>
         /// and <see cref="System.Threading.Tasks.TaskScheduler.UnobservedTaskException"/>.
         /// </summary>
-        public static CKTrait UnhandledException = ActivityMonitor.Tags.Register( "UnhandledException" );
+        public static readonly CKTrait UnhandledException = ActivityMonitor.Tags.Register( "UnhandledException" );
 
         /// <summary>
         /// The name of the fake monitor for external logs.
@@ -60,10 +60,6 @@ namespace CK.Monitoring
         /// <para>
         /// This method is thread-safe (a simple lock protects it) and uses a <see cref="ActivityMonitor.AutoConfiguration"/> action 
         /// that uses <see cref="EnsureGrandOutputClient(IActivityMonitor)"/> on newly created ActivityMonitor.
-        /// </para>
-        /// <para>
-        /// The Default GrandOutput has by default its <see cref="HandleCriticalErrors"/> sets to true: it handles Critical errors (by subscribing
-        /// to <see cref="CriticalErrorCollector.OnErrorFromBackgroundThreads"/>).
         /// </para>
         /// <para>
         /// The Default GrandOutput also adds a <see cref="MonitorTraceListener"/> in the <see cref="Trace.Listeners"/> collection that
@@ -133,12 +129,12 @@ namespace CK.Monitoring
         /// assembly and namespace as their configuration objects and named the 
         /// same without the "Configuration" suffix.
         /// </summary>
-        static public Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler = config =>
+        public static Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler { get; set; } = config =>
             {
                 var t = config.GetType();
                 var name = t.FullName;
                 Debug.Assert( name != null && t.AssemblyQualifiedName != null );
-                if( !name.EndsWith( "Configuration" ) ) throw new Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
+                if( !name.EndsWith( "Configuration" ) ) Throw.Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
                 name = t.AssemblyQualifiedName.Replace( "Configuration,", "," );
                 t = Type.GetType( name, throwOnError: true );
                 Debug.Assert( t != null );
@@ -197,7 +193,7 @@ namespace CK.Monitoring
 
         GrandOutputClient? DoEnsureGrandOutputClient( IActivityMonitor monitor )
         {
-            Func<GrandOutputClient?> reg = () =>
+            GrandOutputClient? Register()
             {
                 var c = new GrandOutputClient( this );
                 lock( _clients )
@@ -206,8 +202,8 @@ namespace CK.Monitoring
                     else _clients.Add( new WeakReference<GrandOutputClient>( c ) );
                 }
                 return c;
-            };
-            return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, reg );
+            }
+            return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, Register );
         }
 
         /// <summary>
@@ -323,8 +319,7 @@ namespace CK.Monitoring
             {
                 for( int i = 0; i < _clients.Count; ++i )
                 {
-                    GrandOutputClient? cw;
-                    if( !_clients[i].TryGetTarget( out cw ) || !cw.IsBoundToMonitor )
+                    if( !_clients[i].TryGetTarget( out GrandOutputClient? cw ) || !cw.IsBoundToMonitor )
                     {
                         _clients.RemoveAt( i-- );
                     }
@@ -369,8 +364,7 @@ namespace CK.Monitoring
             {
                 for( int i = 0; i < _clients.Count; ++i )
                 {
-                    GrandOutputClient? cw;
-                    if( _clients[i].TryGetTarget( out cw ) && cw.IsBoundToMonitor )
+                    if( _clients[i].TryGetTarget( out GrandOutputClient? cw ) && cw.IsBoundToMonitor )
                     {
                         cw.OnGrandOutputDisposedOrMinimalFilterChanged();
                     }

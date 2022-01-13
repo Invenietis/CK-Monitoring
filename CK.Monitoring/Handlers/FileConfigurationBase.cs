@@ -45,7 +45,7 @@ namespace CK.Monitoring.Handlers
         }
 
         /// <summary>
-        /// Gets or sets the path of the file. When not rooted (see <see cref="System.IO.Path.IsPathRooted"/>),
+        /// Gets or sets the path of the file. When not rooted (see <see cref="System.IO.Path.IsPathRooted(string?)"/>),
         /// it is a sub path in <see cref="LogFile.RootLogPath"/>.
         /// It defaults to the empty string: it must be specified.
         /// </summary>

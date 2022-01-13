@@ -119,6 +119,9 @@ namespace CK.Monitoring
                 EntryText = entryText;
             }
 
+            /// <summary>
+            /// Gets whether this line is a valid one or the default struct.
+            /// </summary>
             public bool IsValid => IndentationPrefix != null;
 
             /// <summary>
@@ -172,12 +175,12 @@ namespace CK.Monitoring
         public string FormatEntryString( IMulticastLogEntry logEntry, string? entrySeparator = null )
         {
             if( entrySeparator == null ) entrySeparator = Environment.NewLine;
-            var e = FormatEntry( logEntry );
-            if( e.Before.IsValid )
+            var (before, entry) = FormatEntry( logEntry );
+            if( before.IsValid )
             {
-                e.Before.Write( _builder ).Append( entrySeparator );
+                before.Write( _builder ).Append( entrySeparator );
             }
-            e.Entry.Write( _builder );
+            entry.Write( _builder );
             string output = _builder.ToString();
             _builder.Clear();
             return output;

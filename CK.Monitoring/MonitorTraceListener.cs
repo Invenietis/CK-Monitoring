@@ -110,6 +110,7 @@ namespace CK.Monitoring
         /// and, if <see cref="FailFast"/> is true, calls <see cref="Environment.FailFast(string)"/>.
         /// </summary>
         /// <param name="message">The text to log.</param>
+        /// <param name="detailMessage">A detail message that will be appended to the text.</param>
         public override void Fail( string? message, string? detailMessage )
         {
             string msg = message ?? "Fail called with no message.";
@@ -121,7 +122,9 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Calls <see cref="GrandOutput.ExternalLog"/> with the <paramref name="id"/>, <paramref name="message"/>. The log level is based on <paramref name="eventType"/>.
+        /// Calls <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait?)"/> with the <paramref name="id"/>
+        /// and formatted message.
+        /// The log level is based on <paramref name="eventType"/>.
         /// </summary>
         /// <param name="eventCache">A System.Diagnostics.TraceEventCache object that contains the current process ID, thread ID, and stack trace information.</param>
         /// <param name="source">A name used to identify the output, typically the name of the application that generated the trace event.</param>
@@ -134,7 +137,8 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Calls <see cref="GrandOutput.ExternalLog"/> with the <paramref name="id"/>, <paramref name="message"/>. The log level is based on <paramref name="eventType"/>.
+        /// Calls <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait?)"/> with the <paramref name="id"/>
+        /// and formatted message. The log level is based on <paramref name="eventType"/>.
         /// </summary>
         /// <param name="eventCache">A System.Diagnostics.TraceEventCache object that contains the current process ID, thread ID, and stack trace information.</param>
         /// <param name="source">A name used to identify the output, typically the name of the application that generated the trace event.</param>

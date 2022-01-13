@@ -49,8 +49,7 @@ namespace CK.Monitoring
         /// </param>
         public LogReader( Stream stream, int streamVersion, int headerLength, bool mustClose = true )
         {
-            if( streamVersion < 5 )
-                throw new ArgumentException( "Must be greater or equal to 5 (the first version).", "streamVersion" );
+            Throw.CheckOutOfRangeArgument( streamVersion >= 5 );
             _stream = stream;
             _binaryReader = new CKBinaryReader( stream, Encoding.UTF8, !mustClose );
             _streamVersion = streamVersion;
@@ -75,7 +74,7 @@ namespace CK.Monitoring
         /// </remarks>
         public static LogReader Open( string path, long dataOffset = 0, MulticastFilter? filter = null )
         {
-            if( path == null ) throw new ArgumentNullException( "path" );
+            Throw.CheckNotNullOrEmptyArgument( path );
             FileStream? fs = null;
             try
             {
@@ -107,8 +106,8 @@ namespace CK.Monitoring
         /// </remarks>
         public static LogReader Open( Stream seekableStream, long dataOffset = 0, MulticastFilter? filter = null )
         {
-            if( seekableStream == null ) throw new ArgumentNullException( "seekableStream" );
-            if( !seekableStream.CanSeek ) throw new ArgumentException( "Stream must support seek operations.", "seekableStream" );
+            Throw.CheckNotNullArgument( seekableStream );
+            Throw.CheckArgument( seekableStream.CanSeek );
             LogReaderStreamInfo i = LogReaderStreamInfo.OpenStream( seekableStream );
             var s = i.LogStream;
             if( dataOffset > 0 )
@@ -159,10 +158,10 @@ namespace CK.Monitoring
             }
 
             /// <summary>
-            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IUniqueId.UniqueId"/> that
+            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IActivityMonitor.UniqueId"/> that
             /// is explicitly implemented. (This is a mainly for tests.)
             /// </summary>
-            /// <param name="monitor">Activity Monitor to filter.</param>
+            /// <param name="m">Activity Monitor to filter.</param>
             public MulticastFilter( ActivityMonitor m )
                 : this( m.UniqueId )
             {

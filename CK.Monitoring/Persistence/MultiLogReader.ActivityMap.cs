@@ -308,7 +308,7 @@ namespace CK.Monitoring
                     {
                         get
                         {
-                            if( index >= Count ) throw new ArgumentOutOfRangeException();
+                            Throw.CheckOutOfRangeArgument( index < Count );
                             return Entries[index];
                         }
                     }
@@ -491,7 +491,7 @@ namespace CK.Monitoring
             /// <returns>The first <see cref="LivePage"/> from which next pages can be retrieved.</returns>
             public LivePage ReadFirstPage( DateTimeStamp firstLogTime, int pageLength )
             {
-                if( pageLength < 1 ) throw new ArgumentOutOfRangeException( "pageLength" );
+                Throw.CheckOutOfRangeArgument( pageLength > 0 );
                 MultiFileReader r = new MultiFileReader( firstLogTime, _files );
                 if( r.MoveNext() )
                 {
@@ -519,7 +519,7 @@ namespace CK.Monitoring
             /// Replays this monitor's content into another monitor.
             /// </summary>
             /// <param name="replay">The target monitor. Can not be null.</param>
-            /// <param name="m">Optional monitor (nothing is logged when null).</param>
+            /// <param name="monitor">Optional monitor (nothing is logged when null).</param>
             public void Replay( IActivityMonitor replay, IActivityMonitor? monitor = null )
             {
                 using( monitor?.OpenInfo( $"Replaying activity from '{MonitorId}'." ) )
