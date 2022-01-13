@@ -7,6 +7,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="15.0.0-r04" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="15.0.0-r05" />
   </ItemGroup>
 </Project>
