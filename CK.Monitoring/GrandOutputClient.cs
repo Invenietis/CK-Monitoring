@@ -66,7 +66,7 @@ namespace CK.Monitoring
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
             IMulticastLogEntry e = LogEntry.CreateMulticastLog( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, data.Text, data.LogTime, data.Level, data.FileName, data.LineNumber, data.Tags, data.ExceptionData );
-            _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
+            _central.Sink.Handle( e );
             _prevlogTime = data.LogTime;
             _prevLogType = LogEntryType.Line;
         }
@@ -76,7 +76,7 @@ namespace CK.Monitoring
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
             IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.Data.Text, group.Data.LogTime, group.Data.Level, group.Data.FileName, group.Data.LineNumber, group.Data.Tags, group.Data.ExceptionData );
-            _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
+            _central.Sink.Handle( e );
             ++_currentGroupDepth;
             _prevlogTime = group.Data.LogTime;
             _prevLogType = LogEntryType.OpenGroup;
@@ -97,7 +97,7 @@ namespace CK.Monitoring
                                                                        group.CloseLogTime,
                                                                        group.Data.Level,
                                                                        conclusions );
-            _central.Sink.Handle( new GrandOutputEventInfo( e, _monitorSource.Topic ) );
+            _central.Sink.Handle( e );
             --_currentGroupDepth;
             _prevlogTime = group.CloseLogTime;
             _prevLogType = LogEntryType.CloseGroup;

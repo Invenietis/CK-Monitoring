@@ -95,13 +95,13 @@ namespace CK.Monitoring.Tests
             var config = new GrandOutputConfiguration().AddHandler( textConf );
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                Task.Run( () => g.ExternalLog( LogLevel.Info, "Async started." ) ).Wait();
+                Task.Run( () => g.ExternalLog( LogLevel.Info, message: "Async started." ) ).Wait();
                 var m = new ActivityMonitor( false );
                 g.EnsureGrandOutputClient( m );
                 m.Info( "Normal monitor starts." );
                 Task t = Task.Run( () =>
                 {
-                    for( int i = 0; i < 10; ++i ) g.ExternalLog( LogLevel.Info, $"Async n°{i}." );
+                    for( int i = 0; i < 10; ++i ) g.ExternalLog( LogLevel.Info, message: $"Async n°{i}." );
                 } );
                 m.MonitorEnd( "This is the end." );
                 t.Wait();
@@ -131,7 +131,7 @@ namespace CK.Monitoring.Tests
                      for( int i = 0; i < logCount; ++i )
                      {
                          Thread.Sleep( 2 );
-                         g.ExternalLog( LogLevel.Info, $"{c} n°{i}." );
+                         g.ExternalLog( LogLevel.Info, message: $"{c} n°{i}." );
                      }
                  } ) ).ToArray();
                 Task.WaitAll( tasks );
@@ -153,18 +153,18 @@ namespace CK.Monitoring.Tests
             ActivityMonitor.DefaultFilter.Line.Should().Be( LogLevelFilter.Trace );
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
-                g.ExternalLog( LogLevel.Trace, "SHOW 0" );
+                g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, message: "SHOW 0" );
                 g.ExternalLogLevelFilter = LogLevelFilter.Debug;
-                g.ExternalLog( LogLevel.Debug, "SHOW 1" );
+                g.ExternalLog( LogLevel.Debug, message: "SHOW 1" );
                 g.ExternalLogLevelFilter = LogLevelFilter.Error;
-                g.ExternalLog( LogLevel.Warn, "NOSHOW" );
-                g.ExternalLog( LogLevel.Error, "SHOW 2" );
-                g.ExternalLog( LogLevel.Fatal, "SHOW 3" );
-                g.ExternalLog( LogLevel.Trace | LogLevel.IsFiltered, "SHOW 4" );
+                g.ExternalLog( LogLevel.Warn, message: "NOSHOW" );
+                g.ExternalLog( LogLevel.Error, message: "SHOW 2" );
+                g.ExternalLog( LogLevel.Fatal, message: "SHOW 3" );
+                g.ExternalLog( LogLevel.Trace | LogLevel.IsFiltered, message: "SHOW 4" );
                 g.ExternalLogLevelFilter = LogLevelFilter.None;
-                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
-                g.ExternalLog( LogLevel.Trace, "SHOW 4" );
+                g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, message: "SHOW 4" );
             }
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             textLogged.Should()

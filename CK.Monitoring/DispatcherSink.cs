@@ -11,7 +11,7 @@ namespace CK.Monitoring
 {
     internal class DispatcherSink : IGrandOutputSink
     {
-        readonly BlockingCollection<GrandOutputEventInfo> _queue;
+        readonly BlockingCollection<IMulticastLogEntry> _queue;
         readonly Task _task;
         readonly List<IGrandOutputHandler> _handlers;
         readonly long _deltaExternalTicks;
@@ -43,7 +43,7 @@ namespace CK.Monitoring
             bool isDefaultGrandOutput )
         {
             _initialRegister = initialRegister;
-            _queue = new BlockingCollection<GrandOutputEventInfo>();
+            _queue = new BlockingCollection<IMulticastLogEntry>();
             _handlers = new List<IGrandOutputHandler>();
             _task = new Task( Process, TaskCreationOptions.LongRunning );
             _confTrigger = new object();
@@ -92,7 +92,7 @@ namespace CK.Monitoring
             DoConfigure( monitor, newConf );
             while( !_queue.IsCompleted && !_forceClose )
             {
-                bool hasEvent = _queue.TryTake( out GrandOutputEventInfo e, millisecondsTimeout: 100 );
+                bool hasEvent = _queue.TryTake( out var e, millisecondsTimeout: 100 );
                 newConf = _newConf;
                 Debug.Assert( newConf != null, "Except at the start, this is never null." );
                 if( newConf.Length > 0 ) DoConfigure( monitor, newConf );
@@ -100,6 +100,7 @@ namespace CK.Monitoring
                 #region Process event if any.
                 if( hasEvent )
                 {
+                    Debug.Assert( e != null );
                     foreach( var h in _handlers )
                     {
                         try
@@ -217,7 +218,7 @@ namespace CK.Monitoring
                 // No need to Dispose() this Process.
                 var thisProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var msg = $"GrandOutput.Default configuration n°{_configurationCount++} for '{thisProcess.ProcessName}' (PID:{thisProcess.Id},AppDomainId:{AppDomain.CurrentDomain.Id}) on machine {Environment.MachineName}, UserName: '{Environment.UserName}', CommandLine: '{Environment.CommandLine}', BaseDirectory: '{AppContext.BaseDirectory}'.";
-                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, msg, null, ActivityMonitor.Tags.Empty );
+                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitor.Tags.Empty, msg, null );
             }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
@@ -274,7 +275,7 @@ namespace CK.Monitoring
 
         public bool IsRunning => _stopFlag == 0;
 
-        public void Handle( GrandOutputEventInfo logEvent )
+        public void Handle( IMulticastLogEntry logEvent )
         {
             if( _stopFlag == 0 ) _queue.Add( logEvent );
         }
@@ -294,8 +295,7 @@ namespace CK.Monitoring
             }
         }
 
-
-        public void ExternalLog( LogLevel level, string message, Exception? ex, CKTrait tags )
+        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -304,19 +304,41 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog(
-                        GrandOutput.ExternalLogMonitorUniqueId,
-                        LogEntryType.Line,
-                        prevLogTime,
-                        depth: 0,
-                        text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
-                        t: logTime,
-                        level: level,
-                        fileName: null,
-                        lineNumber: 0,
-                        tags: tags,
-                        ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
-            Handle( new GrandOutputEventInfo( e, String.Empty ) );
+            var e = LogEntry.CreateMulticastLog( GrandOutput.ExternalLogMonitorUniqueId,
+                                                 LogEntryType.Line,
+                                                 prevLogTime,
+                                                 depth: 0,
+                                                 text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
+                                                 t: logTime,
+                                                 level: level,
+                                                 fileName: null,
+                                                 lineNumber: 0,
+                                                 tags: tags ?? ActivityMonitor.Tags.Empty,
+                                                 ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
+            Handle( e );
+        }
+
+        public void ExternalLog( ref ActivityMonitorLogData d )
+        {
+            DateTimeStamp prevLogTime;
+            DateTimeStamp logTime;
+            lock( _externalLogLock )
+            {
+                prevLogTime = _externalLogLastTime;
+                _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
+            }
+            var e = LogEntry.CreateMulticastLog( GrandOutput.ExternalLogMonitorUniqueId,
+                                                 LogEntryType.Line,
+                                                 prevLogTime,
+                                                 depth: 0,
+                                                 d.Text,
+                                                 logTime,
+                                                 d.Level,
+                                                 d.FileName,
+                                                 d.LineNumber,
+                                                 d.Tags,
+                                                 d.ExceptionData );
+            Handle( e );
         }
 
         void SetUnhandledExceptionTracking( bool trackUnhandledException )
@@ -339,7 +361,7 @@ namespace CK.Monitoring
 
         void OnUnobservedTaskException( object? sender, UnobservedTaskExceptionEventArgs e )
         {
-            ExternalLog( LogLevel.Fatal, "TaskScheduler.UnobservedTaskException raised.", e.Exception, GrandOutput.UnhandledException );
+            ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, "TaskScheduler.UnobservedTaskException raised.", e.Exception );
             e.SetObserved();
         }
 
@@ -347,12 +369,12 @@ namespace CK.Monitoring
         {
             if( e.ExceptionObject is Exception ex )
             {
-                ExternalLog( LogLevel.Fatal, "AppDomain.CurrentDomain.UnhandledException raised.", ex, GrandOutput.UnhandledException );
+                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, "AppDomain.CurrentDomain.UnhandledException raised.", ex );
             }
             else
             {
                 string? exText = e.ExceptionObject.ToString();
-                ExternalLog( LogLevel.Fatal, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'.", null, GrandOutput.UnhandledException );
+                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'.", null );
             }
         }
 

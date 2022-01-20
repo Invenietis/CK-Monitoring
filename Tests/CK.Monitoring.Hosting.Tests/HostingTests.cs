@@ -72,9 +72,9 @@ namespace CK.Monitoring.Hosting.Tests
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
             System.Threading.Thread.Sleep( 200 );
 
-            DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Where( e => e.Entry.Text.StartsWith( "GrandOutput.Default configuration n°4 " ) )
+            DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Where( e => e.Text.StartsWith( "GrandOutput.Default configuration n°4 " ) )
                 .Should().NotBeEmpty();
-            DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Where( e => e.Entry.Text.StartsWith( "GrandOutput.Default configuration n°5 " ) )
+            DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Where( e => e.Text.StartsWith( "GrandOutput.Default configuration n°5 " ) )
                 .Should().BeEmpty( "There has been the initial configuration (n°0) and 4 reconfigurations." );
         }
 
@@ -98,7 +98,7 @@ namespace CK.Monitoring.Hosting.Tests
 
             await host.StopAsync();
 
-            DemoSinkHandler.LogEvents.Select( e => e.Entry.Text ).Should()
+            DemoSinkHandler.LogEvents.Select( e => e.Text ).Should()
                    .Contain( "Topic: The topic!" )
                    .And.Contain( "BEFORE" )
                    .And.Contain( "While applying dynamic configuration." )
@@ -128,7 +128,7 @@ namespace CK.Monitoring.Hosting.Tests
 
             await host.StopAsync();
 
-            var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Select( e => e.Entry.Text ).Concatenate( System.Environment.NewLine );
+            var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
             texts.Should()
                    .Contain( "GrandOutput.Default configuration n°0" )
                    .And.Contain( "GrandOutput.Default configuration n°1" )
@@ -185,7 +185,7 @@ namespace CK.Monitoring.Hosting.Tests
 
             await Task.Delay( 200 );
 
-            var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Select( e => e.Entry.Text ).Concatenate( System.Environment.NewLine );
+            var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
             texts.Should()
                    .Contain( "SHOW!" )
                    .And.Contain( "Yes again!" )
@@ -203,7 +203,7 @@ namespace CK.Monitoring.Hosting.Tests
 
                 System.Threading.Thread.Sleep( 200 );
 
-                var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.Entry.LogTime ).Select( e => e.Entry.Text ).Concatenate( System.Environment.NewLine );
+                var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
                 texts.Should()
                        .Contain( "YES: Sql!" )
                        .And.Contain( "Yes again!" )

@@ -114,7 +114,7 @@ namespace CK.Monitoring
         /// </param>
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication = false )
         {
-            if( configuration == null ) throw new ArgumentNullException( nameof( configuration ) );
+            Throw.CheckNotNullArgument( configuration );
             if( !configuration.InternalClone )
             {
                 configuration = configuration.Clone();
@@ -164,14 +164,14 @@ namespace CK.Monitoring
             _minimalFilter = LogFilter.Undefined;
             // Starts the pump thread. Its monitor will be registered
             // in this GrandOutput.
-            _sink = new DispatcherSink(
-                            m => DoEnsureGrandOutputClient( m ),
-                            config.TimerDuration ?? TimeSpan.FromMilliseconds(500),
-                            TimeSpan.FromMinutes( 5 ),
-                            DoGarbageDeadClients,
-                            OnFiltersChanged,
-                            isDefault );
+            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ),
+                                        config.TimerDuration ?? TimeSpan.FromMilliseconds(500),
+                                        TimeSpan.FromMinutes( 5 ),
+                                        DoGarbageDeadClients,
+                                        OnFiltersChanged,
+                                        isDefault );
             ApplyConfiguration( config, waitForApplication: true );
+            ActivityMonitor.ExternalLog.OnExternalLog += OnExternalLog;
         }
 
         /// <summary>
@@ -214,11 +214,6 @@ namespace CK.Monitoring
         /// </summary>
         public LogLevelFilter ExternalLogLevelFilter { get; set; }
 
-        /// <summary></summary>
-        [Obsolete( "Use ExternalLogLevelFilter instead.", true)]
-        [System.ComponentModel.EditorBrowsable( System.ComponentModel.EditorBrowsableState.Never )]
-        public LogLevelFilter ExternalLogFilter { get; set; }
-
         /// <summary>
         /// Gets or directly sets the minimal filter (without using the <see cref="GrandOutputConfiguration.MinimalFilter"/> configuration).
         /// This minimal filter impacts all the <see cref="IActivityMonitor"/> that are bound to the <see cref="GrandOutput"/>
@@ -246,7 +241,6 @@ namespace CK.Monitoring
             if( externalLogFilter.HasValue ) ExternalLogLevelFilter = externalLogFilter.Value;
         }
 
-
         /// <summary>
         /// Gets whether a log level should be emitted.
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
@@ -264,9 +258,17 @@ namespace CK.Monitoring
             return (int)filter <= (int)(level & LogLevel.Mask);
         }
 
+        void OnExternalLog( ref ActivityMonitorLogData data )
+        {
+            if( IsExternalLogEnabled( data.Level ) )
+            {
+                _sink.ExternalLog( ref data );
+            }
+        }
+
         /// <summary>
-        /// Logs an entry from any contextless source.
-        /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
+        /// Logs an entry from any contextless source to this GrandOutput only (as opposed to using <see cref="ActivityMonitor.ExternalLog"/>
+        /// that will be handled by all existing GrandOutput instances).
         /// </summary>
         /// <remarks>
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see> bit
@@ -274,10 +276,10 @@ namespace CK.Monitoring
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>
+        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
         /// <param name="message">String message.</param>
         /// <param name="ex">Optional exception.</param>
-        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
-        public void ExternalLog( LogLevel level, string message, Exception? ex = null, CKTrait? tags = null )
+        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex = null )
         {
             if( (level & LogLevel.IsFiltered) == 0 )
             {
@@ -285,22 +287,23 @@ namespace CK.Monitoring
                 if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
                 if( (int)filter > (int)(level & LogLevel.Mask) ) return;
             }
-            _sink.ExternalLog( level, message, ex, tags ?? ActivityMonitor.Tags.Empty );
+            _sink.ExternalLog( level, tags, message, ex );
         }
 
         /// <summary>
-        /// Logs an entry from any contextless source.
-        /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
+        /// Logs an entry from any contextless source to this GrandOutput only (as opposed to using <see cref="ActivityMonitor.ExternalLog"/>
+        /// that will be handled by all existing GrandOutput instances).
         /// </summary>
         /// <remarks>
-        /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
-        /// bit set, the decision has already being taken and here we do our job: dispatching of the log.
+        /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see> bit
+        /// set, the decision has already being taken and here we do our job: dispatching of the log.
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>
-        /// <param name="message">String message.</param>
         /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
-        public void ExternalLog( LogLevel level, string message, CKTrait? tags ) => ExternalLog( level, message, null, tags );
+        /// <param name="message">String message.</param>
+        /// <param name="ex">Optional exception.</param>
+        public void ExternalLog( LogLevel level, string message, Exception? ex = null ) => ExternalLog( level, null, message, ex ); 
 
         /// <summary>
         /// Gets a cancellation token that is cancelled at the start
@@ -353,6 +356,7 @@ namespace CK.Monitoring
 
                     }
                 }
+                ActivityMonitor.ExternalLog.OnExternalLog -= OnExternalLog;
                 SignalClients();
                 _sink.Finalize( millisecondsBeforeForceClose );
             }

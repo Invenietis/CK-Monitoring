@@ -38,7 +38,7 @@ namespace CK.Monitoring.Hosting
         /// <returns></returns>
         public IDisposable BeginScope<TState>( TState state )
         {
-            if( _provider._running ) _output.ExternalLog( Core.LogLevel.Trace, state?.ToString() );
+            if( _provider._running ) _output.ExternalLog( Core.LogLevel.Trace, message: state?.ToString() );
             return Core.Util.EmptyDisposable;
         }
 

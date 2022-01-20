@@ -9,7 +9,6 @@ namespace CK.Monitoring
         /// Handles a log event.
         /// </summary>
         /// <param name="logEvent">The log event.</param>
-        void Handle( GrandOutputEventInfo logEvent );
+        void Handle( IMulticastLogEntry logEvent );
     }
-
 }

@@ -31,7 +31,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="logEvent">The log event.</param>
-        void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent );
+        void Handle( IActivityMonitor m, IMulticastLogEntry logEvent );
 
         /// <summary>
         /// Attempts to apply configuration if possible.

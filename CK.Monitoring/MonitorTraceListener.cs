@@ -7,8 +7,7 @@ using System.Text;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// A trace listener that sends System.Diagnostic traces to the provided GrandOutput
-    /// using <see cref="GrandOutput.ExternalLog(LogLevel,string,Exception,CKTrait)"/>.
+    /// A trace listener that sends System.Diagnostic traces to the provided GrandOutput.
     /// All log entries sent by it have the tag "TraceListener".
     /// When <see cref="FailFast"/> is true, a <see cref="MonitoringFailFastException"/> is thrown instead of
     /// calling <see cref="Environment.FailFast(string)"/>.
@@ -37,7 +36,7 @@ namespace CK.Monitoring
     public class MonitorTraceListener : TraceListener
     {
         /// <summary>
-        /// Tag used for all the <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait?)"/> sent.
+        /// Tag used for all the logs sent.
         /// </summary>
         public static readonly CKTrait TraceListener = ActivityMonitor.Tags.Register( nameof( TraceListener ) );
 
@@ -68,32 +67,32 @@ namespace CK.Monitoring
         public GrandOutput GrandOutput { get; }
 
         /// <summary>
-        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait)"/> with a <see cref="LogLevel.Trace"/>.
+        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception?)"/> with a <see cref="LogLevel.Trace"/>.
         /// </summary>
         /// <param name="message">The text to log.</param>
         public override void Write( string? message )
         {
-            if( message != null ) GrandOutput.ExternalLog( LogLevel.Trace, message, TraceListener );
+            if( message != null ) GrandOutput.ExternalLog( LogLevel.Trace, TraceListener, message: message );
         }
 
         /// <summary>
-        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait)"/> with a <see cref="LogLevel.Trace"/>.
+        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception?)"/> with a <see cref="LogLevel.Trace"/>.
         /// </summary>
         /// <param name="message">The text to log.</param>
         public override void WriteLine( string? message )
         {
-            if( message != null ) GrandOutput.ExternalLog( LogLevel.Trace, message, TraceListener );
+            if( message != null ) GrandOutput.ExternalLog( LogLevel.Trace, TraceListener, message );
         }
 
         /// <summary>
-        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait)"/> with a <see cref="LogLevel.Fatal"/>
+        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception?)"/> with a <see cref="LogLevel.Fatal"/>
         /// and, if <see cref="FailFast"/> is true, calls <see cref="Environment.FailFast(string)"/>.
         /// </summary>
         /// <param name="message">The text to log.</param>
         public override void Fail( string? message )
         {
             message ??= "Fail called with no message.";
-            GrandOutput.ExternalLog( LogLevel.Fatal, message, TraceListener );
+            GrandOutput.ExternalLog( LogLevel.Fatal, TraceListener, message );
             if( FailFast )
             {
                 GrandOutput.Dispose();
@@ -106,7 +105,7 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait)"/> with a <see cref="LogLevel.Fatal"/>
+        /// Overridden to call <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception?)"/> with a <see cref="LogLevel.Fatal"/>
         /// and, if <see cref="FailFast"/> is true, calls <see cref="Environment.FailFast(string)"/>.
         /// </summary>
         /// <param name="message">The text to log.</param>
@@ -122,7 +121,7 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Calls <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait?)"/> with the <paramref name="id"/>
+        /// Calls <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception?)"/> with the <paramref name="id"/>
         /// and formatted message.
         /// The log level is based on <paramref name="eventType"/>.
         /// </summary>
@@ -133,11 +132,11 @@ namespace CK.Monitoring
         /// <param name="message">A message to write.</param>
         public override void TraceEvent( TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message )
         {
-            GrandOutput.ExternalLog( GetLogLevel( eventType ), BuildMessage( message, null, source, id ), TraceListener );
+            GrandOutput.ExternalLog( GetLogLevel( eventType ), TraceListener, BuildMessage( message, null, source, id ) );
         }
 
         /// <summary>
-        /// Calls <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait?)"/> with the <paramref name="id"/>
+        /// Calls <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception?)"/> with the <paramref name="id"/>
         /// and formatted message. The log level is based on <paramref name="eventType"/>.
         /// </summary>
         /// <param name="eventCache">A System.Diagnostics.TraceEventCache object that contains the current process ID, thread ID, and stack trace information.</param>
@@ -148,7 +147,7 @@ namespace CK.Monitoring
         /// <param name="args">The message arguments.</param>
         public override void TraceEvent( TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? format, params object?[]? args )
         {
-            GrandOutput.ExternalLog( GetLogLevel( eventType ), BuildMessage( format, args, source, id ), TraceListener );
+            GrandOutput.ExternalLog( GetLogLevel( eventType ), TraceListener, BuildMessage( format, args, source, id ) );
         }
 
         static LogLevel GetLogLevel( TraceEventType eventType )

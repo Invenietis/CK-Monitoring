@@ -42,9 +42,9 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="logEvent">The log entry.</param>
-        public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
+        public void Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
         {
-            _file.Write( logEvent.Entry );
+            _file.Write( logEvent );
         }
 
         /// <summary>

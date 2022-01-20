@@ -82,14 +82,14 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="e">The log entry.</param>
-        public void Handle( IActivityMonitor m, GrandOutputEventInfo e )
+        public void Handle( IActivityMonitor m, IMulticastLogEntry e )
         {
-            var f = _builder.FormatEntry( e.Entry );
+            var f = _builder.FormatEntry( e );
             if( f.Before.IsValid )
             {
                 DisplayFormattedEntry( in f.Before, LogLevel.Info );
             }
-            DisplayFormattedEntry( in f.Entry, e.Entry.LogLevel );
+            DisplayFormattedEntry( in f.Entry, e.LogLevel );
         }
 
         static readonly Color[] _colors = new Color[] { //handpicked

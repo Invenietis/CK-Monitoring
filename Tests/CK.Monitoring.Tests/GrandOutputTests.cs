@@ -230,7 +230,7 @@ namespace CK.Monitoring.Tests
                 ActivatedDelay = -1;
             }
 
-            public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
+            public void Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
             {
                 _delay.Should().BeGreaterOrEqualTo( 0 );
                 _delay.Should().BeLessThan( 1000 );
@@ -296,7 +296,7 @@ namespace CK.Monitoring.Tests
                 while( Interlocked.Exchange( ref subscribed, 1 ) == 1 )
                 {
                     // This throws if the sink queue is closed.
-                    go.ExternalLog( LogLevel.Fatal, "Test", null );
+                    go.ExternalLog( LogLevel.Fatal, message: "Test", ex: null );
                     atleastOneReceived = true;
                 }
             } );

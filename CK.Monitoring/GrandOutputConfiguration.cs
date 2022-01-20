@@ -29,7 +29,7 @@ namespace CK.Monitoring
         public LogFilter? MinimalFilter { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the filter level for <see cref="GrandOutput.ExternalLog(LogLevel, string, Exception, CKTrait)"/> methods.
+        /// Gets or sets the filter level for <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception)"/> methods.
         /// This, when not null, impacts the <see cref="GrandOutput.ExternalLogLevelFilter"/> property that defaults to <see cref="LogLevelFilter.None"/>
         /// (the <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see> is used).
         /// </summary>

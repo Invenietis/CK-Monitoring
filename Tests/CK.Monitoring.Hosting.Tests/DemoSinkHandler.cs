@@ -12,7 +12,7 @@ namespace CK.Monitoring.Hosting.Tests
 
         public static int ActivateCount;
         public static int ApplyConfigurationCount;
-        public static ConcurrentBag<GrandOutputEventInfo> LogEvents = new ConcurrentBag<GrandOutputEventInfo>();
+        public static ConcurrentBag<IMulticastLogEntry> LogEvents = new ConcurrentBag<IMulticastLogEntry>();
         public static int DeactivateCount;
         public static int OnTimerCount;
 
@@ -49,7 +49,7 @@ namespace CK.Monitoring.Hosting.Tests
             return false;
         }
 
-        public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
+        public void Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
         {
             LogEvents.Add( logEvent );
         }

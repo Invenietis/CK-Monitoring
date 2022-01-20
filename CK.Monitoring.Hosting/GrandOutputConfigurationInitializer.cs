@@ -162,7 +162,7 @@ namespace CK.Monitoring.Hosting
                     _target = GrandOutput.EnsureActiveDefault();
                     _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
                 }
-                _target.ExternalLog( Core.LogLevel.Fatal, $"While applying dynamic configuration.", ex );
+                _target.ExternalLog( Core.LogLevel.Fatal, message: $"While applying dynamic configuration.", ex: ex );
             }
             _loggerProvider._running = dotNetLogs;
 
@@ -183,8 +183,8 @@ namespace CK.Monitoring.Hosting
                         else
                         {
                             if( t.IsEmpty )
-                                _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Tag is empty" );
-                            else _target.ExternalLog( Core.LogLevel.Warn, $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                                _target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Tag is empty" );
+                            else _target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
                         }
                     }
                 }
@@ -196,7 +196,7 @@ namespace CK.Monitoring.Hosting
                 // Always log the parse error, but only log and applies if this is the initial configuration.
                 if( errorParsingGlobalDefaultFilter )
                 {
-                    _target.ExternalLog( Core.LogLevel.Error, $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                    _target.ExternalLog( Core.LogLevel.Error, message: $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
                 }
                 else if( initialConfigMustWaitForApplication )
                 {
@@ -209,10 +209,10 @@ namespace CK.Monitoring.Hosting
         {
             if( defaultFilter.Group == LogLevelFilter.None || defaultFilter.Line == LogLevelFilter.None )
             {
-                _target.ExternalLog( Core.LogLevel.Error, $"Invalid GlobalDefaultFilter = '{defaultFilter}'. using default 'Trace'." );
+                _target.ExternalLog( Core.LogLevel.Error, message: $"Invalid GlobalDefaultFilter = '{defaultFilter}'. using default 'Trace'." );
                 defaultFilter = LogFilter.Trace;
             }
-            _target.ExternalLog( Core.LogLevel.Info, $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}'." );
+            _target.ExternalLog( Core.LogLevel.Info, message: $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}'." );
             ActivityMonitor.DefaultFilter = defaultFilter;
             return defaultFilter;
         }
