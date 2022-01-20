@@ -95,13 +95,21 @@ namespace CK.Monitoring.Tests
             var config = new GrandOutputConfiguration().AddHandler( textConf );
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                Task.Run( () => g.ExternalLog( LogLevel.Info, message: "Async started." ) ).Wait();
+                Task.Run( () =>
+                {
+                    ActivityMonitor.ExternalLog.UnfilteredLog( LogLevel.Info, $"Async started from ActivityMonitor.ExternalLog.", null );
+                    g.ExternalLog( LogLevel.Info, message: "Async started." );
+                } ).Wait();
                 var m = new ActivityMonitor( false );
                 g.EnsureGrandOutputClient( m );
                 m.Info( "Normal monitor starts." );
                 Task t = Task.Run( () =>
                 {
-                    for( int i = 0; i < 10; ++i ) g.ExternalLog( LogLevel.Info, message: $"Async n°{i}." );
+                    for( int i = 0; i < 10; ++i )
+                    {
+                        ActivityMonitor.ExternalLog.UnfilteredLog( LogLevel.Info, $"Async n°{i} from ActivityMonitor.ExternalLog.", null );
+                        g.ExternalLog( LogLevel.Info, $"Async n°{i}." );
+                    }
                 } );
                 m.MonitorEnd( "This is the end." );
                 t.Wait();
@@ -109,9 +117,12 @@ namespace CK.Monitoring.Tests
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             textLogged.Should()
                         .Contain( "Normal monitor starts." )
+                        .And.Contain( "Async started from ActivityMonitor.ExternalLog." )
                         .And.Contain( "Async started." )
                         .And.Contain( "Async n°0." )
                         .And.Contain( "Async n°9." )
+                        .And.Contain( "Async n°0 from ActivityMonitor.ExternalLog." )
+                        .And.Contain( "Async n°9 from ActivityMonitor.ExternalLog." )
                         .And.Contain( "This is the end." );
         }
 

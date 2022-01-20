@@ -31,7 +31,7 @@ namespace CK.Monitoring.Tests
             var textConf = new Handlers.TextFileConfiguration() { Path = nameof( Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener ) };
             using( GrandOutput g = new GrandOutput( new GrandOutputConfiguration().AddHandler( textConf ) ) )
             {
-                // This is what the GrandOtput.Default does with "false".
+                // This is what the GrandOtput.Default does with its default options.
                 System.Diagnostics.Trace.Listeners.Clear();
                 System.Diagnostics.Trace.Listeners.Add( new MonitorTraceListener( g, monitorTraceListenerFailFast ) );
                 try

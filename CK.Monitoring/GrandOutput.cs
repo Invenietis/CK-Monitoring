@@ -300,7 +300,6 @@ namespace CK.Monitoring
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>
-        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
         /// <param name="message">String message.</param>
         /// <param name="ex">Optional exception.</param>
         public void ExternalLog( LogLevel level, string message, Exception? ex = null ) => ExternalLog( level, null, message, ex ); 
