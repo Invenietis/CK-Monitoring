@@ -25,13 +25,10 @@ namespace CK.Monitoring.Tests
                 g.EnsureGrandOutputClient( m );
                 var txt = new StupidStringClient();
                 m.Output.RegisterClient( txt );
-                using( m.Output.CreateBridgeTo( TestHelper.ConsoleMonitor.Output.BridgeTarget ) )
+                using( var r = SimpleLogPipeReceiver.Start( m, interProcess: false ) )
                 {
-                    using( var r = SimpleLogPipeReceiver.Start( m, interProcess: false ) )
-                    {
-                        RunClient( r.PipeName );
-                        r.WaitEnd( false ).Should().Be( LogReceiverEndStatus.Normal );
-                    }
+                    RunClient( r.PipeName );
+                    r.WaitEnd( false ).Should().Be( LogReceiverEndStatus.Normal );
                 }
                 var stupidLogs = txt.ToString();
                 stupidLogs.Should().Contain( "From client." )
@@ -41,7 +38,7 @@ namespace CK.Monitoring.Tests
                                    .And.Contain( "Info n°0" )
                                    .And.Contain( "Info n°19" );
             }
-            // All tempoary files have been closed.
+            // All temporary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
             // Brutallity here: opening the binary file as a text.

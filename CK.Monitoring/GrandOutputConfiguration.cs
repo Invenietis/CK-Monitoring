@@ -38,7 +38,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets or sets whether unhandled exceptions from <see cref="AppDomain.UnhandledException"/>
         /// and <see cref="System.Threading.Tasks.TaskScheduler.UnobservedTaskException"/> are sent to
-        /// the <see cref="GrandOutput.ExternalLog(LogLevel, string, CKTrait?)"/>.
+        /// the <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait?, string, Exception?)"/>.
         /// <para>
         /// Defaults to true for the <see cref="GrandOutput.Default"/> instance and false for the other ones.
         /// </para>
