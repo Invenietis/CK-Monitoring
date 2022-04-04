@@ -72,9 +72,9 @@ namespace CK.Monitoring.Hosting.Tests
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
             System.Threading.Thread.Sleep( 200 );
 
-            DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Where( e => e.Text.StartsWith( "GrandOutput.Default configuration n°4 " ) )
-                .Should().NotBeEmpty();
-            DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Where( e => e.Text.StartsWith( "GrandOutput.Default configuration n°5 " ) )
+            var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).ToArray();
+            texts.Where( e => e.StartsWith( "GrandOutput.Default configuration n°4 " ) ).Should().NotBeEmpty();
+            texts.Where( e => e.StartsWith( "GrandOutput.Default configuration n°5 " ) )
                 .Should().BeEmpty( "There has been the initial configuration (n°0) and 4 reconfigurations." );
         }
 

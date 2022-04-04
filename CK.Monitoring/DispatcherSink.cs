@@ -14,6 +14,7 @@ namespace CK.Monitoring
         readonly BlockingCollection<IMulticastLogEntry> _queue;
         readonly Task _task;
         readonly List<IGrandOutputHandler> _handlers;
+        readonly IdentityCard _identityCard;
         readonly long _deltaExternalTicks;
         readonly Action _externalOnTimer;
         readonly object _confTrigger;
@@ -34,15 +35,16 @@ namespace CK.Monitoring
         readonly bool _isDefaultGrandOutput;
         bool _unhandledExceptionTracking;
 
-        public DispatcherSink(
-            Action<IActivityMonitor> initialRegister,
-            TimeSpan timerDuration,
-            TimeSpan externalTimerDuration,
-            Action externalTimer,
-            Action<LogFilter?,LogLevelFilter?> filterChange,
-            bool isDefaultGrandOutput )
+        public DispatcherSink( Action<IActivityMonitor> initialRegister,
+                               IdentityCard identityCard,
+                               TimeSpan timerDuration,
+                               TimeSpan externalTimerDuration,
+                               Action externalTimer,
+                               Action<LogFilter?, LogLevelFilter?> filterChange,
+                               bool isDefaultGrandOutput )
         {
             _initialRegister = initialRegister;
+            _identityCard = identityCard;
             _queue = new BlockingCollection<IMulticastLogEntry>();
             _handlers = new List<IGrandOutputHandler>();
             _task = new Task( Process, TaskCreationOptions.LongRunning );

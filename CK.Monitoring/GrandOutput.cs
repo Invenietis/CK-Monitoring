@@ -17,6 +17,7 @@ namespace CK.Monitoring
     {
         readonly List<WeakReference<GrandOutputClient>> _clients;
         readonly DispatcherSink _sink;
+        readonly IdentityCard _identityCard;
         LogFilter _minimalFilter;
 
         static GrandOutput? _default;
@@ -159,12 +160,14 @@ namespace CK.Monitoring
         GrandOutput( bool isDefault, GrandOutputConfiguration config )
         {
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
-            // Creates the client list first.
+            // Creates the identity card and the client list first.
+            _identityCard = new IdentityCard();
             _clients = new List<WeakReference<GrandOutputClient>>();
             _minimalFilter = LogFilter.Undefined;
             // Starts the pump thread. Its monitor will be registered
             // in this GrandOutput.
             _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ),
+                                        _identityCard,
                                         config.TimerDuration ?? TimeSpan.FromMilliseconds(500),
                                         TimeSpan.FromMinutes( 5 ),
                                         DoGarbageDeadClients,
@@ -205,6 +208,11 @@ namespace CK.Monitoring
             }
             return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, Register );
         }
+
+        /// <summary>
+        /// Gets the identity card of this GrandOutput.
+        /// </summary>
+        public IdentityCard IdentityCard => _identityCard;
 
         /// <summary>
         /// Gets or directly sets the filter level for ExternalLog methods (without using the <see cref="GrandOutputConfiguration.ExternalLogLevelFilter"/> configuration).
