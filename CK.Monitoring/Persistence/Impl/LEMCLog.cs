@@ -4,7 +4,7 @@ using CK.Core;
 
 namespace CK.Monitoring.Impl
 {
-    class LEMCLog : LELog, IMulticastLogEntry
+    sealed class LEMCLog : LELog, IMulticastLogEntry
     {
         readonly string _monitorId;
         readonly int _depth;

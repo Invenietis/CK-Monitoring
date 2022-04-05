@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace CK.Monitoring.Impl
 {
-    class LEMCCloseGroup : LECloseGroup, IMulticastLogEntry
+    sealed class LEMCCloseGroup : LECloseGroup, IMulticastLogEntry
     {
         readonly string _monitorId;
         readonly int _depth;

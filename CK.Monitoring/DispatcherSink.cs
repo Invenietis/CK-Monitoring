@@ -5,13 +5,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring
 {
     internal class DispatcherSink : IGrandOutputSink
     {
-        readonly BlockingCollection<IMulticastLogEntry> _queue;
+        readonly Channel<IMulticastLogEntry?> _queue;
+
         readonly Task _task;
         readonly List<IGrandOutputHandler> _handlers;
         readonly IdentityCard _identityCard;
@@ -30,7 +32,6 @@ namespace CK.Monitoring
         long _nextTicks;
         long _nextExternalTicks;
         int _configurationCount;
-        volatile int _stopFlag;
         volatile bool _forceClose;
         readonly bool _isDefaultGrandOutput;
         bool _unhandledExceptionTracking;
@@ -45,25 +46,20 @@ namespace CK.Monitoring
         {
             _initialRegister = initialRegister;
             _identityCard = identityCard;
-            _queue = new BlockingCollection<IMulticastLogEntry>();
+            _queue = Channel.CreateUnbounded<IMulticastLogEntry?>( new UnboundedChannelOptions() { SingleReader = true } );
             _handlers = new List<IGrandOutputHandler>();
-            _task = new Task( Process, TaskCreationOptions.LongRunning );
             _confTrigger = new object();
             _stopTokenSource = new CancellationTokenSource();
             _timerDuration = timerDuration;
             _deltaTicks = timerDuration.Ticks;
             _deltaExternalTicks = externalTimerDuration.Ticks;
             _externalOnTimer = externalTimer;
-            long now = DateTime.UtcNow.Ticks;
-            _nextTicks = now + timerDuration.Ticks;
-            _nextExternalTicks = now + externalTimerDuration.Ticks;
             _filterChange = filterChange;
             _externalLogLock = new object();
             _externalLogLastTime = DateTimeStamp.MinValue;
             _isDefaultGrandOutput = isDefaultGrandOutput;
             _newConf = Array.Empty<GrandOutputConfiguration>();
-
-            _task.Start();
+            _task = ProcessAsync();
         }
 
         public TimeSpan TimerDuration
@@ -79,30 +75,37 @@ namespace CK.Monitoring
             }
         }
 
-        void Process()
+        async Task ProcessAsync()
         {
             var monitor = new ActivityMonitor( applyAutoConfigurations: false );
             // Simple pooling for initial configuration.
+            // Starting with the delay avoids a Task.Run() is the constructor.
             GrandOutputConfiguration[] newConf = _newConf;
-            while( newConf.Length == 0 )
+            do
             {
-                Thread.Sleep( 0 );
+                await Task.Delay( 5 );
                 newConf = _newConf;
             }
+            while( newConf.Length == 0 );
             _initialRegister( monitor );
             monitor.SetTopic( "CK.Monitoring.DispatcherSink" );
             DoConfigure( monitor, newConf );
-            while( !_queue.IsCompleted && !_forceClose )
+            // Configures the next timer due date.
+            long now = DateTime.UtcNow.Ticks;
+            _nextTicks = now + _timerDuration.Ticks;
+            _nextExternalTicks = now + _timerDuration.Ticks;
+            // Creates and launch the "awaker". This avoids any CancellationToken.
+            Timer awaker = new Timer( _ => _queue.Writer.TryWrite( null ), null, 100, 100 );
+            while( await _queue.Reader.WaitToReadAsync() && !_forceClose )
             {
-                bool hasEvent = _queue.TryTake( out var e, millisecondsTimeout: 100 );
+                _queue.Reader.TryRead( out var e );
                 newConf = _newConf;
                 Debug.Assert( newConf != null, "Except at the start, this is never null." );
                 if( newConf.Length > 0 ) DoConfigure( monitor, newConf );
                 List<IGrandOutputHandler>? faulty = null;
                 #region Process event if any.
-                if( hasEvent )
+                if( e != null )
                 {
-                    Debug.Assert( e != null );
                     foreach( var h in _handlers )
                     {
                         try
@@ -118,28 +121,31 @@ namespace CK.Monitoring
                     }
                 }
                 #endregion
-                #region Process OnTimer
-                long now = DateTime.UtcNow.Ticks;
-                if( now >= _nextTicks )
+                #region Process OnTimer (if not closing)
+                if( !_stopTokenSource.IsCancellationRequested )
                 {
-                    foreach( var h in _handlers )
+                    now = DateTime.UtcNow.Ticks;
+                    if( now >= _nextTicks )
                     {
-                        try
+                        foreach( var h in _handlers )
                         {
-                            h.OnTimer( monitor, _timerDuration );
+                            try
+                            {
+                                h.OnTimer( monitor, _timerDuration );
+                            }
+                            catch( Exception ex )
+                            {
+                                monitor.Fatal( $"{h.GetType()}.OnTimer() crashed.", ex );
+                                if( faulty == null ) faulty = new List<IGrandOutputHandler>();
+                                faulty.Add( h );
+                            }
                         }
-                        catch( Exception ex )
+                        _nextTicks = now + _deltaTicks;
+                        if( now >= _nextExternalTicks )
                         {
-                            monitor.Fatal( $"{h.GetType()}.OnTimer() crashed.", ex );
-                            if( faulty == null ) faulty = new List<IGrandOutputHandler>();
-                            faulty.Add( h );
+                            _externalOnTimer();
+                            _nextExternalTicks = now + _deltaExternalTicks;
                         }
-                    }
-                    _nextTicks = now + _deltaTicks;
-                    if( now >= _nextExternalTicks )
-                    {
-                        _externalOnTimer();
-                        _nextExternalTicks = now + _deltaExternalTicks;
                     }
                 }
                 #endregion
@@ -152,9 +158,12 @@ namespace CK.Monitoring
                     }
                 }
             }
+            await awaker.DisposeAsync();
             foreach( var h in _handlers ) SafeActivateOrDeactivate( monitor, h, false );
             monitor.MonitorEnd();
         }
+
+        void OnAwaker( object? state ) => _queue.Writer.TryWrite( null );
 
         void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
@@ -255,11 +264,10 @@ namespace CK.Monitoring
         /// </returns>
         public bool Stop()
         {
-            if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
+            if( _queue.Writer.TryComplete() )
             {
                 SetUnhandledExceptionTracking( false );
                 _stopTokenSource.Cancel();
-                _queue.CompleteAdding();
                 return true;
             }
             return false;
@@ -271,16 +279,12 @@ namespace CK.Monitoring
             if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
             _task.Wait();
 #pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
-            _queue.Dispose();
             _stopTokenSource.Dispose();
         }
 
-        public bool IsRunning => _stopFlag == 0;
+        public bool IsRunning => !_stopTokenSource.IsCancellationRequested;
 
-        public void Handle( IMulticastLogEntry logEvent )
-        {
-            if( _stopFlag == 0 ) _queue.Add( logEvent );
-        }
+        public void Handle( IMulticastLogEntry logEvent ) => _queue.Writer.TryWrite( logEvent );
 
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
@@ -291,7 +295,7 @@ namespace CK.Monitoring
                 lock( _confTrigger )
                 {
                     GrandOutputConfiguration[] newConf;
-                    while( _stopFlag == 0 && (newConf = _newConf) != null && newConf.Contains( configuration ) )
+                    while( !_stopTokenSource.IsCancellationRequested && (newConf = _newConf) != null && newConf.Contains( configuration ) )
                         Monitor.Wait( _confTrigger );
                 }
             }

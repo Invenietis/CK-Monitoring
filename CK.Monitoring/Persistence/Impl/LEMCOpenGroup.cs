@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace CK.Monitoring.Impl
 {
-    class LEMCOpenGroup : LEOpenGroup, IMulticastLogEntry
+    sealed class LEMCOpenGroup : LEOpenGroup, IMulticastLogEntry
     {
         readonly string _monitorId;
         readonly int _depth;
