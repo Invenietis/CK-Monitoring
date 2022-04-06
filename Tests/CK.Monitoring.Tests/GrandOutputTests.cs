@@ -94,7 +94,7 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
-        public void CKMon_binary_files_can_be_GZip_compressed()
+        public async Task CKMon_binary_files_can_be_GZip_compressed_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "Gzip" );
 
@@ -116,7 +116,7 @@ namespace CK.Monitoring.Tests
                 var taskB = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
                 var taskC = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
 
-                Task.WaitAll( taskA, taskB, taskC );
+                await Task.WhenAll( taskA, taskB, taskC );
             }
 
             string[] gzipCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputGzip", 1 );
@@ -208,38 +208,37 @@ namespace CK.Monitoring.Tests
                 _delay = c.Delay;
             }
 
-            public bool Activate( IActivityMonitor m )
+            public ValueTask<bool> ActivateAsync( IActivityMonitor m )
             {
                 ActivatedDelay = _delay;
-                return true;
+                return ValueTask.FromResult( true );
             }
 
-            public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+            public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c )
             {
                 if( c is SlowSinkHandlerConfiguration conf )
                 {
                     _delay = conf.Delay;
                     ActivatedDelay = _delay;
-                    return true;
+                    return ValueTask.FromResult( true );
                 }
-                return false;
+                return ValueTask.FromResult( false );
             }
 
-            public void Deactivate( IActivityMonitor m )
+            public ValueTask DeactivateAsync( IActivityMonitor m )
             {
                 ActivatedDelay = -1;
+                return ValueTask.CompletedTask;
             }
 
-            public void Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
+            public async ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
             {
                 _delay.Should().BeGreaterOrEqualTo( 0 );
                 _delay.Should().BeLessThan( 1000 );
-                Thread.Sleep( _delay );
+                await Task.Delay( _delay );
             }
 
-            public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
-            {
-            }
+            public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan ) => ValueTask.CompletedTask;
         }
 
         [Test]
@@ -263,11 +262,13 @@ namespace CK.Monitoring.Tests
                     if( SlowSinkHandler.ActivatedDelay == -1 ) break;
                 }
                 i.Should().BeLessThan( 10 );
-                // With wait for application:
-                // ...Artificially adding multiple configurations with 0 delay.
+                // ...Artificially adding multiple configurations with 0 delay and no wait
+                // to fill the "queue" of pending configurations.
                 for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c0, waitForApplication: false );
+                // With wait for application:
                 // ...Applying 100 is effective.
                 g.ApplyConfiguration( c100, waitForApplication: true );
+                int d = Volatile.Read( ref SlowSinkHandler.ActivatedDelay );
                 SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
                 // ...Artificially adding multiple configurations with 100 delay.
                 for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );

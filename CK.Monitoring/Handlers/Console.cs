@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Text;
+using System.Threading.Tasks;
 using CK.Core;
 using Pastel;
 
@@ -41,7 +42,7 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <returns>Always true.</returns>
-        public bool Activate( IActivityMonitor m )
+        public ValueTask<bool> ActivateAsync( IActivityMonitor m )
         {
             // Ensure the System.Console colors are actually valid when starting.
             // Linux consoles may start with an invalid and undocumented value (-1).
@@ -52,7 +53,7 @@ namespace CK.Monitoring.Handlers
             if( !Enum.IsDefined( typeof(ConsoleColor), System.Console.ForegroundColor ) )
                 System.Console.ForegroundColor = ConsoleColor.White;
 
-            return true;
+            return ValueTask.FromResult( true );
         }
 
         /// <summary>
@@ -61,20 +62,21 @@ namespace CK.Monitoring.Handlers
         /// <param name="m">The monitor to use.</param>
         /// <param name="c">The configuration.</param>
         /// <returns>True if <paramref name="c"/> is a ConsoleConfiguration.</returns>
-        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+        public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c )
         {
-            if( c is not ConsoleConfiguration cf ) return false;
+            if( c is not ConsoleConfiguration cf ) return ValueTask.FromResult( false );
             _config = cf;
-            return true;
+            return ValueTask.FromResult( true );
         }
 
         /// <summary>
         /// Deactivates this handler.
         /// </summary>
         /// <param name="m">The monitor to use.</param>
-        public void Deactivate( IActivityMonitor m )
+        public ValueTask DeactivateAsync( IActivityMonitor m )
         {
             _builder.Reset();
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
@@ -82,7 +84,7 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="e">The log entry.</param>
-        public void Handle( IActivityMonitor m, IMulticastLogEntry e )
+        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry e )
         {
             var f = _builder.FormatEntry( e );
             if( f.Before.IsValid )
@@ -90,6 +92,7 @@ namespace CK.Monitoring.Handlers
                 DisplayFormattedEntry( in f.Before, LogLevel.Info );
             }
             DisplayFormattedEntry( in f.Entry, e.LogLevel );
+            return ValueTask.CompletedTask;
         }
 
         static readonly Color[] _colors = new Color[] { //handpicked
@@ -178,8 +181,6 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
-        {
-        }
+        public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan ) => ValueTask.CompletedTask;
     }
 }

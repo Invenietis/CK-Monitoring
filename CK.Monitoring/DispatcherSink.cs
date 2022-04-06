@@ -89,7 +89,7 @@ namespace CK.Monitoring
             while( newConf.Length == 0 );
             _initialRegister( monitor );
             monitor.SetTopic( "CK.Monitoring.DispatcherSink" );
-            DoConfigure( monitor, newConf );
+            await DoConfigureAsync( monitor, newConf );
             // Configures the next timer due date.
             long now = DateTime.UtcNow.Ticks;
             _nextTicks = now + _timerDuration.Ticks;
@@ -101,7 +101,7 @@ namespace CK.Monitoring
                 _queue.Reader.TryRead( out var e );
                 newConf = _newConf;
                 Debug.Assert( newConf != null, "Except at the start, this is never null." );
-                if( newConf.Length > 0 ) DoConfigure( monitor, newConf );
+                if( newConf.Length > 0 ) await DoConfigureAsync( monitor, newConf );
                 List<IGrandOutputHandler>? faulty = null;
                 #region Process event if any.
                 if( e != null )
@@ -110,7 +110,7 @@ namespace CK.Monitoring
                     {
                         try
                         {
-                            h.Handle( monitor, e );
+                            await h.HandleAsync( monitor, e );
                         }
                         catch( Exception ex )
                         {
@@ -131,7 +131,7 @@ namespace CK.Monitoring
                         {
                             try
                             {
-                                h.OnTimer( monitor, _timerDuration );
+                                await h.OnTimerAsync( monitor, _timerDuration );
                             }
                             catch( Exception ex )
                             {
@@ -153,19 +153,19 @@ namespace CK.Monitoring
                 {
                     foreach( var h in faulty )
                     {
-                        SafeActivateOrDeactivate( monitor, h, false );
+                        await SafeActivateOrDeactivateAsync( monitor, h, false );
                         _handlers.Remove( h );
                     }
                 }
             }
             await awaker.DisposeAsync();
-            foreach( var h in _handlers ) SafeActivateOrDeactivate( monitor, h, false );
+            foreach( var h in _handlers ) await SafeActivateOrDeactivateAsync( monitor, h, false );
             monitor.MonitorEnd();
         }
 
         void OnAwaker( object? state ) => _queue.Writer.TryWrite( null );
 
-        void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
+        async ValueTask DoConfigureAsync( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
             Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
             var c = newConf[newConf.Length - 1];    
@@ -179,7 +179,7 @@ namespace CK.Monitoring
                 {
                     try
                     {
-                        if( _handlers[iHandler].ApplyConfiguration( monitor, c.Handlers[iConf] ) )
+                        if( await _handlers[iHandler].ApplyConfigurationAsync( monitor, c.Handlers[iConf] ) )
                         {
                             // Existing _handlers[iHandler] accepted the new c.Handlers[iConf].
                             c.Handlers.RemoveAt( iConf-- );
@@ -196,14 +196,14 @@ namespace CK.Monitoring
                         // Since the handler can be compromised, we skip it from any subsequent
                         // attempt to reconfigure it and deactivate it.
                         _handlers.RemoveAt( iHandler-- );
-                        SafeActivateOrDeactivate( monitor, h, false );
+                        await SafeActivateOrDeactivateAsync( monitor, h, false );
                     }
                 }
             }
             // Deactivate and get rid of remaining handlers.
             foreach( var h in _handlers )
             {
-                SafeActivateOrDeactivate( monitor, h, false );
+                await SafeActivateOrDeactivateAsync( monitor, h, false );
             }
             _handlers.Clear();
             // Restores reconfigured handlers.
@@ -214,7 +214,7 @@ namespace CK.Monitoring
                 try
                 {
                     var h = GrandOutput.CreateHandler( conf );
-                    if( SafeActivateOrDeactivate( monitor, h, true ) )
+                    if( await SafeActivateOrDeactivateAsync( monitor, h, true ) )
                     {
                         _handlers.Add( h );
                     }
@@ -235,19 +235,19 @@ namespace CK.Monitoring
                 Monitor.PulseAll( _confTrigger );
         }
 
-        bool SafeActivateOrDeactivate( IActivityMonitor monitor, IGrandOutputHandler h, bool activate )
+        async ValueTask<bool> SafeActivateOrDeactivateAsync( IActivityMonitor monitor, IGrandOutputHandler h, bool activate )
         {
             try
             {
-                if( activate ) return h.Activate( monitor );
-                else h.Deactivate( monitor );
+                if( activate ) return await h.ActivateAsync( monitor );
+                else await h.DeactivateAsync( monitor );
+                return true;
             }
             catch( Exception ex )
             {
                 monitor.Fatal( $"Handler {h.GetType()} crashed during {(activate ? "activation" : "de-activation")}.", ex );
                 return false;
             }
-            return true;
         }
 
         /// <summary>

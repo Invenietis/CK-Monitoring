@@ -2,6 +2,7 @@ using CK.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting.Tests
 {
@@ -30,40 +31,43 @@ namespace CK.Monitoring.Hosting.Tests
             _config = c;
         }
 
-        public bool Activate( IActivityMonitor m )
+        public ValueTask<bool> ActivateAsync( IActivityMonitor m )
         {
             m.Info( "DemoSinkHandler: Activation!" );
             Interlocked.Increment( ref ActivateCount );
-            return true;
+            return ValueTask.FromResult( true );
         }
 
-        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+        public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c )
         {
             var conf = c as DemoSinkHandlerConfiguration;
             if( conf != null )
             {
                 m.Info( "DemoSinkHandler: ApplyConfiguration!" );
                 Interlocked.Increment( ref ApplyConfigurationCount );
-                return true;
+                return ValueTask.FromResult( true );
             }
-            return false;
+            return ValueTask.FromResult( false );
         }
 
-        public void Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
+        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
         {
             LogEvents.Add( logEvent );
+            return ValueTask.CompletedTask;
         }
 
-        public void Deactivate( IActivityMonitor m )
+        public ValueTask DeactivateAsync( IActivityMonitor m )
         {
             m.Info( "DemoSinkHandler: Deactivation!" );
             Interlocked.Increment( ref DeactivateCount );
+            return ValueTask.CompletedTask;
         }
 
-        public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
+        public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan )
         {
             m.Info( "DemoSinkHandler: OnTimer!" );
             Interlocked.Increment( ref OnTimerCount );
+            return ValueTask.CompletedTask;
         }
 
     }

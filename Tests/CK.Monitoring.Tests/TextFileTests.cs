@@ -87,7 +87,7 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
-        public void external_logs_quick_test()
+        public async Task external_logs_quick_test_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "ExternalLogsQuickTest" );
 
@@ -95,11 +95,11 @@ namespace CK.Monitoring.Tests
             var config = new GrandOutputConfiguration().AddHandler( textConf );
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                Task.Run( () =>
+                await Task.Run( () =>
                 {
                     ActivityMonitor.ExternalLog.UnfilteredLog( LogLevel.Info, $"Async started from ActivityMonitor.ExternalLog.", null );
                     g.ExternalLog( LogLevel.Info, message: "Async started." );
-                } ).Wait();
+                } );
                 var m = new ActivityMonitor( false );
                 g.EnsureGrandOutputClient( m );
                 m.Info( "Normal monitor starts." );
@@ -112,7 +112,7 @@ namespace CK.Monitoring.Tests
                     }
                 } );
                 m.MonitorEnd( "This is the end." );
-                t.Wait();
+                await t;
             }
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             textLogged.Should()
@@ -127,7 +127,7 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
-        public void external_logs_stress_test()
+        public async Task external_logs_stress_test_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "ExternalLogsStressTest" );
 
@@ -145,7 +145,7 @@ namespace CK.Monitoring.Tests
                          g.ExternalLog( LogLevel.Info, message: $"{c} n°{i}." );
                      }
                  } ) ).ToArray();
-                Task.WaitAll( tasks );
+                await Task.WhenAll( tasks );
             }
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             for( int c = 0; c < taskCount; ++c )

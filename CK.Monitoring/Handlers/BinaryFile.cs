@@ -1,5 +1,6 @@
 using CK.Core;
 using System;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Handlers
 {
@@ -27,23 +28,25 @@ namespace CK.Monitoring.Handlers
         /// <summary>
         /// Initialization of the handler: computes the path.
         /// </summary>
-        /// <param name="m"></param>
-        public bool Activate( IActivityMonitor m )
+        /// <param name="monitor"></param>
+        public ValueTask<bool> ActivateAsync( IActivityMonitor monitor )
         {
-            using( m.OpenTrace( $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile})." ) )
+            Throw.CheckNotNullArgument( monitor );
+            using( monitor.OpenTrace( $"Initializing BinaryFile handler (MaxCountPerFile = {_file.MaxCountPerFile})." ) )
             {
-                return _file.Initialize( m );
+                return ValueTask.FromResult( _file.Initialize( monitor ) );
             }
         }
 
         /// <summary>
         /// Writes a log entry.
         /// </summary>
-        /// <param name="m">The monitor to use.</param>
+        /// <param name="monitor">The monitor to use.</param>
         /// <param name="logEvent">The log entry.</param>
-        public void Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
+        public ValueTask HandleAsync( IActivityMonitor monitor, IMulticastLogEntry logEvent )
         {
             _file.Write( logEvent );
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
@@ -51,13 +54,14 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
+        public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan )
         {
             if( --_countHousekeeping == 0 )
             {
                 _file.RunFileHousekeeping( m, _config.MinimumTimeSpanToKeep, _config.MaximumTotalKbToKeep * 1000L );
                 _countHousekeeping = _config.HousekeepingRate;
             }
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
@@ -66,16 +70,16 @@ namespace CK.Monitoring.Handlers
         /// <param name="m">The monitor to use.</param>
         /// <param name="c">Configuration to apply.</param>
         /// <returns>True if the configuration applied.</returns>
-        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+        public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c )
         {
-            if( c is not BinaryFileConfiguration cF || cF.Path != _config.Path ) return false;
+            if( c is not BinaryFileConfiguration cF || cF.Path != _config.Path ) return ValueTask.FromResult( false );
 
             if( _config.UseGzipCompression != cF.UseGzipCompression )
             {
                 var f = new MonitorBinaryFileOutput( _config.Path, cF.MaxCountPerFile, cF.UseGzipCompression );
                 // If the initialization of the new file fails (should not happen), we fail to apply the configuration:
                 // this handler will be Deactivated and another one will be created... and it may work. Who knows...
-                if( !f.Initialize( m ) ) return false;
+                if( !f.Initialize( m ) ) return ValueTask.FromResult( false );
                 _file.Close();
                 _file = f;
             }
@@ -84,17 +88,18 @@ namespace CK.Monitoring.Handlers
                 _file.MaxCountPerFile = cF.MaxCountPerFile;
             }
             _config = cF;
-            return true;
+            return ValueTask.FromResult( true );
         }
 
         /// <summary>
         /// Closes the file if it is opened.
         /// </summary>
         /// <param name="m">The monitor to use to track activity.</param>
-        public void Deactivate( IActivityMonitor m )
+        public ValueTask DeactivateAsync( IActivityMonitor m )
         {
             m.Info( "Closing file for BinaryFile handler." );
             _file.Close();
+            return ValueTask.CompletedTask;
         }
 
     }
