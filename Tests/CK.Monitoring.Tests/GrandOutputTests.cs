@@ -268,7 +268,6 @@ namespace CK.Monitoring.Tests
                 // With wait for application:
                 // ...Applying 100 is effective.
                 g.ApplyConfiguration( c100, waitForApplication: true );
-                int d = Volatile.Read( ref SlowSinkHandler.ActivatedDelay );
                 SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
                 // ...Artificially adding multiple configurations with 100 delay.
                 for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );

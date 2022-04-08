@@ -18,6 +18,7 @@ namespace CK.Monitoring.Tests.Persistence
         [Test]
         public void artificially_generated_missing_log_entries_are_detected()
         {
+            throw new NotImplementedException();
             var folder = TestHelper.PrepareLogFolder( "MissingEntries" );
             var emptyConfig = new GrandOutputConfiguration();
             var binaryConfig = new GrandOutputConfiguration().AddHandler( new Handlers.BinaryFileConfiguration() { Path = "MissingEntries" } );

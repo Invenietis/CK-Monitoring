@@ -24,10 +24,10 @@ namespace CK.Monitoring.Tests
             };
             id.OnChanged += ev => ++callCount;
 
-            var r = id.Add( "a", "b" );
-            r.Should().NotBeNull();
-            r.Count.Should().Be( 1 );
-            r["a"].Should().BeEquivalentTo( new[] { "b" } );
+            var e = id.Add( "a", "b" );
+            e.Should().NotBeNull();
+            e.AddedInfo.Count.Should().Be( 1 );
+            e.Identities["a"].Should().BeEquivalentTo( new[] { "b" } );
 
             callCount.Should().Be( 2 );
         }
@@ -41,22 +41,22 @@ namespace CK.Monitoring.Tests
 
             id.Add( "a", "b" ).Should().NotBeNull();
             id.Add( "a", "b" ).Should().BeNull();
-            id.Add( ("a", "b") ).Changed.Should().BeNull();
-            id.Add( ("a", "b"), ("a", "b"), ("a", "b"), ("a", "b") ).Changed.Should().BeNull();
+            id.Add( ("a", "b") ).Should().BeNull();
+            id.Add( ("a", "b"), ("a", "b"), ("a", "b"), ("a", "b") ).Should().BeNull();
             callCount.Should().Be( 1 );
 
             id.Add( "a", "c" ).Should().NotBeNull();
             var c = id.Add( ("a", "d"), ("A", "b"), ("A", "c") );
-            c.Added.Should().BeEquivalentTo( new[] { ("a", "d"), ("A", "b"), ("A", "c") } );
+            c.AddedInfo.Should().BeEquivalentTo( new[] { ("a", "d"), ("A", "b"), ("A", "c") } );
 
             callCount.Should().Be( 3 );
 
             c = id.Add( ("a", "d"), ("B", "1"), ("B", "2"), ("A", "c"), ("B", "3") );
-            c.Added.Should().BeEquivalentTo( new[] { ("B", "1"), ("B", "2"), ("B", "3") } );
+            c.AddedInfo.Should().BeEquivalentTo( new[] { ("B", "1"), ("B", "2"), ("B", "3") } );
             callCount.Should().Be( 4 );
 
             c = id.Add( ("C", "0"), ("B", "1"), ("B", "2"), ("A", "c"), ("B", "3") );
-            c.Added.Should().BeEquivalentTo( new[] { ("C", "0") } );
+            c.AddedInfo.Should().BeEquivalentTo( new[] { ("C", "0") } );
             callCount.Should().Be( 5 );
 
             id.Identities.Should().HaveCount( 4 );

@@ -280,7 +280,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <remarks>
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see> bit
-        /// set, the decision has already being taken and here we do our job: dispatching of the log.
+        /// set, the decision has already been taken and here we do our job: dispatching the log.
         /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
         /// </remarks>
         /// <param name="level">Log level.</param>

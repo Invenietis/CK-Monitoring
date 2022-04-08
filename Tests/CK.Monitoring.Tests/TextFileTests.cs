@@ -318,7 +318,7 @@ namespace CK.Monitoring.Tests
             textConf.MinimumTimeSpanToKeep = TimeSpan.Zero; // Make minimum timespan
             var config = new GrandOutputConfiguration().AddHandler( textConf );
 
-            int lineLengthToLogToGet1000bytes = 1050 - 452;
+            int lineLengthToLogToGet1000bytes = 500;
 
             // TEST DELETION BY SIZE
 
@@ -333,13 +333,13 @@ namespace CK.Monitoring.Tests
                 }
             }
 
-            long getTotalLogSize()
+            long GetTotalLogSize()
             {
                 return Directory.EnumerateFiles( folder ).Sum( x => new FileInfo( x ).Length );
             }
 
-            var totalLogSize = getTotalLogSize();
-            totalLogSize.Should().Be( 3000 );
+            var totalLogSize = GetTotalLogSize();
+            totalLogSize.Should().BeGreaterThan( 2500 );
 
             // Open another GrandOutput to trigger housekeeping.
             // Note: this DOES create a file!
@@ -349,7 +349,7 @@ namespace CK.Monitoring.Tests
                 Thread.Sleep( 600 );
             }
             var files = Directory.GetFiles( folder ).Select( f => Path.GetFileName( f ) );
-            files.Should().HaveCount( 2, $"Only 2 files should be kept - the last log file, and 1x1KB file: {files.Concatenate()}" );
+            files.Should().HaveCount( 2, $"Only 2 files should be kept - the last log file, and 1x~1KB file: {files.Concatenate()}" );
         }
 
         static void DumpSampleLogs1( Random r, GrandOutput g )

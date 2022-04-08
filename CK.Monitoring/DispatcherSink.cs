@@ -24,7 +24,7 @@ namespace CK.Monitoring
         readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
         readonly CancellationTokenSource _stopTokenSource;
         readonly object _externalLogLock;
-        DateTimeStamp _externalLogLastTime;
+        string? _sinkMonitorId;
 
         GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
@@ -32,6 +32,7 @@ namespace CK.Monitoring
         long _nextTicks;
         long _nextExternalTicks;
         int _configurationCount;
+        DateTimeStamp _externalLogLastTime;
         volatile bool _forceClose;
         readonly bool _isDefaultGrandOutput;
         bool _unhandledExceptionTracking;
@@ -77,7 +78,9 @@ namespace CK.Monitoring
 
         async Task ProcessAsync()
         {
+            // We emit the identity card changed from this monitor.
             var monitor = new ActivityMonitor( applyAutoConfigurations: false );
+            _sinkMonitorId = monitor.UniqueId;
             // Simple pooling for initial configuration.
             // Starting with the delay avoids a Task.Run() is the constructor.
             GrandOutputConfiguration[] newConf = _newConf;
@@ -87,16 +90,24 @@ namespace CK.Monitoring
                 newConf = _newConf;
             }
             while( newConf.Length == 0 );
+            // The initial configuration is available. Registers our loop monitor
+            // and applies the configuration.
             _initialRegister( monitor );
             monitor.SetTopic( "CK.Monitoring.DispatcherSink" );
             await DoConfigureAsync( monitor, newConf );
+            // Initialize the identity card.
+            _identityCard.LocalInitialize( monitor, _isDefaultGrandOutput );
+            // First register to the OnChange to avoid missing an update...
+            _identityCard.OnChanged += IdentityCardOnChanged;
+            // ...then sends the current content of the identity card.
+            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCard, _identityCard.ToString(), null );
             // Configures the next timer due date.
             long now = DateTime.UtcNow.Ticks;
             _nextTicks = now + _timerDuration.Ticks;
             _nextExternalTicks = now + _timerDuration.Ticks;
             // Creates and launch the "awaker". This avoids any CancellationToken.
             Timer awaker = new Timer( _ => _queue.Writer.TryWrite( null ), null, 100, 100 );
-            while( await _queue.Reader.WaitToReadAsync() && !_forceClose )
+            while( !_forceClose && await _queue.Reader.WaitToReadAsync() )
             {
                 _queue.Reader.TryRead( out var e );
                 newConf = _newConf;
@@ -163,6 +174,12 @@ namespace CK.Monitoring
             monitor.MonitorEnd();
         }
 
+        void IdentityCardOnChanged( IdentiCardChangedEvent obj )
+        {
+            Debug.Assert( _sinkMonitorId != null );
+            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardAdd, _identityCard.ToString(), null, _sinkMonitorId );
+        }
+
         void OnAwaker( object? state ) => _queue.Writer.TryWrite( null );
 
         async ValueTask DoConfigureAsync( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
@@ -226,9 +243,7 @@ namespace CK.Monitoring
             }
             if( _isDefaultGrandOutput )
             {
-                // No need to Dispose() this Process.
-                var thisProcess = System.Diagnostics.Process.GetCurrentProcess();
-                var msg = $"GrandOutput.Default configuration n°{_configurationCount++} for '{thisProcess.ProcessName}' (PID:{thisProcess.Id},AppDomainId:{AppDomain.CurrentDomain.Id}) on machine {Environment.MachineName}, UserName: '{Environment.UserName}', CommandLine: '{Environment.CommandLine}', BaseDirectory: '{AppContext.BaseDirectory}'.";
+                var msg = $"GrandOutput.Default configuration n°{_configurationCount++}.";
                 ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitor.Tags.Empty, msg, null );
             }
             lock( _confTrigger )
@@ -266,6 +281,7 @@ namespace CK.Monitoring
         {
             if( _queue.Writer.TryComplete() )
             {
+                _identityCard.LocalUninitialize( _isDefaultGrandOutput );
                 SetUnhandledExceptionTracking( false );
                 _stopTokenSource.Cancel();
                 return true;
@@ -301,7 +317,7 @@ namespace CK.Monitoring
             }
         }
 
-        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex )
+        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex, string monitorId = GrandOutput.ExternalLogMonitorUniqueId )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -310,7 +326,7 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog( GrandOutput.ExternalLogMonitorUniqueId,
+            var e = LogEntry.CreateMulticastLog( monitorId,
                                                  LogEntryType.Line,
                                                  prevLogTime,
                                                  depth: 0,

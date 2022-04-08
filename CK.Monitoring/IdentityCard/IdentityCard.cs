@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.Loader;
 using System.Threading;
 
 namespace CK.Monitoring
@@ -27,6 +29,10 @@ namespace CK.Monitoring
     /// <para>
     /// Since identity is mostly stable during the life of the application (it will be updated during application start), we use
     /// snapshots of an internal dictionary as the exposed Identities and a simple lock to update them.
+    /// </para>
+    /// <para>
+    /// The current TimeZone identifier is by default in any GrandOutput identity card.
+    /// See https://devblogs.microsoft.com/dotnet/date-time-and-time-zone-enhancements-in-net-6/ to understand windows and IANA time zones.
     /// </para>
     /// </summary>
     public sealed class IdentityCard
@@ -84,6 +90,97 @@ namespace CK.Monitoring
         /// </summary>
         public IReadOnlyDictionary<string, IReadOnlyCollection<string>> Identities => _exposed;
 
+        internal void LocalInitialize( IActivityMonitor monitor, bool isDefaultGrandOutput )
+        {
+            //static (string Key, string Value)[] GetGoreInfos()
+            //{
+            //    var id = CoreApplicationIdentity.DomainName;
+            //    if( CoreApplicationIdentity.EnvironmentName.Length > 0 ) id += '/' + CoreApplicationIdentity.EnvironmentName;
+            //    id += '/' + CoreApplicationIdentity.PartyName;
+            //    return new[] { ("AppIdentity", id),
+            //                   ("AppIdentity/InstanceId", CoreApplicationIdentity.InstanceId),
+            //                   ("AppIdentity/ContextIdentifier", CoreApplicationIdentity.ContextIdentifier) };
+            //}
+
+            IEnumerable<(string Key, string Value)> infos = Enumerable.Empty<(string Key, string Value)>();
+
+            //// If the Core identity is ready, do it now.
+            //if( CoreApplicationIdentity.IsInitialized )
+            //{
+            //    infos = infos.Concat( GetCoreInfos() );
+            //}
+            //else
+            //{
+            //    CoreApplicationIdentity.OnIntialized += () => Add( GetCoreInfos() );
+            //}
+            //if( isDefaultGrandOutput )
+            //{
+            //    AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoad;
+            //    foreach( var a in AppDomain.CurrentDomain.GetAssemblies() )
+            //    {
+            //        infos = infos.Concat( GetAssemblyInfos( a ) );
+            //    }
+            //}
+            var tz = TimeZoneInfo.Local;
+            infos = infos.Append( ("TimeZone", tz.ToSerializedString()) );
+            if( tz.HasIanaId )
+            {
+                infos = infos.Append( ("TimeZone/Id", tz.Id) );
+                if( TimeZoneInfo.TryConvertIanaIdToWindowsId( tz.Id, out string? winId ) )
+                {
+                    infos = infos.Append( ("TimeZone/Id/Windows", winId) );
+                }
+                else
+                {
+                    monitor.Warn( $"No Windows time zone found for the IANA identifier '{tz.Id}'." );
+                }
+            }
+            else
+            {
+                try
+                {
+                    TimeZoneInfo.FindSystemTimeZoneById( tz.Id );
+                    infos = infos.Append( ("TimeZone/Id/Windows", tz.Id) );
+                }
+                catch( Exception ex )
+                {
+                    monitor.Warn( $"Unable to find the time zone '{tz.Id}' among existing system time zones.", ex );
+                    infos = infos.Append( ("TimeZone/Id/Custom", tz.Id) );
+                }
+                if( TimeZoneInfo.TryConvertWindowsIdToIanaId( tz.Id, out string? ianaId ) )
+                {
+                    infos = infos.Append( ("TimeZone/Id", ianaId) );
+                }
+                else
+                {
+                    monitor.Warn( $"No IANA time zone found for the identifier '{tz.Id}'." );
+                }
+            }
+        }
+
+        internal void LocalUninitialize( bool isDefaultGrandOutput )
+        {
+            if( isDefaultGrandOutput )
+            {
+                AppDomain.CurrentDomain.AssemblyLoad -= OnAssemblyLoad;
+            }
+        }
+
+        void OnAssemblyLoad( object? sender, AssemblyLoadEventArgs args ) => Add( GetAssemblyInfos( args.LoadedAssembly ) );
+
+        IEnumerable<(string Key, string Value)> GetAssemblyInfos( Assembly assembly )
+        {
+            var name = assembly.GetName();
+            var info = (AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute( assembly, typeof( AssemblyInformationalVersionAttribute ) );
+            string prefix = $"Assembly/{name.Name}/";
+            string vInfo = info?.InformationalVersion
+                           ?? name.Version?.ToString()
+                           ?? "(none)";
+            string metaPrefix = prefix + "Meta/";
+            var metas = Attribute.GetCustomAttributes( assembly, typeof( AssemblyMetadataAttribute ) );
+            return metas.Cast<AssemblyMetadataAttribute>().Select( m => (metaPrefix + m.Key, m.Value ?? "") ).Prepend( (prefix + "V", vInfo) );
+        }
+
         /// <summary>
         /// Adds a single identity information.
         /// <para>
@@ -96,18 +193,20 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="key">The identity key. Must not be null, empty or white space or contain any line delimiter.</param>
         /// <param name="value">The identity information. Must not be null, empty or white space.</param>
-        /// <returns>The new <see cref="Identities"/> if the value has been added, or null if it was already present.</returns>
-        public IReadOnlyDictionary<string, IReadOnlyCollection<string>>? Add( string key, string value )
+        /// <returns>The event that <see cref="OnChanged"/> has raised or null if nothing changed.</returns>
+        public IdentiCardChangedEvent? Add( string key, string value )
         {
-            IReadOnlyDictionary<string, IReadOnlyCollection<string>>? result = null;
+            IdentiCardChangedEvent? result = null;
             lock( _card )
             {
                 if( !DoAdd( key, value ) ) return result;
                 var copy = new Dictionary<string, string[]>( _card );
-                _exposed = result = copy.AsIReadOnlyDictionary<string, string[], IReadOnlyCollection<string>>();
+                var r = copy.AsIReadOnlyDictionary<string, string[], IReadOnlyCollection<string>>();
+                result = new IdentiCardChangedEvent( this, new[] { (key, value) }, r );
+                _exposed = r;
                 _toString = null;
             }
-            _onChange?.Invoke( new IdentiCardChangedEvent( this, new[] { (key, value) }, result ) );
+            _onChange?.Invoke( result );
             return result;
         }
 
@@ -116,18 +215,18 @@ namespace CK.Monitoring
         /// in key and value strings.
         /// </summary>
         /// <param name="info">Multiple identity informations.</param>
-        /// <returns>The key value pairs actually added and the modified identities: resp. empty an null if no modification occurred.</returns>
-        public (IReadOnlyList<(string Key, string Value)> Added, IReadOnlyDictionary<string, IReadOnlyCollection<string>>? Changed) Add( params (string Key, string Value)[] info )
+        /// <returns>The event that <see cref="OnChanged"/> has raised or null if nothing changed.</returns>
+        public IdentiCardChangedEvent? Add( IEnumerable<(string Key, string Value)> info )
         {
-            IReadOnlyDictionary<string, IReadOnlyCollection<string>>? newOne = null;
-            List<(string, string)>? applied = null;
-            bool atLeastOne = false;
-            bool atLeastNotOne = false;
+            IdentiCardChangedEvent? result = null;
             lock( _card )
             {
-                for( int i = 0; i < info.Length; ++i )
+                List<(string, string)>? applied = null;
+                bool atLeastOne = false;
+                bool atLeastNotOne = false;
+                int i = 0;
+                foreach( var kv in info )
                 {
-                    ref var kv = ref info[i];
                     if( !DoAdd( kv.Key, kv.Value ) )
                     {
                         if( atLeastOne && applied == null )
@@ -142,23 +241,34 @@ namespace CK.Monitoring
                         if( applied != null ) applied.Add( kv );
                         atLeastOne = true;
                     }
+                    ++i;
                 }
                 if( atLeastOne )
                 {
                     var copy = new Dictionary<string, string[]>( _card );
-                    _exposed = newOne = copy.AsIReadOnlyDictionary<string, string[], IReadOnlyCollection<string>>();
+                    var r = copy.AsIReadOnlyDictionary<string, string[], IReadOnlyCollection<string>>();
+                    IReadOnlyList<(string Key, string Value)>? added = applied
+                                                                       ?? info as IReadOnlyList<(string Key, string Value)>
+                                                                       ?? info.ToArray();
+                    _exposed = r;
                     _toString = null;
+                    result = new IdentiCardChangedEvent( this, added, r );
                 }
             }
-            if( atLeastOne )
+            if( result != null )
             {
-                Debug.Assert( newOne != null );
-                var r = (IReadOnlyList<(string Key, string Value)>?)applied ?? info;
-                _onChange?.Invoke( new IdentiCardChangedEvent( this, r, newOne ) );
-                return (r, newOne);
+                _onChange?.Invoke( result );
             }
-            return (Array.Empty<(string, string)>(), null);
+            return result;
         }
+
+        /// <summary>
+        /// Adds multiple identity information at once. See <see cref="Add(string, string)"/> for allowed characters
+        /// in key and value strings.
+        /// </summary>
+        /// <param name="info">Multiple identity informations.</param>
+        /// <returns>The event that <see cref="OnChanged"/> has raised or null if nothing changed.</returns>
+        public IdentiCardChangedEvent? Add( params (string Key, string Value)[] info ) => Add( (IEnumerable<(string Key, string Value)>)info );
 
         bool DoAdd( string key, string value )
         {
