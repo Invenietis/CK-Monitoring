@@ -3,8 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.Loader;
 using System.Threading;
 
 namespace CK.Monitoring
@@ -20,7 +18,9 @@ namespace CK.Monitoring
     /// that the CR, LF, CRLF, NEL, LS, FF, and PS sequences are considered newline functions.
     /// </para>
     /// <para>
-    /// This identity card has been designed to be used independently of the GrandOuput: each GrandOuput has its own identity card.
+    /// This identity card has been designed to be used independently of the GrandOuput: each GrandOuput has its own identity card
+    /// but this can be used by log receivers to update the identity from <see cref="Tags.IdentityCardFull"/> and <see cref="Tags.IdentityCardUpdate"/>
+    /// log entries.
     /// </para>
     /// <para>
     /// Thread safe change tracking can be done "on the outside" thanks to the returned values of the <see cref="Add(ValueTuple{string, string}[])"/>
@@ -35,13 +35,19 @@ namespace CK.Monitoring
     /// See https://devblogs.microsoft.com/dotnet/date-time-and-time-zone-enhancements-in-net-6/ to understand windows and IANA time zones.
     /// </para>
     /// </summary>
-    public sealed class IdentityCard
+    public sealed partial class IdentityCard
     {
         // We use the _card dictionary instance as the lock.
         readonly Dictionary<string, string[]> _card;
         Action<IdentiCardChangedEvent>? _onChange;
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> _exposed;
         string? _toString;
+        readonly CancellationTokenSource _hasApplicationIdentity;
+
+        /// <summary>
+        /// The current version of the identity card.
+        /// </summary>
+        public const int CurrentVersion = 1;
 
         /// <summary>
         /// Holds tags related to identity tags.
@@ -49,16 +55,28 @@ namespace CK.Monitoring
         public static class Tags
         {
             /// <summary>
-            /// Gets the tag that identify an <see cref="IdentityCard"/> snapshot.
+            /// Gets the tag that identify an <see cref="IdentityCardFull"/> snapshot.
             /// The log text is the identity's packed <see cref="ToString()"/>.
             /// </summary>
-            public static readonly CKTrait IdentityCard = ActivityMonitor.Tags.Context.FindOrCreate( nameof( IdentityCard ) );
+            /// <remarks>
+            /// Current implementation uses string packing to exchange identity card.
+            /// One day, it should use a more efficient (binary representation). To handle this new
+            /// representation, This tag should be deprecated, internalized, and a simple "IdentityCard"
+            /// should replace it.
+            /// </remarks>
+            public static readonly CKTrait IdentityCardFull = ActivityMonitor.Tags.Context.FindOrCreate( nameof( IdentityCardFull ) );
 
             /// <summary>
-            /// Gets the tag that identify an addition to an <see cref="IdentityCard"/>.
+            /// Gets the tag that identify an addition to an <see cref="IdentityCardFull"/>.
             /// The log text is the added key/value pairs packed with <see cref="Pack(IReadOnlyList{ValueTuple{string, string}})"/>.
             /// </summary>
-            public static readonly CKTrait IdentityCardAdd = ActivityMonitor.Tags.Context.FindOrCreate( nameof( IdentityCardAdd ) );
+            /// <remarks>
+            /// Current implementation uses string packing to exchange identity card updates.
+            /// One day, it should use a more efficient (binary representation). To handle this new
+            /// representation, This tag should be deprecated, internalized, and "IdentityCardAdd"
+            /// should replace it.
+            /// </remarks>
+            public static readonly CKTrait IdentityCardUpdate = ActivityMonitor.Tags.Context.FindOrCreate( nameof( IdentityCardUpdate ) );
         }
 
         /// <summary>
@@ -73,6 +91,7 @@ namespace CK.Monitoring
         {
             _card = card;
             _exposed = card.AsIReadOnlyDictionary<string, string[], IReadOnlyCollection<string>>();
+            _hasApplicationIdentity = new CancellationTokenSource();
         }
 
         /// <summary>
@@ -90,95 +109,19 @@ namespace CK.Monitoring
         /// </summary>
         public IReadOnlyDictionary<string, IReadOnlyCollection<string>> Identities => _exposed;
 
-        internal void LocalInitialize( IActivityMonitor monitor, bool isDefaultGrandOutput )
+        /// <summary>
+        /// Gets whether these Identities contain the "AppIdentity" key.
+        /// </summary>
+        public bool HasApplicationIdentity => _hasApplicationIdentity.IsCancellationRequested;
+
+        /// <summary>
+        /// Registers a call back that will be called once "AppIdentity" is available
+        /// or immediately if it is already in the Identities.
+        /// </summary>
+        /// <param name="action"></param>
+        public void OnApplicationIdentityAvailable( Action<IdentityCard> action )
         {
-            //static (string Key, string Value)[] GetGoreInfos()
-            //{
-            //    var id = CoreApplicationIdentity.DomainName;
-            //    if( CoreApplicationIdentity.EnvironmentName.Length > 0 ) id += '/' + CoreApplicationIdentity.EnvironmentName;
-            //    id += '/' + CoreApplicationIdentity.PartyName;
-            //    return new[] { ("AppIdentity", id),
-            //                   ("AppIdentity/InstanceId", CoreApplicationIdentity.InstanceId),
-            //                   ("AppIdentity/ContextIdentifier", CoreApplicationIdentity.ContextIdentifier) };
-            //}
-
-            IEnumerable<(string Key, string Value)> infos = Enumerable.Empty<(string Key, string Value)>();
-
-            //// If the Core identity is ready, do it now.
-            //if( CoreApplicationIdentity.IsInitialized )
-            //{
-            //    infos = infos.Concat( GetCoreInfos() );
-            //}
-            //else
-            //{
-            //    CoreApplicationIdentity.OnIntialized += () => Add( GetCoreInfos() );
-            //}
-            //if( isDefaultGrandOutput )
-            //{
-            //    AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoad;
-            //    foreach( var a in AppDomain.CurrentDomain.GetAssemblies() )
-            //    {
-            //        infos = infos.Concat( GetAssemblyInfos( a ) );
-            //    }
-            //}
-            var tz = TimeZoneInfo.Local;
-            infos = infos.Append( ("TimeZone", tz.ToSerializedString()) );
-            if( tz.HasIanaId )
-            {
-                infos = infos.Append( ("TimeZone/Id", tz.Id) );
-                if( TimeZoneInfo.TryConvertIanaIdToWindowsId( tz.Id, out string? winId ) )
-                {
-                    infos = infos.Append( ("TimeZone/Id/Windows", winId) );
-                }
-                else
-                {
-                    monitor.Warn( $"No Windows time zone found for the IANA identifier '{tz.Id}'." );
-                }
-            }
-            else
-            {
-                try
-                {
-                    TimeZoneInfo.FindSystemTimeZoneById( tz.Id );
-                    infos = infos.Append( ("TimeZone/Id/Windows", tz.Id) );
-                }
-                catch( Exception ex )
-                {
-                    monitor.Warn( $"Unable to find the time zone '{tz.Id}' among existing system time zones.", ex );
-                    infos = infos.Append( ("TimeZone/Id/Custom", tz.Id) );
-                }
-                if( TimeZoneInfo.TryConvertWindowsIdToIanaId( tz.Id, out string? ianaId ) )
-                {
-                    infos = infos.Append( ("TimeZone/Id", ianaId) );
-                }
-                else
-                {
-                    monitor.Warn( $"No IANA time zone found for the identifier '{tz.Id}'." );
-                }
-            }
-        }
-
-        internal void LocalUninitialize( bool isDefaultGrandOutput )
-        {
-            if( isDefaultGrandOutput )
-            {
-                AppDomain.CurrentDomain.AssemblyLoad -= OnAssemblyLoad;
-            }
-        }
-
-        void OnAssemblyLoad( object? sender, AssemblyLoadEventArgs args ) => Add( GetAssemblyInfos( args.LoadedAssembly ) );
-
-        IEnumerable<(string Key, string Value)> GetAssemblyInfos( Assembly assembly )
-        {
-            var name = assembly.GetName();
-            var info = (AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute( assembly, typeof( AssemblyInformationalVersionAttribute ) );
-            string prefix = $"Assembly/{name.Name}/";
-            string vInfo = info?.InformationalVersion
-                           ?? name.Version?.ToString()
-                           ?? "(none)";
-            string metaPrefix = prefix + "Meta/";
-            var metas = Attribute.GetCustomAttributes( assembly, typeof( AssemblyMetadataAttribute ) );
-            return metas.Cast<AssemblyMetadataAttribute>().Select( m => (metaPrefix + m.Key, m.Value ?? "") ).Prepend( (prefix + "V", vInfo) );
+            _hasApplicationIdentity.Token.UnsafeRegister( _ => action( this ), null );
         }
 
         /// <summary>
@@ -192,20 +135,23 @@ namespace CK.Monitoring
         /// </para>
         /// </summary>
         /// <param name="key">The identity key. Must not be null, empty or white space or contain any line delimiter.</param>
-        /// <param name="value">The identity information. Must not be null, empty or white space.</param>
+        /// <param name="value">The identity information. Must not be empty.</param>
         /// <returns>The event that <see cref="OnChanged"/> has raised or null if nothing changed.</returns>
         public IdentiCardChangedEvent? Add( string key, string value )
         {
             IdentiCardChangedEvent? result = null;
+            AddOneResult a;
             lock( _card )
             {
-                if( !DoAdd( key, value ) ) return result;
+                a = DoAdd( key, value );
+                if( a == AddOneResult.None ) return result;
                 var copy = new Dictionary<string, string[]>( _card );
                 var r = copy.AsIReadOnlyDictionary<string, string[], IReadOnlyCollection<string>>();
                 result = new IdentiCardChangedEvent( this, new[] { (key, value) }, r );
                 _exposed = r;
                 _toString = null;
             }
+            if( a == AddOneResult.AddedAppIdentity ) _hasApplicationIdentity.Cancel();
             _onChange?.Invoke( result );
             return result;
         }
@@ -216,9 +162,21 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="info">Multiple identity informations.</param>
         /// <returns>The event that <see cref="OnChanged"/> has raised or null if nothing changed.</returns>
-        public IdentiCardChangedEvent? Add( IEnumerable<(string Key, string Value)> info )
+        public IdentiCardChangedEvent? Add( IEnumerable<(string Key, string Value)> info ) => Add( info, true );
+
+        /// <summary>
+        /// Merges another identity card with this one.
+        /// </summary>
+        /// <param name="other">The other identity card.</param>
+        /// <returns>The event that <see cref="OnChanged"/> has raised or null if nothing changed.</returns>
+        public IdentiCardChangedEvent? Add( IdentityCard other ) => Add( other.Identities.SelectMany( kv => kv.Value.Select( v => (kv.Key, v)) ), false );
+
+        enum AddOneResult { None, Added, AddedAppIdentity };
+
+        IdentiCardChangedEvent? Add( IEnumerable<(string Key, string Value)> info, bool checkKeyValues )
         {
             IdentiCardChangedEvent? result = null;
+            bool addedAppIdentity = false;
             lock( _card )
             {
                 List<(string, string)>? applied = null;
@@ -227,7 +185,10 @@ namespace CK.Monitoring
                 int i = 0;
                 foreach( var kv in info )
                 {
-                    if( !DoAdd( kv.Key, kv.Value ) )
+                    var a = checkKeyValues
+                            ? DoAdd( kv.Key, kv.Value )
+                            : DoAddWithoutChecks( _card, kv.Key, kv.Value );
+                    if( a == AddOneResult.None )
                     {
                         if( atLeastOne && applied == null )
                         {
@@ -240,6 +201,7 @@ namespace CK.Monitoring
                         if( atLeastNotOne && applied == null ) applied = new List<(string, string)>();
                         if( applied != null ) applied.Add( kv );
                         atLeastOne = true;
+                        addedAppIdentity |= a == AddOneResult.AddedAppIdentity;
                     }
                     ++i;
                 }
@@ -257,6 +219,7 @@ namespace CK.Monitoring
             }
             if( result != null )
             {
+                if( addedAppIdentity ) _hasApplicationIdentity.Cancel();
                 _onChange?.Invoke( result );
             }
             return result;
@@ -270,7 +233,7 @@ namespace CK.Monitoring
         /// <returns>The event that <see cref="OnChanged"/> has raised or null if nothing changed.</returns>
         public IdentiCardChangedEvent? Add( params (string Key, string Value)[] info ) => Add( (IEnumerable<(string Key, string Value)>)info );
 
-        bool DoAdd( string key, string value )
+        AddOneResult DoAdd( string key, string value )
         {
             Debug.Assert( Monitor.IsEntered( _card ) );
             Throw.CheckNotNullOrEmptyArgument( key );
@@ -280,14 +243,14 @@ namespace CK.Monitoring
                                   key.AsSpan().IndexOfAny( "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008" ) < 0 );
             Throw.CheckArgument( "First 8 characters (NUl, SOH, STX, ETX, EOT, ENQ, ACK, BEL, BSP) cannot appear.",
                                   value.AsSpan().IndexOfAny( "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008" ) < 0 );
-            return DoAdd( _card, key, value );
+            return DoAddWithoutChecks( _card, key, value );
         }
 
-        static bool DoAdd( Dictionary<string, string[]> card, string key, string value )
+        static AddOneResult DoAddWithoutChecks( Dictionary<string, string[]> card, string key, string value )
         {
             if( card.TryGetValue( key, out var exist ) )
             {
-                if( exist.Contains( value ) ) return false;
+                if( exist.Contains( value ) ) return AddOneResult.None;
                 Array.Resize( ref exist, exist.Length + 1 );
                 exist[^1] = value;
                 card[key] = exist;
@@ -295,8 +258,9 @@ namespace CK.Monitoring
             else
             {
                 card.Add( key, new[] { value } );
+                if( key == "AppIdentity" ) return AddOneResult.AddedAppIdentity;
             }
-            return true;
+            return AddOneResult.Added;
         }
 
         /// <summary>
@@ -464,7 +428,7 @@ namespace CK.Monitoring
                 if( idx < 0 ) break;
                 more:
                 char next = s[idx];
-                DoAdd( card, key, s.Slice( 0, idx ).ToString() );
+                DoAddWithoutChecks( card, key, s.Slice( 0, idx ).ToString() );
                 s = s.Slice( idx + 1 );
                 idx = s.IndexOfAny( '\u0001', '\u0002' );
                 if( idx == 0 ) return null;
@@ -474,7 +438,7 @@ namespace CK.Monitoring
             }
             if( idx < 0 )
             {
-                DoAdd( card, key, s.ToString() );
+                DoAddWithoutChecks( card, key, s.ToString() );
                 return card;
             }
             return null;
