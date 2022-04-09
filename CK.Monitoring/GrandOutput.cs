@@ -4,6 +4,7 @@ using System.Threading;
 using CK.Core;
 using System.Reflection;
 using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CK.Monitoring
 {
@@ -130,7 +131,7 @@ namespace CK.Monitoring
         /// assembly and namespace as their configuration objects and named the 
         /// same without the "Configuration" suffix.
         /// </summary>
-        public static Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler { get; set; } = config =>
+        public static Func<IHandlerConfiguration, IServiceProvider, IGrandOutputHandler> CreateHandler { get; set; } = (config,sp) =>
             {
                 var t = config.GetType();
                 var name = t.FullName;
@@ -139,7 +140,7 @@ namespace CK.Monitoring
                 name = t.AssemblyQualifiedName.Replace( "Configuration,", "," );
                 t = Type.GetType( name, throwOnError: true );
                 Debug.Assert( t != null );
-                return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } )!;
+                return (IGrandOutputHandler)ActivatorUtilities.CreateInstance( sp, t, config );
             };
 
         static GrandOutput()

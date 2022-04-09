@@ -78,8 +78,8 @@ namespace CK.Monitoring
 
         async Task ProcessAsync()
         {
-            // We emit the identity card changed from this monitor.
             var monitor = new ActivityMonitor( applyAutoConfigurations: false );
+            // We emit the identity card changed from this monitor so we need its id.
             _sinkMonitorId = monitor.UniqueId;
             // Simple pooling for initial configuration.
             // Starting with the delay avoids a Task.Run() is the constructor.
@@ -100,7 +100,7 @@ namespace CK.Monitoring
             // First register to the OnChange to avoid missing an update...
             _identityCard.OnChanged += IdentityCardOnChanged;
             // ...then sends the current content of the identity card.
-            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCard, _identityCard.ToString(), null );
+            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardFull, _identityCard.ToString(), null );
             // Configures the next timer due date.
             long now = DateTime.UtcNow.Ticks;
             _nextTicks = now + _timerDuration.Ticks;
@@ -174,10 +174,10 @@ namespace CK.Monitoring
             monitor.MonitorEnd();
         }
 
-        void IdentityCardOnChanged( IdentiCardChangedEvent obj )
+        void IdentityCardOnChanged( IdentiCardChangedEvent change )
         {
             Debug.Assert( _sinkMonitorId != null );
-            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardAdd, _identityCard.ToString(), null, _sinkMonitorId );
+            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
         }
 
         void OnAwaker( object? state ) => _queue.Writer.TryWrite( null );
@@ -218,27 +218,39 @@ namespace CK.Monitoring
                 }
             }
             // Deactivate and get rid of remaining handlers.
-            foreach( var h in _handlers )
+            if( _handlers.Count > 0 )
             {
-                await SafeActivateOrDeactivateAsync( monitor, h, false );
+                foreach( var h in _handlers )
+                {
+                    await SafeActivateOrDeactivateAsync( monitor, h, false );
+                }
             }
             _handlers.Clear();
             // Restores reconfigured handlers.
             _handlers.AddRange( toKeep );
             // Creates and activates new handlers.
-            foreach( var conf in c.Handlers )
+            // Rather than handling a special case for the IdentityCard, we use
+            // a service provider to be able to extend the services one day.
+            if( c.Handlers.Count > 0 )
             {
-                try
+                using( var container = new SimpleServiceContainer() )
                 {
-                    var h = GrandOutput.CreateHandler( conf );
-                    if( await SafeActivateOrDeactivateAsync( monitor, h, true ) )
+                    container.Add( _identityCard );
+                    foreach( var conf in c.Handlers )
                     {
-                        _handlers.Add( h );
+                        try
+                        {
+                            var h = GrandOutput.CreateHandler( conf, container );
+                            if( await SafeActivateOrDeactivateAsync( monitor, h, true ) )
+                            {
+                                _handlers.Add( h );
+                            }
+                        }
+                        catch( Exception ex )
+                        {
+                            monitor.Fatal( $"While creating handler for {conf.GetType()}.", ex );
+                        }
                     }
-                }
-                catch( Exception ex )
-                {
-                    monitor.Fatal( $"While creating handler for {conf.GetType()}.", ex );
                 }
             }
             if( _isDefaultGrandOutput )
