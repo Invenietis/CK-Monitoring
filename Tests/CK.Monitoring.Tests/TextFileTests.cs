@@ -297,13 +297,10 @@ namespace CK.Monitoring.Tests
             using( GrandOutput g = new GrandOutput( config ) )
             {
                 // Wait for next flush (500 ms)
-                Thread.Sleep( 600 );
+                Thread.Sleep( 1000 );
             }
 
             File.Exists( finalLogFile ).Should().BeFalse( "Inactive log file was deleted" );
-
-            // TEST DELETION BY FILE SIZE
-
         }
 
         [Test]
