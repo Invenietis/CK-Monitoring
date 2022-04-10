@@ -48,27 +48,27 @@ namespace CK.Monitoring.Tests
             TestHelper.PrepareLogFolder( "TerminationLost" );
         }
 
-        //[Explicit]
-        //[Test]
-        //public void Console_handler_demo()
-        //{
-        //    var a = new ActivityMonitor();
-        //    a.Output.RegisterClient( new ActivityMonitorConsoleClient() );
-        //    a.Info( "This is an ActivityMonitor Console demo." );
-        //    LogDemo( a );
-        //    var c = new GrandOutputConfiguration();
-        //    c.AddHandler( new Handlers.ConsoleConfiguration() );
-        //    c.AddHandler( new Handlers.TextFileConfiguration()
-        //    {
-        //        Path = "test"
-        //    } );
-        //    using( var g = new GrandOutput( c ) )
-        //    {
-        //        var m = CreateMonitorAndRegisterGrandOutput( "Hello Console!", g );
-        //        m.Info( "This is the same demo, but with the GrandOutputConsole." );
-        //        LogDemo( m );
-        //    }
-        //}
+        [Explicit]
+        [Test]
+        public void Console_handler_demo()
+        {
+            var a = new ActivityMonitor();
+            a.Output.RegisterClient( new ActivityMonitorConsoleClient() );
+            a.Info( "This is an ActivityMonitor Console demo." );
+            LogDemo( a );
+            var c = new GrandOutputConfiguration();
+            c.AddHandler( new Handlers.ConsoleConfiguration() );
+            c.AddHandler( new Handlers.TextFileConfiguration()
+            {
+                Path = "test"
+            } );
+            using( var g = new GrandOutput( c ) )
+            {
+                var m = CreateMonitorAndRegisterGrandOutput( "Hello Console!", g );
+                m.Info( "This is the same demo, but with the GrandOutputConsole." );
+                LogDemo( m );
+            }
+        }
 
         void LogDemo(IActivityMonitor m)
         {
