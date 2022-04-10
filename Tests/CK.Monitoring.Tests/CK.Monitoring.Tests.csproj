@@ -5,6 +5,22 @@
     <IsPackable>False</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Persistence\**" />
+    <EmbeddedResource Remove="Persistence\**" />
+    <None Remove="Persistence\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="AnonymousPipeIntraProcessTextTests.cs" />
+    <Compile Remove="CKMonWriterClientTests.cs" />
+    <Compile Remove="CriticalErrorsTests.cs" />
+    <Compile Remove="ExplicitTestManager.cs" />
+    <Compile Remove="GrandOutputDefaultTests.cs" />
+    <Compile Remove="GrandOutputReconfigurationTests.cs" />
+    <Compile Remove="IdentityCardTests.cs" />
+    <Compile Remove="SimplePipeIntraProcessTests.cs" />
+    <Compile Remove="TextFileTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\CK.Monitoring\CK.Monitoring.csproj" />
   </ItemGroup>
   <ItemGroup>

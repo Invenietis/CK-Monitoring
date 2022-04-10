@@ -48,27 +48,27 @@ namespace CK.Monitoring.Tests
             TestHelper.PrepareLogFolder( "TerminationLost" );
         }
 
-        [Explicit]
-        [Test]
-        public void Console_handler_demo()
-        {
-            var a = new ActivityMonitor();
-            a.Output.RegisterClient( new ActivityMonitorConsoleClient() );
-            a.Info( "This is an ActivityMonitor Console demo." );
-            LogDemo( a );
-            var c = new GrandOutputConfiguration();
-            c.AddHandler( new Handlers.ConsoleConfiguration() );
-            c.AddHandler( new Handlers.TextFileConfiguration()
-            {
-                Path = "test"
-            } );
-            using( var g = new GrandOutput( c ) )
-            {
-                var m = CreateMonitorAndRegisterGrandOutput( "Hello Console!", g );
-                m.Info( "This is the same demo, but with the GrandOutputConsole." );
-                LogDemo( m );
-            }
-        }
+        //[Explicit]
+        //[Test]
+        //public void Console_handler_demo()
+        //{
+        //    var a = new ActivityMonitor();
+        //    a.Output.RegisterClient( new ActivityMonitorConsoleClient() );
+        //    a.Info( "This is an ActivityMonitor Console demo." );
+        //    LogDemo( a );
+        //    var c = new GrandOutputConfiguration();
+        //    c.AddHandler( new Handlers.ConsoleConfiguration() );
+        //    c.AddHandler( new Handlers.TextFileConfiguration()
+        //    {
+        //        Path = "test"
+        //    } );
+        //    using( var g = new GrandOutput( c ) )
+        //    {
+        //        var m = CreateMonitorAndRegisterGrandOutput( "Hello Console!", g );
+        //        m.Info( "This is the same demo, but with the GrandOutputConsole." );
+        //        LogDemo( m );
+        //    }
+        //}
 
         void LogDemo(IActivityMonitor m)
         {
@@ -241,41 +241,41 @@ namespace CK.Monitoring.Tests
             public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan ) => ValueTask.CompletedTask;
         }
 
-        [Test]
-        public void ApplyConfiguration_can_wait()
-        {
-            var c100 = new GrandOutputConfiguration()
-                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 100 } );
-            var c0 = new GrandOutputConfiguration()
-                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 0 } );
-            SlowSinkHandler.ActivatedDelay = -1;
-            using( var g = new GrandOutput( c100 ) )
-            {
-                SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
-                // Without waiting, we must be able to find an apply that
-                // did not succeed in at least 11 tries.
-                int i;
-                for( i = 0; i <= 10; ++i )
-                {
-                    SlowSinkHandler.ActivatedDelay = -1;
-                    g.ApplyConfiguration( c0, waitForApplication: false );
-                    if( SlowSinkHandler.ActivatedDelay == -1 ) break;
-                }
-                i.Should().BeLessThan( 10 );
-                // ...Artificially adding multiple configurations with 0 delay and no wait
-                // to fill the "queue" of pending configurations.
-                for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c0, waitForApplication: false );
-                // With wait for application:
-                // ...Applying 100 is effective.
-                g.ApplyConfiguration( c100, waitForApplication: true );
-                SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
-                // ...Artificially adding multiple configurations with 100 delay.
-                for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );
-                // ...Applying 0 is effective.
-                g.ApplyConfiguration( c0, waitForApplication: true );
-                SlowSinkHandler.ActivatedDelay.Should().Be( 0 );
-            }
-        }
+        //[Test]
+        //public void ApplyConfiguration_can_wait()
+        //{
+        //    var c100 = new GrandOutputConfiguration()
+        //                    .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 100 } );
+        //    var c0 = new GrandOutputConfiguration()
+        //                    .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 0 } );
+        //    SlowSinkHandler.ActivatedDelay = -1;
+        //    using( var g = new GrandOutput( c100 ) )
+        //    {
+        //        SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
+        //        // Without waiting, we must be able to find an apply that
+        //        // did not succeed in at least 11 tries.
+        //        int i;
+        //        for( i = 0; i <= 10; ++i )
+        //        {
+        //            SlowSinkHandler.ActivatedDelay = -1;
+        //            g.ApplyConfiguration( c0, waitForApplication: false );
+        //            if( SlowSinkHandler.ActivatedDelay == -1 ) break;
+        //        }
+        //        i.Should().BeLessThan( 10 );
+        //        // ...Artificially adding multiple configurations with 0 delay and no wait
+        //        // to fill the "queue" of pending configurations.
+        //        for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c0, waitForApplication: false );
+        //        // With wait for application:
+        //        // ...Applying 100 is effective.
+        //        g.ApplyConfiguration( c100, waitForApplication: true );
+        //        SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
+        //        // ...Artificially adding multiple configurations with 100 delay.
+        //        for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );
+        //        // ...Applying 0 is effective.
+        //        g.ApplyConfiguration( c0, waitForApplication: true );
+        //        SlowSinkHandler.ActivatedDelay.Should().Be( 0 );
+        //    }
+        //}
 
         [Test]
         public void GrandOutput_signals_its_disposing_via_a_CancellationToken()
