@@ -25,7 +25,6 @@ namespace CK.Monitoring.Tests
         [TestCase( "Debug.Assert", false, Explicit = false )]
         public void Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener( string action, bool monitorTraceListenerFailFast )
         {
-            Assume.That( !monitorTraceListenerFailFast || ExplicitTestManager.IsExplicitAllowed, "Press Ctrl key to run this test." );
             NormalizedPath folder = LogFile.RootLogPath + nameof( Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener );
             Directory.CreateDirectory( folder );
             var textConf = new Handlers.TextFileConfiguration() { Path = nameof( Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener ) };
