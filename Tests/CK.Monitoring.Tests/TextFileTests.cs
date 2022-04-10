@@ -268,10 +268,13 @@ namespace CK.Monitoring.Tests
             textConf.MaximumTotalKbToKeep.Should().Be( 100_000, "Default HousekeepingRate configuration" );
 
             // Change configuration for tests
-            textConf.HousekeepingRate = 1; // Run every 500ms
+            textConf.HousekeepingRate = 1; // Run every 500ms normally (here TimerDuration is set to 100ms).
             textConf.MaximumTotalKbToKeep = 0; // Always delete file beyond max size
             textConf.MinimumTimeSpanToKeep = TimeSpan.FromSeconds( 3 ); // Delete files older than 3 seconds
             var config = new GrandOutputConfiguration().AddHandler( textConf );
+
+            // Changes the default 500 ms to trigger OnTimerAsync more often.
+            config.TimerDuration = TimeSpan.FromMilliseconds( 100 );
 
             // TEST DELETION BY DATE
 
@@ -281,13 +284,13 @@ namespace CK.Monitoring.Tests
                 g.EnsureGrandOutputClient( m );
                 Thread.Sleep( 5 );
                 m.Info( "Hello world" );
-                Thread.Sleep( 700 );
+                Thread.Sleep( 30 );
 
                 string tempFile = Directory.EnumerateFiles( folder ).Single();
                 File.Exists( tempFile ).Should().BeTrue( "Log file was created and exists" );
 
-                // Wait for next flush (500ms), and deletion threshold (3000ms)
-                Thread.Sleep( 4000 );
+                // Wait for next flush (~100ms), and deletion threshold (3000ms)
+                Thread.Sleep( 3200 );
 
                 File.Exists( tempFile ).Should().BeTrue( "Log file wasn't deleted yet - it's still active" );
             }
@@ -296,8 +299,8 @@ namespace CK.Monitoring.Tests
             // Open another GrandOutput to trigger housekeeping
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                // Wait for next flush (500 ms)
-                Thread.Sleep( 1000 );
+                // Wait for next flush (~100 ms)
+                Thread.Sleep( 200 );
             }
 
             File.Exists( finalLogFile ).Should().BeFalse( "Inactive log file was deleted" );
@@ -310,14 +313,15 @@ namespace CK.Monitoring.Tests
 
             var textConf = new Handlers.TextFileConfiguration() { Path = "AutoDelete_Size" };
             // Change configuration for tests
-            textConf.HousekeepingRate = 1; // Run every 500ms
+            textConf.HousekeepingRate = 1; // Run every 500ms normally (here TimerDuration is set to 100ms).
             textConf.MaximumTotalKbToKeep = 1; // Always delete file beyond max size
             textConf.MinimumTimeSpanToKeep = TimeSpan.Zero; // Make minimum timespan
             var config = new GrandOutputConfiguration().AddHandler( textConf );
 
             int lineLengthToLogToGet1000bytes = 500;
 
-            // TEST DELETION BY SIZE
+            // Changes the default 500 ms to trigger OnTimerAsync more often.
+            config.TimerDuration = TimeSpan.FromMilliseconds( 100 );
 
             // Create 3*1 KB log files
             for( int i = 0; i < 3; i++ )
@@ -342,8 +346,8 @@ namespace CK.Monitoring.Tests
             // Note: this DOES create a file!
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                // Wait for next flush (500 ms)
-                Thread.Sleep( 600 );
+                // Wait for next flush (~100 ms)
+                Thread.Sleep( 200 );
             }
             var files = Directory.GetFiles( folder ).Select( f => Path.GetFileName( f ) );
             files.Should().HaveCount( 2, $"Only 2 files should be kept - the last log file, and 1x~1KB file: {files.Concatenate()}" );
