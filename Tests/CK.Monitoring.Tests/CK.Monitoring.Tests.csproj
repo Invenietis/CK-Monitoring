@@ -5,11 +5,6 @@
     <IsPackable>False</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="AnonymousPipeIntraProcessTextTests.cs" />
-    <Compile Remove="CKMonWriterClientTests.cs" />
-    <Compile Remove="ExplicitTestManager.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\CK.Monitoring\CK.Monitoring.csproj" />
   </ItemGroup>
   <ItemGroup>
