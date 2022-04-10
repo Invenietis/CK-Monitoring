@@ -14,7 +14,6 @@
     <Compile Remove="CKMonWriterClientTests.cs" />
     <Compile Remove="CriticalErrorsTests.cs" />
     <Compile Remove="ExplicitTestManager.cs" />
-    <Compile Remove="GrandOutputReconfigurationTests.cs" />
     <Compile Remove="SimplePipeIntraProcessTests.cs" />
     <Compile Remove="TextFileTests.cs" />
   </ItemGroup>
