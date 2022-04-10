@@ -100,7 +100,7 @@ namespace CK.Monitoring.Tests.Persistence
             var files = TestHelper.WaitForCkmonFilesInDirectory( folder, 3 );
             for( int pageReadLength = 1; pageReadLength < 10; ++pageReadLength )
             {
-                MultiLogReader reader = new MultiLogReader();
+                using MultiLogReader reader = new MultiLogReader();
                 reader.Add( files );
                 var map = reader.GetActivityMap();
                 map.ValidFiles.All( rawFile => rawFile.IsValidFile ).Should().BeTrue( "All files are correctly closed with the final 0 byte and no exception occurred while reading them." );

@@ -19,7 +19,7 @@ namespace CK.Monitoring.Tests.Persistence
         {
             var folder = Path.Combine( TestHelper.SolutionFolder, "Tests", "CK.Monitoring.Tests", "Persistence", "PrevVersionsData", "v" + version );
             var files = Directory.GetFiles( folder, "*.ckmon", SearchOption.TopDirectoryOnly );
-            MultiLogReader reader = new MultiLogReader();
+            using MultiLogReader reader = new MultiLogReader();
             bool newIndex;
             for( int i = 0; i < files.Length; ++i )
             {

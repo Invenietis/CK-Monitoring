@@ -176,8 +176,13 @@ namespace CK.Monitoring
             /// <returns>A log reader that will read only entries from this monitor.</returns>
             public LogReader CreateFilteredReaderAndMoveTo( long streamOffset )
             {
-                var r = LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
-                r.MoveNext();
+                if( streamOffset == -1 ) streamOffset = FirstOffset;
+                var r = LogReader.Open( LogFile.FileName, streamOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                if( !r.MoveNext() )
+                {
+                    r.Dispose();
+                    Throw.InvalidDataException( $"Unable to read '{LogFile.FileName}' for monitor '{MonitorId}' from offset {streamOffset}.", r.ReadException );
+                }
                 return r;
             }
 
@@ -191,6 +196,11 @@ namespace CK.Monitoring
             {
                 var r = LogReader.Open( LogFile.FileName, FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
                 while( r.MoveNext() && r.Current.LogTime < logTime ) ;
+                if( r.ReadException != null || r.BadEndOfFileMarker )
+                {
+                    r.Dispose();
+                    Throw.InvalidDataException( $"Unable to read '{LogFile.FileName}' for monitor '{MonitorId}' from offset {LastOffset}.", r.ReadException );
+                }
                 return r;
             }
 

@@ -135,7 +135,7 @@ namespace CK.Monitoring.Tests
             gzipCkmonFile.Length.Should().BeLessThan( rawCkmonFile.Length );
 
             // Test de-duplication between Gzip and non-Gzip
-            MultiLogReader mlr = new MultiLogReader();
+            using MultiLogReader mlr = new MultiLogReader();
             var fileList = mlr.Add( new string[] { gzipCkmonFile.FullName, rawCkmonFile.FullName } );
             fileList.Should().HaveCount( 2 );
 

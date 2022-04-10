@@ -42,6 +42,7 @@ namespace CK.Monitoring
         Action<IdentiCardChangedEvent>? _onChange;
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> _exposed;
         string? _toString;
+        // We don't use timer nor ManualResetEvent. We can avoid Dispose call.
         readonly CancellationTokenSource _hasApplicationIdentity;
 
         /// <summary>
