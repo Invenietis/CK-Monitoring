@@ -15,7 +15,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets or sets the timer duration. This is used to enable housekeeping features such
         /// as cleaning up the weak references to the <see cref="GrandOutputClient"/> and calling
-        /// the <see cref="IGrandOutputHandler.OnTimer(IActivityMonitor, TimeSpan)"/>.
+        /// the <see cref="IGrandOutputHandler.OnTimerAsync(IActivityMonitor, TimeSpan)"/>.
         /// Defaults to 500 milliseconds.
         /// </summary>
         public TimeSpan? TimerDuration { get; set; } = null;

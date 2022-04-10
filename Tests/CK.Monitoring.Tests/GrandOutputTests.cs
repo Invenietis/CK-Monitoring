@@ -142,7 +142,7 @@ namespace CK.Monitoring.Tests
             var map = mlr.GetActivityMap();
 
             map.Monitors.Should().HaveCount( 4 );
-            // The DispatcherSink monitor define its Topic: CK.Monitoring.DispatcherSink
+            // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
             // Others do not have any topic.
             var notDispatcherSinkMonitors = map.Monitors.Where( m => !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) );
             notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );

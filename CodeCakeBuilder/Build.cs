@@ -1,6 +1,7 @@
 using Cake.Common.IO;
 using Cake.Core;
 using Cake.Core.Diagnostics;
+using System;
 
 namespace CodeCake
 {
@@ -17,6 +18,7 @@ namespace CodeCake
             Task( "Check-Repository" )
                 .Does( () =>
                 {
+                    Console.WriteLine( $"Environment.OSVersion: {Environment.OSVersion}" );
                     globalInfo.TerminateIfShouldStop();
                 } );
                 
