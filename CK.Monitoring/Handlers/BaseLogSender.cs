@@ -16,6 +16,7 @@ namespace CK.Monitoring.Handlers
         TConfiguration _config;
         readonly FIFOBuffer<IMulticastLogEntry> _buffer;
         ISender? _sender;
+        bool _firstSuccess;
 
         /// <summary>
         /// Implementation of the actual log sender created by the <see cref="CreateSenderAsync(IActivityMonitor)"/>
@@ -112,14 +113,11 @@ namespace CK.Monitoring.Handlers
         /// <param name="c">The new configuration.</param>
         protected void UpdateConfiguration( IActivityMonitor monitor, TConfiguration c )
         {
-            bool mustResize = _sender != null
-                                ? c.LostBufferSize != _config.LostBufferSize
-                                : c.InitialBufferSize != _config.InitialBufferSize;
-
-            if( mustResize )
+            int newC = _firstSuccess ? c.LostBufferSize : c.InitialBufferSize;
+            if( _buffer.Capacity != newC )
             {
-                monitor.Info( $"Resizing buffer from '{_config.InitialBufferSize}' to '{c.InitialBufferSize}'." );
-                _buffer.Capacity = _sender != null ? c.LostBufferSize : c.InitialBufferSize;
+                monitor.Info( $"Resizing buffer from '{_buffer.Capacity}' to '{newC}'." );
+                _buffer.Capacity = newC;
             }
             _config = c;
         }
@@ -146,19 +144,35 @@ namespace CK.Monitoring.Handlers
             }
             if( _sender != null )
             {
-                while( _buffer.Count > 0 )
+                if( _buffer.Count > 0 )
                 {
-                    if( !_sender.IsActuallyConnected || !await _sender.TrySendAsync( monitor, _buffer.Peek() ) )
+                    while( _buffer.Count > 0 )
                     {
-                        _buffer.Push( logEvent );
-                        return;
+                        if( !_sender.IsActuallyConnected || !await _sender.TrySendAsync( monitor, _buffer.Peek() ) )
+                        {
+                            _buffer.Push( logEvent );
+                            return;
+                        }
+                        _buffer.Pop();
                     }
-                    _buffer.Pop();
                 }
                 if( !_sender.IsActuallyConnected || !await _sender.TrySendAsync( monitor, logEvent ) )
                 {
                     _buffer.Push( logEvent );
                 }
+                else if( !_firstSuccess )
+                {
+                    _firstSuccess = true;
+                    if( _buffer.Capacity != _config.LostBufferSize )
+                    {
+                        monitor.Info( $"Successfully sent the first logs: resizing buffer from '{_buffer.Capacity}' to '{_config.LostBufferSize}'." );
+                        _buffer.Capacity = _config.LostBufferSize;
+                    }
+                }
+            }
+            else
+            {
+                _buffer.Push( logEvent );
             }
         }
 
