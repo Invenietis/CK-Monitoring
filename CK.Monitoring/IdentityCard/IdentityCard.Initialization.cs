@@ -18,7 +18,8 @@ namespace CK.Monitoring
                 id += '/' + coreId.PartyName;
                 return new[] { ("AppIdentity", id),
                                ("AppIdentity/InstanceId", CoreApplicationIdentity.InstanceId),
-                               ("AppIdentity/ContextIdentifier", coreId.ContextIdentifier) };
+                               ("AppIdentity/ContextualId", coreId.ContextualId),
+                               ("AppIdentity/ContextDescriptor", coreId.ContextDescriptor) };
             }
 
             bool appIdentityInitialized = CoreApplicationIdentity.IsInitialized;
