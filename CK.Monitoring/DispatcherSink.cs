@@ -24,7 +24,7 @@ namespace CK.Monitoring
         readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
         readonly CancellationTokenSource _stopTokenSource;
         readonly object _externalLogLock;
-        string? _sinkMonitorId;
+        readonly string _sinkMonitorId;
 
         GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
@@ -60,8 +60,15 @@ namespace CK.Monitoring
             _externalLogLastTime = DateTimeStamp.MinValue;
             _isDefaultGrandOutput = isDefaultGrandOutput;
             _newConf = Array.Empty<GrandOutputConfiguration>();
-            _task = ProcessAsync();
+            var monitor = new ActivityMonitor( applyAutoConfigurations: false );
+            // We emit the identity card changed from this monitor (so we need its id).
+            // But more importantly, this monitor identifier is the one of the GrandOutput: each log entry
+            // references this identifier.
+            _sinkMonitorId = monitor.UniqueId;
+            _task = ProcessAsync( monitor );
         }
+
+        public string SinkMonitorId => _sinkMonitorId;
 
         public TimeSpan TimerDuration
         {
@@ -76,11 +83,8 @@ namespace CK.Monitoring
             }
         }
 
-        async Task ProcessAsync()
+        async Task ProcessAsync( IActivityMonitor monitor )
         {
-            var monitor = new ActivityMonitor( applyAutoConfigurations: false );
-            // We emit the identity card changed from this monitor so we need its id.
-            _sinkMonitorId = monitor.UniqueId;
             // Simple pooling for initial configuration.
             // Starting with the delay avoids a Task.Run() is the constructor.
             GrandOutputConfiguration[] newConf = _newConf;
@@ -176,7 +180,6 @@ namespace CK.Monitoring
 
         void IdentityCardOnChanged( IdentiCardChangedEvent change )
         {
-            Debug.Assert( _sinkMonitorId != null );
             ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
         }
 

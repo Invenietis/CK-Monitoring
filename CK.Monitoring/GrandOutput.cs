@@ -216,6 +216,11 @@ namespace CK.Monitoring
         public IdentityCard IdentityCard => _identityCard;
 
         /// <summary>
+        /// Gets this GrandOutput identifier: this is the identifier of the dispatcher sink monitor.
+        /// </summary>
+        public string GrandOutpuId => _sink.SinkMonitorId;
+
+        /// <summary>
         /// Gets or directly sets the filter level for ExternalLog methods (without using the <see cref="GrandOutputConfiguration.ExternalLogLevelFilter"/> configuration).
         /// Defaults to <see cref="LogLevelFilter.None"/> (<see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see>
         /// is used).
