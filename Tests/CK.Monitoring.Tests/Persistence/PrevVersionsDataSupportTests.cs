@@ -37,8 +37,6 @@ namespace CK.Monitoring.Tests.Persistence
                 allLevels.Should().NotContain( LogLevel.Debug )
                             .And.Contain( new[] { LogLevel.Trace, LogLevel.Info, LogLevel.Warn, LogLevel.Error, LogLevel.Fatal } );
             }
-            // The GrandOuputId appeared in v9.
-            allEntries.OfType<IMulticastLogEntry>().Should().AllSatisfy( e => e.GrandOutputId.Should().Be( GrandOutput.UnknownGrandOutputId ) );
         }
     }
 }
