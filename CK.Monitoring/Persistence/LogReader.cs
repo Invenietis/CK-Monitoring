@@ -28,8 +28,9 @@ namespace CK.Monitoring
         /// The first released version is 5.
         /// Version 7 supports the LogLevel.Debug level.
         /// Version 8 uses a string as the monitor UniqueId instead of a Guid.
+        /// Version 9 introduces the <see cref="IMulticastLogInfo.GrandOutputId"/>.
         /// </summary>
-        public const int CurrentStreamVersion = 8;
+        public const int CurrentStreamVersion = 9;
 
         /// <summary>
         /// The file header for .ckmon files starting from CurrentStreamVersion = 5.

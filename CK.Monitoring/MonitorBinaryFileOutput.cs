@@ -65,7 +65,7 @@ namespace CK.Monitoring
         {
             BeforeWriteEntry();
             Debug.Assert( _writer != null );
-            LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, false, data.Level, data.LogTime, data.Text, data.Tags, data.ExceptionData, data.FileName, data.LineNumber );
+            LogEntry.WriteLog( _writer, adapter.GrandOutputId, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, false, data.Level, data.LogTime, data.Text, data.Tags, data.ExceptionData, data.FileName, data.LineNumber );
             AfterWriteEntry();
         }
 
@@ -78,7 +78,7 @@ namespace CK.Monitoring
         {
             BeforeWriteEntry();
             Debug.Assert( _writer != null );
-            LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, true, g.Data.Level, g.Data.LogTime, g.Data.Text, g.Data.Tags, g.Data.ExceptionData, g.Data.FileName, g.Data.LineNumber );
+            LogEntry.WriteLog( _writer, adapter.GrandOutputId, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, true, g.Data.Level, g.Data.LogTime, g.Data.Text, g.Data.Tags, g.Data.ExceptionData, g.Data.FileName, g.Data.LineNumber );
             AfterWriteEntry();
         }
 
@@ -92,7 +92,7 @@ namespace CK.Monitoring
         {
             BeforeWriteEntry();
             Debug.Assert( _writer != null );
-            LogEntry.WriteCloseGroup( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.Data.Level, g.CloseLogTime, conclusions );
+            LogEntry.WriteCloseGroup( _writer, adapter.GrandOutputId, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.Data.Level, g.CloseLogTime, conclusions );
             AfterWriteEntry();
         }
 

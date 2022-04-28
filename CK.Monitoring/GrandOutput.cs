@@ -37,6 +37,11 @@ namespace CK.Monitoring
         public const string ExternalLogMonitorUniqueId = "§ext";
 
         /// <summary>
+        /// The default grand output identifier.
+        /// </summary>
+        public const string UnknownGrandOutputId = "§none";
+
+        /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
         /// Note that <see cref="EnsureActiveDefault"/> must have been called, otherwise this static property is null
         /// and that this Default can be <see cref="Dispose()"/> at any time (this static property will be set back to null).

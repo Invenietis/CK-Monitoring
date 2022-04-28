@@ -13,4 +13,8 @@
     <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.1.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Logs\CKMonWriterClient\" />
+    <Folder Include="Logs\MissingEntries\" />
+  </ItemGroup>
 </Project>

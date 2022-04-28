@@ -65,7 +65,7 @@ namespace CK.Monitoring
         {
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
-            IMulticastLogEntry e = LogEntry.CreateMulticastLog( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, data.Text, data.LogTime, data.Level, data.FileName, data.LineNumber, data.Tags, data.ExceptionData );
+            IMulticastLogEntry e = LogEntry.CreateMulticastLog( _central.GrandOutpuId, _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, data.Text, data.LogTime, data.Level, data.FileName, data.LineNumber, data.Tags, data.ExceptionData );
             _central.Sink.Handle( e );
             _prevlogTime = data.LogTime;
             _prevLogType = LogEntryType.Line;
@@ -75,7 +75,7 @@ namespace CK.Monitoring
         {
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
-            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.Data.Text, group.Data.LogTime, group.Data.Level, group.Data.FileName, group.Data.LineNumber, group.Data.Tags, group.Data.ExceptionData );
+            IMulticastLogEntry e = LogEntry.CreateMulticastOpenGroup( _central.GrandOutpuId, _monitorSource.UniqueId, _prevLogType, _prevlogTime, _currentGroupDepth, group.Data.Text, group.Data.LogTime, group.Data.Level, group.Data.FileName, group.Data.LineNumber, group.Data.Tags, group.Data.ExceptionData );
             _central.Sink.Handle( e );
             ++_currentGroupDepth;
             _prevlogTime = group.Data.LogTime;
@@ -90,7 +90,8 @@ namespace CK.Monitoring
         {
             if( _central.IsDisposed ) return;
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
-            IMulticastLogEntry e = LogEntry.CreateMulticastCloseGroup( _monitorSource.UniqueId,
+            IMulticastLogEntry e = LogEntry.CreateMulticastCloseGroup( _central.GrandOutpuId,
+                                                                       _monitorSource.UniqueId,
                                                                        _prevLogType,
                                                                        _prevlogTime,
                                                                        _currentGroupDepth,

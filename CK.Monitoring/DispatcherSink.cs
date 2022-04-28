@@ -341,7 +341,8 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog( monitorId,
+            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
+                                                 monitorId,
                                                  LogEntryType.Line,
                                                  prevLogTime,
                                                  depth: 0,
@@ -364,7 +365,8 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog( GrandOutput.ExternalLogMonitorUniqueId,
+            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
+                                                 GrandOutput.ExternalLogMonitorUniqueId,
                                                  LogEntryType.Line,
                                                  prevLogTime,
                                                  depth: 0,

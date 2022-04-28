@@ -19,7 +19,7 @@ namespace CK.Monitoring.Tests.Persistence
 
             var prevLog = DateTimeStamp.UtcNow;
             ILogEntry e1 = LogEntry.CreateLog( "Text1", new DateTimeStamp( DateTime.UtcNow, 42 ), LogLevel.Info, "c:\\test.cs", 3712, ActivityMonitor.Tags.CreateDependentToken, exAgg );
-            ILogEntry e2 = LogEntry.CreateMulticastLog( "3712", LogEntryType.Line, prevLog, 5, "Text2", DateTimeStamp.UtcNow, LogLevel.Fatal, null, 3712, ActivityMonitor.Tags.CreateDependentToken, exAgg );
+            ILogEntry e2 = LogEntry.CreateMulticastLog( "GOId", "3712", LogEntryType.Line, prevLog, 5, "Text2", DateTimeStamp.UtcNow, LogLevel.Fatal, null, 3712, ActivityMonitor.Tags.CreateDependentToken, exAgg ); ;
 
             using( var mem = new MemoryStream() )
             using( var w = new CKBinaryWriter( mem ) )
@@ -47,6 +47,8 @@ namespace CK.Monitoring.Tests.Persistence
                     reader.Current.Exception.ToString().Should().Be( e1.Exception.ToString() );
 
                     reader.MoveNext().Should().BeTrue();
+                    reader.CurrentMulticast.GrandOutputId.Should().Be( "GOId" );
+                    reader.CurrentMulticast.MonitorId.Should().Be( "3712" );
                     reader.CurrentMulticast.PreviousEntryType.Should().Be( LogEntryType.Line );
                     reader.CurrentMulticast.PreviousLogTime.Should().Be( prevLog );
                     reader.Current.Text.Should().Be( e2.Text );

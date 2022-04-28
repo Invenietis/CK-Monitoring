@@ -7,11 +7,13 @@ namespace CK.Monitoring.Impl
     sealed class LEMCOpenGroup : LEOpenGroup, IMulticastLogEntry
     {
         readonly string _monitorId;
+        readonly string _grandOutputId;
         readonly int _depth;
         readonly DateTimeStamp _previousLogTime;
         readonly LogEntryType _previousEntryType;
 
-        public LEMCOpenGroup( string monitorId,
+        public LEMCOpenGroup( string grandOutputId,
+                              string monitorId,
                               int depth,
                               DateTimeStamp previousLogTime,
                               LogEntryType previousEntryType,
@@ -24,13 +26,16 @@ namespace CK.Monitoring.Impl
                               CKExceptionData? ex )
             : base( text, t, fileName, lineNumber, l, tags, ex )
         {
+            _grandOutputId = grandOutputId;
             _monitorId = monitorId;
             _depth = depth;
             _previousEntryType = previousEntryType;
             _previousLogTime = previousLogTime;
         }
 
-        public string MonitorId => _monitorId; 
+        public string GrandOutputId => _grandOutputId;
+
+        public string MonitorId => _monitorId;
 
         public int GroupDepth => _depth;
 
@@ -41,13 +46,23 @@ namespace CK.Monitoring.Impl
         public override void WriteLogEntry( CKBinaryWriter w )
         {
             Debug.Assert( Text != null, "Only LE(MC)CloseGroup has a null Text." );
-            LogEntry.WriteLog( w, _monitorId, _previousEntryType, _previousLogTime, _depth, true, LogLevel, LogTime, Text, Tags, Exception, FileName, LineNumber );
+            LogEntry.WriteLog( w,
+                               _grandOutputId,
+                               _monitorId,
+                               _previousEntryType,
+                               _previousLogTime,
+                               _depth,
+                               true,
+                               LogLevel,
+                               LogTime,
+                               Text,
+                               Tags,
+                               Exception,
+                               FileName,
+                               LineNumber );
         }
 
-        public ILogEntry CreateUnicastLogEntry()
-        {
-            return new LEOpenGroup( this );
-        }
+        public ILogEntry CreateUnicastLogEntry() => new LEOpenGroup( this );
 
     }
 }

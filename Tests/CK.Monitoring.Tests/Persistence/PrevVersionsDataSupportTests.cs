@@ -15,6 +15,7 @@ namespace CK.Monitoring.Tests.Persistence
         [TestCase( 5 )]
         [TestCase( 6 )]
         [TestCase( 7 )]
+        [TestCase( 8 )]
         public void reading_ckmon_files_in_previous_versions( int version )
         {
             var folder = Path.Combine( TestHelper.SolutionFolder, "Tests", "CK.Monitoring.Tests", "Persistence", "PrevVersionsData", "v" + version );
@@ -36,7 +37,8 @@ namespace CK.Monitoring.Tests.Persistence
                 allLevels.Should().NotContain( LogLevel.Debug )
                             .And.Contain( new[] { LogLevel.Trace, LogLevel.Info, LogLevel.Warn, LogLevel.Error, LogLevel.Fatal } );
             }
-
+            // The GrandOuputId appeared in v9.
+            allEntries.OfType<IMulticastLogEntry>().Should().AllSatisfy( e => e.GrandOutputId.Should().Be( GrandOutput.UnknownGrandOutputId ) );
         }
     }
 }
