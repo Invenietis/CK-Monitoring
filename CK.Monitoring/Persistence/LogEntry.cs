@@ -423,7 +423,7 @@ namespace CK.Monitoring
             {
                 gId = GrandOutput.UnknownGrandOutputId;
                 Debug.Assert( Guid.Empty.ToByteArray().Length == 16 );
-                mId = streamVersion < 8 ? new Guid( r.ReadBytes( 16 ) ).ToString( "B" ) : r.ReadString();
+                mId = streamVersion < 8 ? new Guid( r.ReadBytes( 16 ) ).ToString() : r.ReadString();
                 depth = streamVersion < 6 ? r.ReadInt32() : r.ReadNonNegativeSmallInt32();
                 if( streamVersion >= 8 )
                 {
