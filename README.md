@@ -26,8 +26,8 @@ we always use in practice the static `GrandOutput.Default` property.
 ### Creating a GrandOutput
 Most of the times, you will need only one GrandOutput.
 You can get one by:
-<details>
-<summary> Using the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Expand]</sub>
+<details open>
+<summary> Using the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Fold]</sub>
 </summary>
 
 <p><ul>The Generic Host is a great base for any app, this is what you will probably use most of the time.
@@ -64,7 +64,7 @@ This will configures the GrandOutput.Default and provides a scoped IActivityMoni
 <details>
 <summary>Manually by calling <span>
 `GrandOutput.EnsureActiveDefault()`
-</span> <sub>[Expand]</sub> </summary>
+</span> <sub>[Click to Expand]</sub> </summary>
 <p><ul>
 Simply call
 
@@ -85,8 +85,8 @@ Here are described all the differents logs handlers you can use:
 |Console|the console. |To read the program output when developing. Doesn't persist the logs.|log, date, exceptions, monitor ID, and loglevel.|
 
 Now, you can configure your GrandOutput:
-<details>
-<summary> with CK.Monitoring.Hosting and the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Expand]</sub></summary>
+<details open>
+<summary> with CK.Monitoring.Hosting and the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Fold]</sub></summary>
 <ul> 
  `UseMonitoring()` by default will use the config section name "Monitoring".
  By default, it will use the config present in the dependency injection, but you can pass a configuration section.
@@ -120,7 +120,7 @@ You can read a fully explained config files in the <a href="https://github.com/s
 </details>
 
 <details>
-<summary>Manually</a> <sub>[Expand]</sub></summary>
+<summary>Manually</a> <sub>[Click to Expand]</sub></summary>
 <ul>
   As we saw earlier, if you instantiate the GrandOutput yourself, you should call `EnsureActiveDefault()`.
   When `EnsureActiveDefault()` is called without configuration, the default configuration of the `GrandOutput.Default` is equivalent to:
