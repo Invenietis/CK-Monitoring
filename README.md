@@ -26,11 +26,9 @@ we always use in practice the static `GrandOutput.Default` property.
 ### Creating a GrandOutput
 Most of the times, you will need only one GrandOutput.
 You can get one by:
-<details open>
-<summary> Using the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Fold]</sub>
-</summary>
 
-<p><ul>The Generic Host is a great base for any app, this is what you will probably use most of the time.
+#### Using the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a>
+The Generic Host is a great base for any app, this is what you will probably use most of the time.
 You will need the CK.Monitoring.Hosting NuGet package.
 Now, you can add this line:
 
@@ -55,23 +53,16 @@ public class Program
 ```
 Place this line so it run before any ActivityMonitor is instancied.
 This will configures the GrandOutput.Default and provides a scoped IActivityMonitor to the DI.
+#### Manually by calling `GrandOutput.EnsureActiveDefault()` (Advanced)
+⚠ This is an advanced usage, skip this part if you want to configure your GrandOutput.  
 
-
-</li>
-</p>
-</details>
-
-<details>
-<summary>Manually by calling <span>
-`GrandOutput.EnsureActiveDefault()`
-</span> <sub>[Click to Expand]</sub> </summary>
-<p><ul>
 Simply call
 
 ```csharp
 GrandOutput.EnsureActiveDefault();
 ```
 before any ActivityMonitor is instancied.</ul></p></details>
+
 ### Configuring the GrandOutput
 The GrandOutput will output the logs in it's configured handlers.
 CK.Monitoring.Hosting allow you to configure the GrandOutput with a config file.
@@ -85,9 +76,8 @@ Here are described all the differents logs handlers you can use:
 |Console|the console. |To read the program output when developing. Doesn't persist the logs.|log, date, exceptions, monitor ID, and loglevel.|
 
 Now, you can configure your GrandOutput:
-<details open>
-<summary> with CK.Monitoring.Hosting and the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Fold]</sub></summary>
-<ul> 
+
+#### With CK.Monitoring.Hosting and the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a>
  `UseMonitoring()` by default will use the config section name "Monitoring".
  By default, it will use the config present in the dependency injection, but you can pass a configuration section.
  To add a configuration to your Host, follow the [Official Documentation](https://docs.microsoft.com/en-us/dotnet/core/extensions/configuration).
@@ -116,25 +106,23 @@ You can read a fully explained config files in the <a href="https://github.com/s
 > :information_source: <a href="https://github.com/signature-opensource/CK-Sample-Monitoring">CK-Sample-Monitoring</a> is a sample repository that shows how an application can be configured with CK.Monitoring.Hosting.
 
 
-</ul>
-</details>
 
-<details>
-<summary>Manually</a> <sub>[Click to Expand]</sub></summary>
-<ul>
-  As we saw earlier, if you instantiate the GrandOutput yourself, you should call `EnsureActiveDefault()`.
-  When `EnsureActiveDefault()` is called without configuration, the default configuration of the `GrandOutput.Default` is equivalent to:
-  ```csharp
-  new GrandOutputConfiguration().AddHandler(
-      new Handlers.TextFileConfiguration()
-      {
-        Path = "Text"
-      })
-  ```
+### Manually
+⚠ This is an advanced usage.  
 
-  You can parameterize where the root path of the log folders.
-  For this, set `LogFile.RootLogPath` that is initially null and can be set only once.
-  You should do that before calling `GrandOutput.EnsureActiveDefault()`:
+As we saw earlier, if you instantiate the GrandOutput yourself, you should call `EnsureActiveDefault()`.
+When `EnsureActiveDefault()` is called without configuration, the default configuration of the `GrandOutput.Default` is equivalent to:
+```csharp
+new GrandOutputConfiguration().AddHandler(
+    new Handlers.TextFileConfiguration()
+    {
+      Path = "Text"
+    })
+```
+
+You can parameterize where the root path of the log folders.
+For this, set `LogFile.RootLogPath` that is initially null and can be set only once.
+You should do that before calling `GrandOutput.EnsureActiveDefault()`:
 
 ```csharp
   // Sets the absolute root of the log folder. 
@@ -178,9 +166,9 @@ depends on the type of each handlers (for "file handlers" for instance, the Path
 
 
 ### Implementing a GrandOutput client
-<details>
-<summary>The IGrandOutputHandler <sub>[Expand]</sub></summary>
-<ul>
+⚠ This is an advanced usage.
+
+#### The IGrandOutputHandler
 
 The `IGrandOutputHandler` that all handlers implement is a very simple interface:
 ```csharp
@@ -233,12 +221,7 @@ The `IGrandOutputHandler` that all handlers implement is a very simple interface
         void Deactivate( IActivityMonitor m );
     }
 ```
-</ul>
-</details>
-<details>
-<summary>And the IHandlerConfiguration<sub>[Expand]</sub>
-</summary>
-<ul>
+#### And the IHandlerConfiguration
 Handler configurations must fulfill this even simpler contract:
 
 ```csharp
@@ -254,8 +237,5 @@ Handler configurations must fulfill this even simpler contract:
         IHandlerConfiguration Clone();
     }
 ```
-
-</ul>
-</details>
 
 [![Build history](https://buildstats.info/appveyor/chart/Signature-OpenSource/ck-monitoring?buildCount=100)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring)
