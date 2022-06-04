@@ -1,15 +1,12 @@
 using CK.Core;
-using CK.Monitoring.Handlers;
 using CK.MQTT;
 using CK.MQTT.Client;
 using CK.MQTT.LowLevelClient.PublishPackets;
-using CK.MQTT.Packets;
 using Microsoft.IO;
-using System.IO.Pipelines;
-using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 
-namespace CK.Monitoring.MQTT
+namespace CK.Monitoring.Handlers.MQTT
 {
     public sealed class MQTT : BaseLogSender<MQTTConfiguration>
     {
