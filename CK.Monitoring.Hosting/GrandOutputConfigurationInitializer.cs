@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -39,13 +40,13 @@ namespace CK.Monitoring.Hosting
             }
         }
 
-        GrandOutput _target;
-        GrandOutputLoggerAdapterProvider _loggerProvider;
-        IConfigurationSection _section;
-        IDisposable _changeToken;
+        GrandOutput? _target;
+        GrandOutputLoggerAdapterProvider? _loggerProvider;
+        IConfigurationSection? _section;
+        IDisposable? _changeToken;
         readonly bool _isDefaultGrandOutput;
 
-        public GrandOutputConfigurationInitializer( GrandOutput target )
+        public GrandOutputConfigurationInitializer( GrandOutput? target )
         {
             _isDefaultGrandOutput = (_target = target) == null;
             if( target != null ) _loggerProvider = new GrandOutputLoggerAdapterProvider( target );
@@ -59,9 +60,10 @@ namespace CK.Monitoring.Hosting
             } );
             builder.ConfigureServices( services =>
             {
+                Debug.Assert( _target != null );
                 services.AddHostedService( sp => new HostedService( _target ) );
-                services.TryAddScoped<ActivityMonitor>( _ => new ActivityMonitor() );
-                services.TryAddScoped<IActivityMonitor>( sp => sp.GetService<ActivityMonitor>() );
+                services.TryAddScoped( _ => new ActivityMonitor() );
+                services.TryAddScoped<IActivityMonitor>( sp => sp.GetRequiredService<ActivityMonitor>() );
             } );
         }
 
@@ -100,8 +102,10 @@ namespace CK.Monitoring.Hosting
             } );
         }
 
+        [MemberNotNull(nameof(_target),nameof(_loggerProvider))]
         void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
         {
+            Debug.Assert( _section != null );
             // It has been Obsolete (Warn) for a long time. Now we throw. 
             if( _section["HandleAspNetLogs"] != null )
             {
@@ -150,7 +154,11 @@ namespace CK.Monitoring.Hosting
                     _target = GrandOutput.EnsureActiveDefault( c );
                     _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
                 }
-                else _target.ApplyConfiguration( c, initialConfigMustWaitForApplication );
+                else
+                {
+                    Debug.Assert( _loggerProvider != null );
+                    _target.ApplyConfiguration( c, initialConfigMustWaitForApplication );
+                }
             }
             catch( Exception ex )
             {
@@ -164,6 +172,7 @@ namespace CK.Monitoring.Hosting
                 }
                 _target.ExternalLog( Core.LogLevel.Fatal, message: $"While applying dynamic configuration.", ex: ex );
             }
+            Debug.Assert( _loggerProvider != null );
             _loggerProvider._running = dotNetLogs;
 
             // Applying Tags.
@@ -207,6 +216,7 @@ namespace CK.Monitoring.Hosting
 
         LogFilter SetGlobalDefaultFilter( LogFilter defaultFilter )
         {
+            Debug.Assert( _target != null );
             if( defaultFilter.Group == LogLevelFilter.None || defaultFilter.Line == LogLevelFilter.None )
             {
                 _target.ExternalLog( Core.LogLevel.Error, message: $"Invalid GlobalDefaultFilter = '{defaultFilter}'. using default 'Trace'." );
@@ -239,7 +249,7 @@ namespace CK.Monitoring.Hosting
 
                     // Resolve configuration type using one of two available strings:
                     // 1. From "ConfigurationType" property, inside the value object
-                    Type resolved = null;
+                    Type? resolved = null;
                     string configTypeProperty = hConfig.GetValue( "ConfigurationType", string.Empty );
                     if( string.IsNullOrEmpty( configTypeProperty ) )
                     {
@@ -273,7 +283,7 @@ namespace CK.Monitoring.Hosting
                     if( ctorWithConfig != null ) config = ctorWithConfig.Invoke( new[] { hConfig } );
                     else
                     {
-                        config = Activator.CreateInstance( resolved );
+                        config = Activator.CreateInstance( resolved )!;
                         hConfig.Bind( config );
                     }
                     c.AddHandler( (IHandlerConfiguration)config );
@@ -287,14 +297,14 @@ namespace CK.Monitoring.Hosting
             return c;
         }
 
-        static Type TryResolveType( string name )
+        static Type? TryResolveType( string name )
         {
-            Type resolved;
-            if( name.IndexOf( ',' ) >= 0 )
+            Type? resolved;
+            if( name.Contains( ',' ) )
             {
                 // It must be an assembly qualified name.
                 // Weaken its name and try to load it.
-                // If it fails and the name does not end with "Configuration" tries it.
+                // If it fails and the name does not end with "Configuration" tries with "Configuration" suffix.
                 string fullTypeName, assemblyFullName, assemblyName, versionCultureAndPublicKeyToken;
                 if( SimpleTypeFinder.SplitAssemblyQualifiedName( name, out fullTypeName, out assemblyFullName )
                     && SimpleTypeFinder.SplitAssemblyFullName( assemblyFullName, out assemblyName, out versionCultureAndPublicKeyToken ) )
@@ -316,7 +326,7 @@ namespace CK.Monitoring.Hosting
                                 .SelectMany( a => a.GetTypes() )
                                 .Where( t => typeof( IHandlerConfiguration ).IsAssignableFrom( t ) )
                                 .ToList();
-            var nameWithC = !name.EndsWith( "Configuration" ) ? name + "Configuration" : null;
+            var nameWithC = name.EndsWith( "Configuration" ) ? null : name + "Configuration";
             if( name.IndexOf( '.' ) > 0 )
             {
                 // It is a FullName.
@@ -328,11 +338,18 @@ namespace CK.Monitoring.Hosting
                 // There is no dot in the name.
                 resolved = configTypes.FirstOrDefault( t => t.Name == name
                                                             || (nameWithC != null && t.Name == nameWithC) );
+                if( resolved == null )
+                {
+                    // Not found in currently loaded assemblies.
+                    if( nameWithC == null ) name = name.Substring( 0, name.Length - 13 );
+                    var t = SimpleTypeFinder.RawGetType( $"CK.Monitoring.Handlers.{name}Configuration, CK.Monitoring.{name}Handler", false );
+                    if( IsHandlerConfiguration( t ) ) resolved = t;
+                }
             }
             return resolved;
         }
 
-        static bool IsHandlerConfiguration( Type candidate ) => candidate != null && typeof( IHandlerConfiguration ).IsAssignableFrom( candidate );
+        static bool IsHandlerConfiguration( Type? candidate ) => candidate != null && typeof( IHandlerConfiguration ).IsAssignableFrom( candidate );
 
         static void OnConfigurationChanged( object obj )
         {
@@ -344,6 +361,7 @@ namespace CK.Monitoring.Hosting
 
         void RenewChangeToken()
         {
+            Debug.Assert( _changeToken != null && _section != null );
             // Disposes the previous change token.
             _changeToken.Dispose();
             // Reacquires the token: using this as the state keeps this object alive.

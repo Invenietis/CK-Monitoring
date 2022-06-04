@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using System;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -214,5 +217,39 @@ namespace CK.Monitoring.Hosting.Tests
             }
         }
 
+
+        [Test]
+        public async Task finding_MailAlerter_handler_by_conventions_Async()
+        {
+            // Define tag since this assembly doesn't depend on CK.Monitoring.MailAlerterHandler.
+            var sendMailTag = ActivityMonitor.Tags.Register( "SendMail" );
+            // Copy the assembly.
+            var runningDir = new NormalizedPath( AppContext.BaseDirectory );
+            var source = new NormalizedPath( AppContext.BaseDirectory.Replace( "CK.Monitoring.Hosting.Tests", "CK.Monitoring.MailAlerterHandler" ) )
+                                .AppendPart( "CK.Monitoring.MailAlerterHandler.dll" );
+            File.Copy( source, runningDir.AppendPart( "CK.Monitoring.MailAlerterHandler.dll" ), overwrite: true );
+
+            var config = new DynamicConfigurationSource();
+            config["CK-Monitoring:GrandOutput:Handlers:MailAlerter:Email"] = "test@test.com";
+            var host = new HostBuilder()
+                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
+                        .UseCKMonitoring()
+                        .ConfigureServices( services =>
+                        {
+                            var m = new ActivityMonitor();
+                            m.Info( sendMailTag, "Hello World!" );
+                        } )
+                        .Build();
+            await host.StartAsync();
+            await host.StopAsync();
+
+            // The assembly has been loaded.
+            var a = AppDomain.CurrentDomain.GetAssemblies().Single( a => a.GetName().Name == "CK.Monitoring.MailAlerterHandler" );
+            var t = a.GetType( "CK.Monitoring.Handlers.MailAlerter" );
+            Debug.Assert( t != null );
+            var sent = (string?)t.GetField( "LastMailSent", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static )!.GetValue( null );
+            sent.Should().Be( "Hello World!" );
+
+        }
     }
 }

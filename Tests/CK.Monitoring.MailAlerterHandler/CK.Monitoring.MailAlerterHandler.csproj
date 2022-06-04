@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <Description>Sample of an independent log handler implementation. Used in test (finding_MailAlerter_handler_by_conventions_Async).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\CK.Monitoring\CK.Monitoring.csproj" />
+  </ItemGroup>
+
+</Project>

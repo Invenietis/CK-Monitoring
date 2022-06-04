@@ -27,6 +27,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.Monitoring.Hosting", "CK
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.Monitoring.Hosting.Tests", "Tests\CK.Monitoring.Hosting.Tests\CK.Monitoring.Hosting.Tests.csproj", "{750F11FD-4571-4A05-8C45-1671CAE26495}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Monitoring.MailAlerterHandler", "Tests\CK.Monitoring.MailAlerterHandler\CK.Monitoring.MailAlerterHandler.csproj", "{B2111F60-B536-4F08-A184-C110432446D4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -53,6 +55,10 @@ Global
 		{750F11FD-4571-4A05-8C45-1671CAE26495}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{750F11FD-4571-4A05-8C45-1671CAE26495}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{750F11FD-4571-4A05-8C45-1671CAE26495}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2111F60-B536-4F08-A184-C110432446D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2111F60-B536-4F08-A184-C110432446D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2111F60-B536-4F08-A184-C110432446D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2111F60-B536-4F08-A184-C110432446D4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -60,6 +66,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{D9AC45A9-A7F9-4070-8AB4-50D76C688912} = {1E041F87-872B-43D0-B107-2D998F7AEE38}
 		{750F11FD-4571-4A05-8C45-1671CAE26495} = {1E041F87-872B-43D0-B107-2D998F7AEE38}
+		{B2111F60-B536-4F08-A184-C110432446D4} = {1E041F87-872B-43D0-B107-2D998F7AEE38}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0AA77C05-08ED-458A-A69D-43B7D4CD5324}
