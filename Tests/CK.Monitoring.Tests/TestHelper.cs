@@ -6,48 +6,11 @@ using System.Threading;
 using CK.Core;
 using NUnit.Framework;
 
-namespace CK.Monitoring.Tests
+namespace CK.Monitoring
 {
     static class TestHelper
     {
-
-        class ExplicitTestManager
-        {
-            enum KeyCode : int
-            {
-                Control = 0x11,
-                Shift = 0x10,
-            }
-
-            const int KeyPressedMask = 0x8000;
-
-            [System.Runtime.InteropServices.DllImport( "user32.dll" )]
-            static extern short GetKeyState( int key );
-
-            static bool _callFailed;
-            static bool IsKeyDown( KeyCode key ) => (GetKeyState( (int)key ) & KeyPressedMask) != 0;
-
-            public static bool IsExplicitAllowed
-            {
-                get
-                {
-                    if( !_callFailed )
-                    {
-                        try
-                        {
-                            return IsKeyDown( KeyCode.Control );
-                        }
-                        catch
-                        {
-                            _callFailed = true;
-                        }
-                    }
-                    return false;
-                }
-            }
-        }
-
-        static string _solutionFolder;
+        static NormalizedPath _solutionFolder;
 
         static readonly IActivityMonitor _monitor;
         static readonly ActivityMonitorConsoleClient _console;
@@ -72,16 +35,7 @@ namespace CK.Monitoring.Tests
             }
         }
 
-        public static string FileReadAllText( string path )
-        {
-            using( Stream s = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.SequentialScan ) )
-            using( StreamReader r = new StreamReader( s ) )
-            {
-                return r.ReadToEnd();
-            }
-        }
-
-        public static string SolutionFolder
+        public static NormalizedPath SolutionFolder
         {
             get
             {
@@ -100,6 +54,20 @@ namespace CK.Monitoring.Tests
                 return m;
             }, TestHelper.ConsoleMonitor );
             return logs;
+        }
+
+        /// <summary>
+        /// Uses FileShare.ReadWrite: this cannot be replaced by the simple File.ReadAllText method.
+        /// </summary>
+        /// <param name="path">Path to read.</param>
+        /// <returns>Text content.</returns>
+        public static string FileReadAllText( string path )
+        {
+            using( Stream s = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.SequentialScan ) )
+            using( StreamReader r = new StreamReader( s ) )
+            {
+                return r.ReadToEnd();
+            }
         }
 
         public static string[] WaitForCkmonFilesInDirectory( string directoryPath, int minFileCount )
@@ -189,7 +157,7 @@ namespace CK.Monitoring.Tests
 
         static public void InitalizePaths()
         {
-            if( _solutionFolder == null )
+            if( _solutionFolder.IsEmptyPath )
             {
                 NormalizedPath path = AppContext.BaseDirectory;
                 var s = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );

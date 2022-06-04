@@ -38,7 +38,7 @@ namespace CK.Monitoring.Hosting
         /// <returns></returns>
         public IDisposable BeginScope<TState>( TState state )
         {
-            if( _provider._running ) _output.ExternalLog( Core.LogLevel.Trace, message: state?.ToString() );
+            if( _provider._running ) _output.ExternalLog( Core.LogLevel.Trace, message: state?.ToString()! );
             return Core.Util.EmptyDisposable;
         }
 
@@ -71,7 +71,7 @@ namespace CK.Monitoring.Hosting
         /// <param name="state"></param>
         /// <param name="exception"></param>
         /// <param name="formatter"></param>
-        public void Log<TState>( LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter )
+        public void Log<TState>( LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter )
         {
             if( _provider._running )
             {

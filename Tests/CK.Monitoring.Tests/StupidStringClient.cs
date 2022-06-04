@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using CK.Core;
 
-namespace CK.Monitoring.Tests
+namespace CK.Monitoring
 {
     public class StupidStringClient : ActivityMonitorTextHelperClient
     {
