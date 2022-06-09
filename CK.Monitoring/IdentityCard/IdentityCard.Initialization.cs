@@ -25,14 +25,16 @@ namespace CK.Monitoring
             bool appIdentityInitialized = CoreApplicationIdentity.IsInitialized;
             try
             {
-                var infos = new List<(string, string)>( 64 );
+                var infos = new List<(string, string)>( 128 );
+                infos.Add( ("IdentityCardVersion", CurrentVersion.ToString()) );
                 // If the Core identity is ready, do it now.
                 if( appIdentityInitialized )
                 {
                     infos.AddRangeArray( GetAppIdentityInfos() );
                 }
 
-                // Following may more likely to throw (ok... not that much likely, but who knows).
+                AddEnvironment( infos );
+                AddTimeZone( monitor, infos );
                 // Track loaded assemblies versions only for the default GrandOutput.
                 if( isDefaultGrandOutput )
                 {
@@ -42,10 +44,6 @@ namespace CK.Monitoring
                         infos.AddRange( GetAssemblyInfos( a ) );
                     }
                 }
-                AddTimeZone( monitor, infos );
-                AddEnvironment( infos );
-
-                infos.Add( ("IdentityCardVersion", CurrentVersion.ToString()) );
 
                 Add( infos );
             }
@@ -83,16 +81,16 @@ namespace CK.Monitoring
             else if( OperatingSystem.IsWatchOS() ) infos.Add( ("OS", "WatchOS") );
         }
 
-        static IEnumerable<(string Key, string Value)> AddTimeZone( IActivityMonitor monitor, IEnumerable<(string Key, string Value)> infos )
+        static void AddTimeZone( IActivityMonitor monitor, List<(string Key, string Value)> infos )
         {
             var tz = TimeZoneInfo.Local;
-            infos = infos.Append( ("TimeZone", tz.ToSerializedString()) );
+            infos.Add( ("TimeZone", tz.ToSerializedString()) );
             if( tz.HasIanaId )
             {
-                infos = infos.Append( ("TimeZone/Id", tz.Id) );
+                infos.Add( ("TimeZone/Id", tz.Id) );
                 if( TimeZoneInfo.TryConvertIanaIdToWindowsId( tz.Id, out string? winId ) )
                 {
-                    infos = infos.Append( ("TimeZone/Id/Windows", winId) );
+                    infos.Add( ("TimeZone/Id/Windows", winId) );
                 }
                 else
                 {
@@ -104,23 +102,22 @@ namespace CK.Monitoring
                 try
                 {
                     TimeZoneInfo.FindSystemTimeZoneById( tz.Id );
-                    infos = infos.Append( ("TimeZone/Id/Windows", tz.Id) );
+                    infos.Add( ("TimeZone/Id/Windows", tz.Id) );
                 }
                 catch( Exception ex )
                 {
                     monitor.Warn( $"Unable to find the time zone '{tz.Id}' among existing system time zones.", ex );
-                    infos = infos.Append( ("TimeZone/Id/Custom", tz.Id) );
+                    infos.Add( ("TimeZone/Id/Custom", tz.Id) );
                 }
                 if( TimeZoneInfo.TryConvertWindowsIdToIanaId( tz.Id, out string? ianaId ) )
                 {
-                    infos = infos.Append( ("TimeZone/Id", ianaId) );
+                    infos.Add( ("TimeZone/Id", ianaId) );
                 }
                 else
                 {
                     monitor.Warn( $"No IANA time zone found for the identifier '{tz.Id}'." );
                 }
             }
-            return infos;
         }
 
         internal void LocalUninitialize( bool isDefaultGrandOutput )
