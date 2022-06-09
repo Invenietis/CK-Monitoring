@@ -135,12 +135,15 @@ namespace CK.Monitoring
             var name = assembly.GetName();
             var info = (AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute( assembly, typeof( AssemblyInformationalVersionAttribute ) );
             string prefix = $"Assembly/{name.Name}";
-            string metaPrefix = prefix + "/Meta/";
+
             var metas = Attribute.GetCustomAttributes( assembly, typeof( AssemblyMetadataAttribute ) ).Cast<AssemblyMetadataAttribute>();
+            // Skips any Serviceable assemblies (provided by Microsoft/.NetFoundation).
             if( metas.Any( m => m.Key == "Serviceable" ) ) return Enumerable.Empty<(string Key, string Value)>();
+
             string vInfo = info?.InformationalVersion
                            ?? name.Version?.ToString()
                            ?? "(null)";
+            string metaPrefix = prefix + "/Meta/";
             return metas.Cast<AssemblyMetadataAttribute>().Select( m => (metaPrefix + m.Key, m.Value ?? "(null)") )
                                                           .Prepend( (prefix, vInfo) );
         }
