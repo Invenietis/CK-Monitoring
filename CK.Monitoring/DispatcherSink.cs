@@ -356,7 +356,7 @@ namespace CK.Monitoring
             Handle( e );
         }
 
-        public void ExternalLog( ref ActivityMonitorLogData d )
+        public void ExternalOrStaticLog( ref ActivityMonitorLogData d )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;

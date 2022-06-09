@@ -71,12 +71,7 @@ namespace CK.Monitoring
         static string B64ConvertInt( int value )
         {
             //https://www.codeproject.com/Articles/27493/Convert-an-integer-to-a-base-64-string-and-back-ag
-            // length should be 3 only
-            char[] c = new char[3];
-            c[0] = _b64e[(value & 258048) >> 12];
-            c[1] = _b64e[(value & 4032) >> 06];
-            c[2] = _b64e[(value & 63)];
-            return new string( c );
+            return String.Create( 3, value, (s,v) => { s[0] = _b64e[(value & 258048) >> 12]; s[1] = _b64e[(value & 4032) >> 06]; s[2] = _b64e[(value & 63)]; } );
         }
 
         string GetFormattedDate( IMulticastLogEntry e )
@@ -223,7 +218,7 @@ namespace CK.Monitoring
                 Debug.Assert( logEntry.LogType != LogEntryType.CloseGroup );
                 if( logEntry.LogType == LogEntryType.OpenGroup ) _builder.Append( "> " );
                 _builder.Append( " [" ).Append( logEntry.Tags ).Append( "] " );
-                multiLinePrefix += "  ";
+                multiLinePrefix += "   ";
                 _builder.AppendMultiLine( multiLinePrefix, logEntry.Text, false );
                 if( logEntry.Exception != null )
                 {
@@ -239,20 +234,20 @@ namespace CK.Monitoring
                 {
                     if( logEntry.Conclusions.Count == 1 )
                     {
-                        _builder.AppendMultiLine( multiLinePrefix, logEntry.Conclusions.Single().Text, false );
+                        _builder.AppendMultiLine( multiLinePrefix + ' ', logEntry.Conclusions.Single().Text, false );
                     }
                     else
                     {
-                        _builder.Append( " | " ).Append( logEntry.Conclusions.Count ).Append( " conclusion" );
+                        _builder.Append( logEntry.Conclusions.Count ).Append( " conclusion" );
                         if( logEntry.Conclusions.Count > 1 ) _builder.Append( 's' );
                         _builder.Append( ':' ).AppendLine();
-                        multiLinePrefix += "   | ";
+                        multiLinePrefix += ' ';
                         bool first = true;
                         foreach( var c in logEntry.Conclusions )
                         {
                             if( !first ) _builder.AppendLine();
                             first = false;
-                            _builder.AppendMultiLine( multiLinePrefix, c.Text, true );
+                            _builder.AppendMultiLine( multiLinePrefix + ' ', c.Text, true );
                         }
                     }
 

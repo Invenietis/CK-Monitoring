@@ -97,7 +97,7 @@ namespace CK.Monitoring.Tests
             {
                 await Task.Run( () =>
                 {
-                    ActivityMonitor.ExternalLog.UnfilteredLog( LogLevel.Info, $"Async started from ActivityMonitor.ExternalLog.", null );
+                    ActivityMonitor.StaticLogger.Info( $"Async started from ActivityMonitor.StaticLogger." );
                     g.ExternalLog( LogLevel.Info, message: "Async started." );
                 } );
                 var m = new ActivityMonitor( false );
@@ -107,7 +107,7 @@ namespace CK.Monitoring.Tests
                 {
                     for( int i = 0; i < 10; ++i )
                     {
-                        ActivityMonitor.ExternalLog.UnfilteredLog( LogLevel.Info, $"Async n°{i} from ActivityMonitor.ExternalLog.", null );
+                        ActivityMonitor.StaticLogger.Info( $"Async n°{i} from ActivityMonitor.StaticLogger." );
                         g.ExternalLog( LogLevel.Info, $"Async n°{i}." );
                     }
                 } );
@@ -117,12 +117,12 @@ namespace CK.Monitoring.Tests
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             textLogged.Should()
                         .Contain( "Normal monitor starts." )
-                        .And.Contain( "Async started from ActivityMonitor.ExternalLog." )
+                        .And.Contain( "Async started from ActivityMonitor.StaticLogger." )
                         .And.Contain( "Async started." )
                         .And.Contain( "Async n°0." )
                         .And.Contain( "Async n°9." )
-                        .And.Contain( "Async n°0 from ActivityMonitor.ExternalLog." )
-                        .And.Contain( "Async n°9 from ActivityMonitor.ExternalLog." )
+                        .And.Contain( "Async n°0 from ActivityMonitor.StaticLogger." )
+                        .And.Contain( "Async n°9 from ActivityMonitor.StaticLogger." )
                         .And.Contain( "This is the end." );
         }
 
@@ -154,6 +154,8 @@ namespace CK.Monitoring.Tests
                         .Contain( $"{c} n°{i}." );
         }
 
+        static readonly CKTrait _myTag = ActivityMonitor.Tags.Register( nameof( external_logs_filtering ) );
+
         [Test]
         public void external_logs_filtering()
         {
@@ -176,6 +178,23 @@ namespace CK.Monitoring.Tests
                 g.ExternalLogLevelFilter = LogLevelFilter.None;
                 g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
                 g.ExternalLog( LogLevel.Trace, message: "SHOW 4" );
+
+                g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
+                g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeTrue();
+
+                ActivityMonitor.Tags.AddFilter( _myTag, new LogClamper( LogFilter.Verbose, true ) );
+
+                // Verbose allows Info, not Trace lines.
+                g.ExternalLog( LogLevel.Info, _myTag, message: "SHOW 5" );
+                g.ExternalLog( LogLevel.Trace, _myTag, message: "NOSHOW" );
+
+                g.IsExternalLogEnabled( LogLevel.Info, _myTag ).Should().BeTrue();
+                g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).Should().BeFalse();
+
+                ActivityMonitor.Tags.RemoveFilter( _myTag );
+
+                g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).Should().BeTrue();
+                g.ExternalLog( LogLevel.Trace, _myTag, message: "SHOW 6" );
             }
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             textLogged.Should()
@@ -184,6 +203,8 @@ namespace CK.Monitoring.Tests
                         .And.Contain( "SHOW 2" )
                         .And.Contain( "SHOW 3" )
                         .And.Contain( "SHOW 4" )
+                        .And.Contain( "SHOW 5" )
+                        .And.Contain( "SHOW 6" )
                         .And.NotContain( "NOSHOW" );
         }
 
