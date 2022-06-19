@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\Common\Shared.props" />
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -15,7 +14,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\CK.Monitoring.Hosting\CK.Monitoring.Hosting.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <!--
     This only ensures that the MailAlerter is compiled. finding_MailAlerter_handler_by_conventions_Async test copies the dll.
@@ -25,5 +23,4 @@
     -->
     <ProjectReference Include="..\CK.Monitoring.MailAlerterHandler\CK.Monitoring.MailAlerterHandler.csproj" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
-
 </Project>
