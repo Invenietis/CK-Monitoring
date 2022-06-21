@@ -5,13 +5,12 @@ using System.Linq;
 using System.Threading;
 using CK.Core;
 using NUnit.Framework;
-using CK.Text;
 
-namespace CK.Monitoring.Tests
+namespace CK.Monitoring
 {
     static class TestHelper
     {
-        static string _solutionFolder;
+        static NormalizedPath _solutionFolder;
 
         static readonly IActivityMonitor _monitor;
         static readonly ActivityMonitorConsoleClient _console;
@@ -36,30 +35,12 @@ namespace CK.Monitoring.Tests
             }
         }
 
-        public static string FileReadAllText( string path )
-        {
-            using( Stream s = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.SequentialScan ) )
-            using( StreamReader r = new StreamReader( s ) )
-            {
-                return r.ReadToEnd();
-            }
-        }
-
-        public static string SolutionFolder
+        public static NormalizedPath SolutionFolder
         {
             get
             {
                 if( _solutionFolder == null ) InitalizePaths();
                 return _solutionFolder;
-            }
-        }
-
-        public static string CriticalErrorsFolder
-        {
-            get
-            {
-                if( _solutionFolder == null ) InitalizePaths();
-                return LogFile.RootLogPath + "CriticalErrors";
             }
         }
 
@@ -73,6 +54,20 @@ namespace CK.Monitoring.Tests
                 return m;
             }, TestHelper.ConsoleMonitor );
             return logs;
+        }
+
+        /// <summary>
+        /// Uses FileShare.ReadWrite: this cannot be replaced by the simple File.ReadAllText method.
+        /// </summary>
+        /// <param name="path">Path to read.</param>
+        /// <returns>Text content.</returns>
+        public static string FileReadAllText( string path )
+        {
+            using( Stream s = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.SequentialScan ) )
+            using( StreamReader r = new StreamReader( s ) )
+            {
+                return r.ReadToEnd();
+            }
         }
 
         public static string[] WaitForCkmonFilesInDirectory( string directoryPath, int minFileCount )
@@ -97,7 +92,7 @@ namespace CK.Monitoring.Tests
         public static void ReplayLogs( DirectoryInfo directory, bool recurse, Func<MultiLogReader.Monitor, ActivityMonitor> monitorProvider, IActivityMonitor m = null )
         {
             var reader = new MultiLogReader();
-            using( m != null ? m.OpenTrace( $"Reading files from '{directory.FullName}' {(recurse ? "(recursive)" : null)}." ) : null )
+            using( m?.OpenTrace( $"Reading files from '{directory.FullName}' {(recurse ? "(recursive)" : null)}." ) )
             {
                 var files = reader.Add( directory.EnumerateFiles( "*.ckmon", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly ).Select( f => f.FullName ) );
                 if( files.Count == 0 )
@@ -118,7 +113,7 @@ namespace CK.Monitoring.Tests
                         var replay = monitorProvider( mon );
                         if( replay == null )
                         {
-                            if( m != null ) m.Info( $"Skipping activity from '{mon.MonitorId}'." );
+                            m?.Info( $"Skipping activity from '{mon.MonitorId}'." );
                         }
                         else
                         {
@@ -162,7 +157,7 @@ namespace CK.Monitoring.Tests
 
         static public void InitalizePaths()
         {
-            if( _solutionFolder == null )
+            if( _solutionFolder.IsEmptyPath )
             {
                 NormalizedPath path = AppContext.BaseDirectory;
                 var s = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );
@@ -171,7 +166,6 @@ namespace CK.Monitoring.Tests
                 LogFile.RootLogPath = Path.Combine( _solutionFolder, "Tests", "CK.Monitoring.Tests", "Logs" );
                 ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {LogFile.RootLogPath}" );
             }
-            Assert.That( Directory.Exists( CriticalErrorsFolder ) );
         }
 
     }

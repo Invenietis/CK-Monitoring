@@ -37,8 +37,8 @@ namespace CK.Monitoring
         /// <param name="monitorId">Monitor identifier.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="useGzipCompression">True to gzip the file.</param>
-        public MonitorBinaryFileOutput( string configuredPath, Guid monitorId, int maxCountPerFile, bool useGzipCompression )
-            : base( configuredPath, '-' + monitorId.ToString( "B" ) + ".ckmon", maxCountPerFile, useGzipCompression )
+        public MonitorBinaryFileOutput( string configuredPath, string monitorId, int maxCountPerFile, bool useGzipCompression )
+            : base( configuredPath, '-' + monitorId + ".ckmon", maxCountPerFile, useGzipCompression )
         {
         }
 
@@ -65,7 +65,7 @@ namespace CK.Monitoring
         {
             BeforeWriteEntry();
             Debug.Assert( _writer != null );
-            LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, false, data.Level, data.LogTime, data.Text, data.Tags, data.ExceptionData, data.FileName, data.LineNumber );
+            LogEntry.WriteLog( _writer, adapter.GrandOutputId, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, false, data.Level, data.LogTime, data.Text, data.Tags, data.ExceptionData, data.FileName, data.LineNumber );
             AfterWriteEntry();
         }
 
@@ -78,7 +78,7 @@ namespace CK.Monitoring
         {
             BeforeWriteEntry();
             Debug.Assert( _writer != null );
-            LogEntry.WriteLog( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, true, g.GroupLevel, g.LogTime, g.GroupText, g.GroupTags, g.ExceptionData, g.FileName, g.LineNumber );
+            LogEntry.WriteLog( _writer, adapter.GrandOutputId, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, true, g.Data.Level, g.Data.LogTime, g.Data.Text, g.Data.Tags, g.Data.ExceptionData, g.Data.FileName, g.Data.LineNumber );
             AfterWriteEntry();
         }
 
@@ -92,7 +92,7 @@ namespace CK.Monitoring
         {
             BeforeWriteEntry();
             Debug.Assert( _writer != null );
-            LogEntry.WriteCloseGroup( _writer, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.GroupLevel, g.CloseLogTime, conclusions );
+            LogEntry.WriteCloseGroup( _writer, adapter.GrandOutputId, adapter.MonitorId, adapter.PreviousEntryType, adapter.PreviousLogTime, adapter.GroupDepth, g.Data.Level, g.CloseLogTime, conclusions );
             AfterWriteEntry();
         }
 

@@ -5,15 +5,18 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring
 {
     internal class DispatcherSink : IGrandOutputSink
     {
-        readonly BlockingCollection<GrandOutputEventInfo> _queue;
+        readonly Channel<IMulticastLogEntry?> _queue;
+
         readonly Task _task;
         readonly List<IGrandOutputHandler> _handlers;
+        readonly IdentityCard _identityCard;
         readonly long _deltaExternalTicks;
         readonly Action _externalOnTimer;
         readonly object _confTrigger;
@@ -21,46 +24,51 @@ namespace CK.Monitoring
         readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
         readonly CancellationTokenSource _stopTokenSource;
         readonly object _externalLogLock;
-        DateTimeStamp _externalLogLastTime;
+        readonly string _sinkMonitorId;
 
-        GrandOutputConfiguration[]? _newConf;
+        GrandOutputConfiguration[] _newConf;
         TimeSpan _timerDuration;
         long _deltaTicks;
         long _nextTicks;
         long _nextExternalTicks;
         int _configurationCount;
-        volatile int _stopFlag;
+        DateTimeStamp _externalLogLastTime;
         volatile bool _forceClose;
         readonly bool _isDefaultGrandOutput;
+        bool _unhandledExceptionTracking;
 
-        public DispatcherSink(
-            Action<IActivityMonitor> initialRegister,
-            TimeSpan timerDuration,
-            TimeSpan externalTimerDuration,
-            Action externalTimer,
-            Action<LogFilter?,LogLevelFilter?> filterChange,
-            bool isDefaultGrandOutput )
+        public DispatcherSink( Action<IActivityMonitor> initialRegister,
+                               IdentityCard identityCard,
+                               TimeSpan timerDuration,
+                               TimeSpan externalTimerDuration,
+                               Action externalTimer,
+                               Action<LogFilter?, LogLevelFilter?> filterChange,
+                               bool isDefaultGrandOutput )
         {
             _initialRegister = initialRegister;
-            _queue = new BlockingCollection<GrandOutputEventInfo>();
+            _identityCard = identityCard;
+            _queue = Channel.CreateUnbounded<IMulticastLogEntry?>( new UnboundedChannelOptions() { SingleReader = true } );
             _handlers = new List<IGrandOutputHandler>();
-            _task = new Task( Process, TaskCreationOptions.LongRunning );
             _confTrigger = new object();
             _stopTokenSource = new CancellationTokenSource();
             _timerDuration = timerDuration;
             _deltaTicks = timerDuration.Ticks;
             _deltaExternalTicks = externalTimerDuration.Ticks;
             _externalOnTimer = externalTimer;
-            long now = DateTime.UtcNow.Ticks;
-            _nextTicks = now + timerDuration.Ticks;
-            _nextExternalTicks = now + externalTimerDuration.Ticks;
             _filterChange = filterChange;
             _externalLogLock = new object();
             _externalLogLastTime = DateTimeStamp.MinValue;
             _isDefaultGrandOutput = isDefaultGrandOutput;
-
-            _task.Start();
+            _newConf = Array.Empty<GrandOutputConfiguration>();
+            var monitor = new ActivityMonitor( applyAutoConfigurations: false );
+            // We emit the identity card changed from this monitor (so we need its id).
+            // But more importantly, this monitor identifier is the one of the GrandOutput: each log entry
+            // references this identifier.
+            _sinkMonitorId = monitor.UniqueId;
+            _task = ProcessAsync( monitor );
         }
+
+        public string SinkMonitorId => _sinkMonitorId;
 
         public TimeSpan TimerDuration
         {
@@ -75,70 +83,84 @@ namespace CK.Monitoring
             }
         }
 
-        void Process()
+        async Task ProcessAsync( IActivityMonitor monitor )
         {
-            var monitor = new ActivityMonitor( applyAutoConfigurations: false );
             // Simple pooling for initial configuration.
-            GrandOutputConfiguration[]? newConf = _newConf;
-            while( newConf == null )
+            // Starting with the delay avoids a Task.Run() is the constructor.
+            GrandOutputConfiguration[] newConf = _newConf;
+            do
             {
-                Thread.Sleep( 0 );
+                await Task.Delay( 5 );
                 newConf = _newConf;
             }
+            while( newConf.Length == 0 );
+            // The initial configuration is available. Registers our loop monitor
+            // and applies the configuration.
             _initialRegister( monitor );
             monitor.SetTopic( "CK.Monitoring.DispatcherSink" );
-            DoConfigure( monitor, newConf );
-            while( !_queue.IsCompleted && !_forceClose )
+            await DoConfigureAsync( monitor, newConf );
+            // Initialize the identity card.
+            _identityCard.LocalInitialize( monitor, _isDefaultGrandOutput );
+            // First register to the OnChange to avoid missing an update...
+            _identityCard.OnChanged += IdentityCardOnChanged;
+            // ...then sends the current content of the identity card.
+            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardFull, _identityCard.ToString(), null );
+            // Configures the next timer due date.
+            long now = DateTime.UtcNow.Ticks;
+            _nextTicks = now + _timerDuration.Ticks;
+            _nextExternalTicks = now + _timerDuration.Ticks;
+            // Creates and launch the "awaker". This avoids any CancellationToken.
+            Timer awaker = new Timer( _ => _queue.Writer.TryWrite( null ), null, 100, 100 );
+            while( !_forceClose && await _queue.Reader.WaitToReadAsync() )
             {
-                bool hasEvent = _queue.TryTake( out GrandOutputEventInfo e, millisecondsTimeout: 100 );
+                _queue.Reader.TryRead( out var e );
                 newConf = _newConf;
                 Debug.Assert( newConf != null, "Except at the start, this is never null." );
-                if( newConf.Length > 0 ) DoConfigure( monitor, newConf );
+                if( newConf.Length > 0 ) await DoConfigureAsync( monitor, newConf );
                 List<IGrandOutputHandler>? faulty = null;
                 #region Process event if any.
-                if( hasEvent )
+                if( e != null )
                 {
                     foreach( var h in _handlers )
                     {
                         try
                         {
-                            h.Handle( monitor, e );
+                            await h.HandleAsync( monitor, e );
                         }
                         catch( Exception ex )
                         {
-                            var msg = $"{h.GetType().FullName}.Handle() crashed.";
-                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                            monitor.SendLine( LogLevel.Fatal, msg, ex );
+                            monitor.Fatal( $"{h.GetType()}.Handle() crashed.", ex );
                             if( faulty == null ) faulty = new List<IGrandOutputHandler>();
                             faulty.Add( h );
                         }
                     }
                 }
                 #endregion
-                #region Process OnTimer
-                long now = DateTime.UtcNow.Ticks;
-                if( now >= _nextTicks )
+                #region Process OnTimer (if not closing)
+                if( !_stopTokenSource.IsCancellationRequested )
                 {
-                    foreach( var h in _handlers )
+                    now = DateTime.UtcNow.Ticks;
+                    if( now >= _nextTicks )
                     {
-                        try
+                        foreach( var h in _handlers )
                         {
-                            h.OnTimer( monitor, _timerDuration );
+                            try
+                            {
+                                await h.OnTimerAsync( monitor, _timerDuration );
+                            }
+                            catch( Exception ex )
+                            {
+                                monitor.Fatal( $"{h.GetType()}.OnTimer() crashed.", ex );
+                                if( faulty == null ) faulty = new List<IGrandOutputHandler>();
+                                faulty.Add( h );
+                            }
                         }
-                        catch( Exception ex )
+                        _nextTicks = now + _deltaTicks;
+                        if( now >= _nextExternalTicks )
                         {
-                            var msg = $"{h.GetType().FullName}.OnTimer() crashed.";
-                            ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                            monitor.SendLine( LogLevel.Fatal, msg, ex );
-                            if( faulty == null ) faulty = new List<IGrandOutputHandler>();
-                            faulty.Add( h );
+                            _externalOnTimer();
+                            _nextExternalTicks = now + _deltaExternalTicks;
                         }
-                    }
-                    _nextTicks = now + _deltaTicks;
-                    if( now >= _nextExternalTicks )
-                    {
-                        _externalOnTimer();
-                        _nextExternalTicks = now + _deltaExternalTicks;
                     }
                 }
                 #endregion
@@ -146,21 +168,30 @@ namespace CK.Monitoring
                 {
                     foreach( var h in faulty )
                     {
-                        SafeActivateOrDeactivate( monitor, h, false );
+                        await SafeActivateOrDeactivateAsync( monitor, h, false );
                         _handlers.Remove( h );
                     }
                 }
             }
-            foreach( var h in _handlers ) SafeActivateOrDeactivate( monitor, h, false );
+            await awaker.DisposeAsync();
+            foreach( var h in _handlers ) await SafeActivateOrDeactivateAsync( monitor, h, false );
             monitor.MonitorEnd();
         }
 
-        private void DoConfigure( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
+        void IdentityCardOnChanged( IdentiCardChangedEvent change )
+        {
+            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
+        }
+
+        void OnAwaker( object? state ) => _queue.Writer.TryWrite( null );
+
+        async ValueTask DoConfigureAsync( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
             Util.InterlockedSet( ref _newConf, t => t.Skip( newConf.Length ).ToArray() );
             var c = newConf[newConf.Length - 1];    
             _filterChange( c.MinimalFilter, c.ExternalLogLevelFilter );
             if( c.TimerDuration.HasValue ) TimerDuration = c.TimerDuration.Value;
+            SetUnhandledExceptionTracking( c.TrackUnhandledExceptions ?? _isDefaultGrandOutput );
             List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
             for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
             {
@@ -168,7 +199,7 @@ namespace CK.Monitoring
                 {
                     try
                     {
-                        if( _handlers[iHandler].ApplyConfiguration( monitor, c.Handlers[iConf] ) )
+                        if( await _handlers[iHandler].ApplyConfigurationAsync( monitor, c.Handlers[iConf] ) )
                         {
                             // Existing _handlers[iHandler] accepted the new c.Handlers[iConf].
                             c.Handlers.RemoveAt( iConf-- );
@@ -181,68 +212,72 @@ namespace CK.Monitoring
                     {
                         var h = _handlers[iHandler];
                         // Existing _handlers[iHandler] crashed with the proposed c.Handlers[iConf].
-                        var msg = $"Existing {h.GetType().FullName} crashed with the configuration {c.Handlers[iConf].GetType().FullName}.";
-                        ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                        monitor.SendLine( LogLevel.Fatal, msg, ex );
+                        monitor.Fatal( $"Existing {h.GetType()} crashed with the configuration {c.Handlers[iConf].GetType()}.", ex );
                         // Since the handler can be compromised, we skip it from any subsequent
                         // attempt to reconfigure it and deactivate it.
                         _handlers.RemoveAt( iHandler-- );
-                        SafeActivateOrDeactivate( monitor, h, false );
+                        await SafeActivateOrDeactivateAsync( monitor, h, false );
                     }
                 }
             }
             // Deactivate and get rid of remaining handlers.
-            foreach( var h in _handlers )
+            if( _handlers.Count > 0 )
             {
-                SafeActivateOrDeactivate( monitor, h, false );
+                foreach( var h in _handlers )
+                {
+                    await SafeActivateOrDeactivateAsync( monitor, h, false );
+                }
             }
             _handlers.Clear();
             // Restores reconfigured handlers.
             _handlers.AddRange( toKeep );
             // Creates and activates new handlers.
-            foreach( var conf in c.Handlers )
+            // Rather than handling a special case for the IdentityCard, we use
+            // a service provider to be able to extend the services one day.
+            if( c.Handlers.Count > 0 )
             {
-                try
+                using( var container = new SimpleServiceContainer() )
                 {
-                    var h = GrandOutput.CreateHandler( conf );
-                    if( SafeActivateOrDeactivate( monitor, h, true ) )
+                    container.Add( _identityCard );
+                    foreach( var conf in c.Handlers )
                     {
-                        _handlers.Add( h );
+                        try
+                        {
+                            var h = GrandOutput.CreateHandler( conf, container );
+                            if( await SafeActivateOrDeactivateAsync( monitor, h, true ) )
+                            {
+                                _handlers.Add( h );
+                            }
+                        }
+                        catch( Exception ex )
+                        {
+                            monitor.Fatal( $"While creating handler for {conf.GetType()}.", ex );
+                        }
                     }
-                }
-                catch( Exception ex )
-                {
-                    var msg = $"While creating handler for {conf.GetType().FullName}.";
-                    ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                    monitor.SendLine( LogLevel.Fatal, msg, ex );
                 }
             }
             if( _isDefaultGrandOutput )
             {
-                // No need to Dispose() this Process.
-                var thisProcess = System.Diagnostics.Process.GetCurrentProcess();
-                var msg = $"GrandOutput.Default configuration n°{_configurationCount++} for '{thisProcess.ProcessName}' (PID:{thisProcess.Id},AppDomainId:{AppDomain.CurrentDomain.Id}) on machine {Environment.MachineName}, UserName: '{Environment.UserName}', CommandLine: '{Environment.CommandLine}', BaseDirectory: '{AppContext.BaseDirectory}'.";
-                ExternalLog( Core.LogLevel.Info | Core.LogLevel.IsFiltered, msg, null, ActivityMonitor.Tags.Empty );
+                var msg = $"GrandOutput.Default configuration n°{_configurationCount++}.";
+                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitor.Tags.Empty, msg, null );
             }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
         }
 
-        bool SafeActivateOrDeactivate( IActivityMonitor monitor, IGrandOutputHandler h, bool activate )
+        async ValueTask<bool> SafeActivateOrDeactivateAsync( IActivityMonitor monitor, IGrandOutputHandler h, bool activate )
         {
             try
             {
-                if( activate ) return h.Activate( monitor );
-                else h.Deactivate( monitor );
+                if( activate ) return await h.ActivateAsync( monitor );
+                else await h.DeactivateAsync( monitor );
+                return true;
             }
             catch( Exception ex )
             {
-                var msg = $"Handler {h.GetType().FullName} crashed during {(activate?"activation":"de-activation")}.";
-                ActivityMonitor.CriticalErrorCollector.Add( ex, msg );
-                monitor.SendLine( LogLevel.Fatal, msg, ex );
+                monitor.Fatal( $"Handler {h.GetType()} crashed during {(activate ? "activation" : "de-activation")}.", ex );
                 return false;
             }
-            return true;
         }
 
         /// <summary>
@@ -259,10 +294,11 @@ namespace CK.Monitoring
         /// </returns>
         public bool Stop()
         {
-            if( Interlocked.Exchange( ref _stopFlag, 1 ) == 0 )
+            if( _queue.Writer.TryComplete() )
             {
+                _identityCard.LocalUninitialize( _isDefaultGrandOutput );
+                SetUnhandledExceptionTracking( false );
                 _stopTokenSource.Cancel();
-                _queue.CompleteAdding();
                 return true;
             }
             return false;
@@ -270,18 +306,16 @@ namespace CK.Monitoring
 
         public void Finalize( int millisecondsBeforeForceClose )
         {
+#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
             if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
             _task.Wait();
-            _queue.Dispose();
+#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
             _stopTokenSource.Dispose();
         }
 
-        public bool IsRunning => _stopFlag == 0;
+        public bool IsRunning => !_stopTokenSource.IsCancellationRequested;
 
-        public void Handle( GrandOutputEventInfo logEvent )
-        {
-            if( _stopFlag == 0 ) _queue.Add( logEvent );
-        }
+        public void Handle( IMulticastLogEntry logEvent ) => _queue.Writer.TryWrite( logEvent );
 
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
@@ -292,14 +326,13 @@ namespace CK.Monitoring
                 lock( _confTrigger )
                 {
                     GrandOutputConfiguration[] newConf;
-                    while( _stopFlag == 0 && (newConf = _newConf) != null && newConf.Contains( configuration ) )
+                    while( !_stopTokenSource.IsCancellationRequested && (newConf = _newConf) != null && newConf.Contains( configuration ) )
                         Monitor.Wait( _confTrigger );
                 }
             }
         }
 
-
-        public void ExternalLog( LogLevel level, string message, Exception? ex, CKTrait tags )
+        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex, string monitorId = GrandOutput.ExternalLogMonitorUniqueId )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -308,19 +341,83 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog(
-                        Guid.Empty,
-                        LogEntryType.Line,
-                        prevLogTime,
-                        depth: 0,
-                        text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
-                        t: logTime,
-                        level: level,
-                        fileName: null,
-                        lineNumber: 0,
-                        tags: tags,
-                        ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
-            Handle( new GrandOutputEventInfo( e, String.Empty ) );
+            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
+                                                 monitorId,
+                                                 LogEntryType.Line,
+                                                 prevLogTime,
+                                                 depth: 0,
+                                                 text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
+                                                 t: logTime,
+                                                 level: level,
+                                                 fileName: null,
+                                                 lineNumber: 0,
+                                                 tags: tags ?? ActivityMonitor.Tags.Empty,
+                                                 ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
+            Handle( e );
         }
+
+        public void ExternalOrStaticLog( ref ActivityMonitorLogData d )
+        {
+            DateTimeStamp prevLogTime;
+            DateTimeStamp logTime;
+            lock( _externalLogLock )
+            {
+                prevLogTime = _externalLogLastTime;
+                _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
+            }
+            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
+                                                 GrandOutput.ExternalLogMonitorUniqueId,
+                                                 LogEntryType.Line,
+                                                 prevLogTime,
+                                                 depth: 0,
+                                                 d.Text,
+                                                 logTime,
+                                                 d.Level,
+                                                 d.FileName,
+                                                 d.LineNumber,
+                                                 d.Tags,
+                                                 d.ExceptionData );
+            Handle( e );
+        }
+
+        void SetUnhandledExceptionTracking( bool trackUnhandledException )
+        {
+            if( trackUnhandledException != _unhandledExceptionTracking )
+            {
+                if( trackUnhandledException )
+                {
+                    AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+                }
+                else
+                {
+                    AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+                }
+                _unhandledExceptionTracking = trackUnhandledException;
+            }
+        }
+
+        void OnUnobservedTaskException( object? sender, UnobservedTaskExceptionEventArgs e )
+        {
+            ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, "TaskScheduler.UnobservedTaskException raised.", e.Exception );
+            e.SetObserved();
+        }
+
+        void OnUnhandledException( object sender, UnhandledExceptionEventArgs e )
+        {
+            if( e.ExceptionObject is Exception ex )
+            {
+                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, "AppDomain.CurrentDomain.UnhandledException raised.", ex );
+            }
+            else
+            {
+                string? exText = e.ExceptionObject.ToString();
+                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'.", null );
+            }
+        }
+
+
+
     }
 }

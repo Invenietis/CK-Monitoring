@@ -10,7 +10,6 @@ namespace CK.Monitoring.Tests
     // A SafeHandle destructor raises an exception during Garbage Collection.
     // This reproduces the way the SimpleLogPipeReceiver works to show the bug
     // with minimal complexity. 
-#if !NET461
     [TestFixture]
     public class AnonymousPipeIntraProcessTextTests
     {
@@ -39,7 +38,10 @@ namespace CK.Monitoring.Tests
             public void Dispose()
             {
                 _writer.WriteLine( "GOODBYE" );
-                _client.WaitForPipeDrain();
+                if( OperatingSystem.IsWindows() )
+                {
+                    _client.WaitForPipeDrain();
+                }
                 _writer.Dispose();
                 _client.Dispose();
             }
@@ -145,5 +147,4 @@ namespace CK.Monitoring.Tests
             }
         }
     }
-#endif
 }

@@ -18,7 +18,7 @@ namespace CK.Monitoring
             readonly IReadOnlyCollection<RawLogFile> _allFiles;
             readonly IReadOnlyCollection<RawLogFile> _validFiles;
             readonly IReadOnlyList<Monitor> _monitorList;
-            readonly Dictionary<Guid, Monitor> _monitors;
+            readonly Dictionary<string, Monitor> _monitors;
             readonly DateTime _firstEntryDate;
             readonly DateTime _lastEntryDate;
 
@@ -64,7 +64,7 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitorId">The monitor's identifier.</param>
             /// <returns>The monitor or null if not found.</returns>
-            public Monitor? FindMonitor( Guid monitorId ) => _monitors.GetValueWithDefault( monitorId, null );
+            public Monitor? FindMonitor( string monitorId ) => _monitors.GetValueOrDefault( monitorId );
         }
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace CK.Monitoring
         /// </summary>
         public class Monitor
         {
-            readonly Guid _monitorId;
+            readonly string _monitorId;
             readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
             readonly DateTimeStamp _firstEntryTime;
             readonly int _firstDepth;
@@ -94,7 +94,7 @@ namespace CK.Monitoring
             /// <summary>
             /// Gets the monitor's identifier.
             /// </summary>
-            public Guid MonitorId => _monitorId;
+            public string MonitorId => _monitorId;
 
             /// <summary>
             /// Gets the different files where entries from this monitor appear.
@@ -308,7 +308,7 @@ namespace CK.Monitoring
                     {
                         get
                         {
-                            if( index >= Count ) throw new ArgumentOutOfRangeException();
+                            Throw.CheckOutOfRangeArgument( index < Count );
                             return Entries[index];
                         }
                     }
@@ -491,7 +491,7 @@ namespace CK.Monitoring
             /// <returns>The first <see cref="LivePage"/> from which next pages can be retrieved.</returns>
             public LivePage ReadFirstPage( DateTimeStamp firstLogTime, int pageLength )
             {
-                if( pageLength < 1 ) throw new ArgumentOutOfRangeException( "pageLength" );
+                Throw.CheckOutOfRangeArgument( pageLength > 0 );
                 MultiFileReader r = new MultiFileReader( firstLogTime, _files );
                 if( r.MoveNext() )
                 {
@@ -519,10 +519,10 @@ namespace CK.Monitoring
             /// Replays this monitor's content into another monitor.
             /// </summary>
             /// <param name="replay">The target monitor. Can not be null.</param>
-            /// <param name="m">Optional monitor (nothing is logged when null).</param>
-            public void Replay( IActivityMonitor replay, IActivityMonitor? m = null )
+            /// <param name="monitor">Optional monitor (nothing is logged when null).</param>
+            public void Replay( IActivityMonitor replay, IActivityMonitor? monitor = null )
             {
-                using( m != null ? m.OpenGroup( LogLevel.Info, string.Format( "Replaying activity from '{0}'.", MonitorId ), null ) : null )
+                using( monitor?.OpenInfo( $"Replaying activity from '{MonitorId}'." ) )
                 {
                     int nbMissing = 0;
                     int nbTotal = 0;
@@ -540,20 +540,23 @@ namespace CK.Monitoring
                             switch( e.Entry.LogType )
                             {
                                 case LogEntryType.Line:
-                                    replay.UnfilteredLog( e.Entry.Tags, level, e.Entry.Text, e.Entry.LogTime, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    var d = new ActivityMonitorLogData( level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    d.SetExplicitLogTime( e.Entry.LogTime );
+                                    replay.UnfilteredLog( ref d );
                                     break;
                                 case LogEntryType.OpenGroup:
-                                    Debug.Assert( e.Entry.Text != null, "OpenGroup has text." );
-                                    replay.UnfilteredOpenGroup( e.Entry.Tags, level, null, e.Entry.Text, e.Entry.LogTime, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    d = new ActivityMonitorLogData( level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    d.SetExplicitLogTime( e.Entry.LogTime );
+                                    replay.UnfilteredOpenGroup( ref d );
                                     break;
                                 case LogEntryType.CloseGroup:
-                                    replay.CloseGroup( e.Entry.LogTime, e.Entry.Conclusions );
+                                    replay.CloseGroup( e.Entry.Conclusions, e.Entry.LogTime );
                                     break;
                             }
                         }
                         page.ForwardPage();
                     }
-                    if( m != null ) m.CloseGroup( String.Format( "Replayed {0} entries ({1} missing).", nbTotal, nbMissing ) );
+                    monitor?.CloseGroup( $"Replayed {nbTotal} entries ({nbMissing} missing)." );
                 }
             }
         }

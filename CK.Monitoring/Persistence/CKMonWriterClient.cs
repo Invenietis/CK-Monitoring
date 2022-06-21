@@ -15,11 +15,12 @@ namespace CK.Monitoring
         readonly string _path;
         readonly int _maxCountPerFile;
         readonly LogFilter _minimalFilter;
+        readonly string _grandOutputId;
         IActivityMonitorImpl? _source;
         MonitorBinaryFileOutput? _file;
         int _currentGroupDepth;
-        LogEntryType _prevLogType;
         DateTimeStamp _prevlogTime;
+        LogEntryType _prevLogType;
         readonly bool _useGzipCompression;
 
         /// <summary>
@@ -27,10 +28,15 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="path">The path. Can be absolute. When relative, it will be under <see cref="LogFile.RootLogPath"/> that must be set.</param>
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
-        public CKMonWriterClient( string path, int maxCountPerFile )
-            : this( path, maxCountPerFile, LogFilter.Undefined, false )
+        /// <param name="grandOutputId">
+        /// Optional <see cref="GrandOutput.GrandOutpuId"/>. Defaults to the one of the current <see cref="GrandOutput.Default"/>
+        /// if it is not null otherwise falls back to <see cref="GrandOutput.UnknownGrandOutputId"/>.
+        /// </param>
+        public CKMonWriterClient( string path, int maxCountPerFile, string? grandOutputId = null )
+            : this( path, maxCountPerFile, LogFilter.Undefined, false, grandOutputId )
         {
         }
+
         /// <summary>
         /// Initializes a new instance of <see cref="CKMonWriterClient"/> that can be registered to write compressed or uncompressed .ckmon file for this monitor.
         /// </summary>
@@ -38,12 +44,17 @@ namespace CK.Monitoring
         /// <param name="maxCountPerFile">Maximum number of entries per file. Must be greater than 1.</param>
         /// <param name="minimalFilter">Minimal filter for this client.</param>
         /// <param name="useGzipCompression">Whether to output compressed .ckmon files. Defaults to false (do not compress).</param>
-        public CKMonWriterClient( string path, int maxCountPerFile, LogFilter minimalFilter, bool useGzipCompression = false )
+        /// <param name="grandOutputId">
+        /// Optional <see cref="GrandOutput.GrandOutpuId"/>. Defaults to the one of the current <see cref="GrandOutput.Default"/>
+        /// if it is not null otherwise falls back to <see cref="GrandOutput.UnknownGrandOutputId"/>.
+        /// </param>
+        public CKMonWriterClient( string path, int maxCountPerFile, LogFilter minimalFilter, bool useGzipCompression = false, string? grandOutputId = null )
         {
             _path = path;
             _maxCountPerFile = maxCountPerFile;
             _minimalFilter = minimalFilter;
             _useGzipCompression = useGzipCompression;
+            _grandOutputId = grandOutputId ?? GrandOutput.Default?.GrandOutpuId ?? GrandOutput.UnknownGrandOutputId;
         }
 
         /// <summary>
@@ -125,7 +136,10 @@ namespace CK.Monitoring
         public bool IsOpened => _file != null; 
 
         #region Auto implementation of IMulticastLogInfo to call UnicastWrite on file.
-        Guid IMulticastLogInfo.MonitorId
+
+        string IMulticastLogInfo.GrandOutputId =>  _grandOutputId;
+
+        string IMulticastLogInfo.MonitorId
         {
             get
             {
@@ -158,7 +172,8 @@ namespace CK.Monitoring
             }
         }
         #endregion
-        void IActivityMonitorClient.OnUnfilteredLog( ActivityMonitorLogData data )
+
+        void IActivityMonitorClient.OnUnfilteredLog( ref ActivityMonitorLogData data )
         {
             if( _file != null )
             {
@@ -173,7 +188,7 @@ namespace CK.Monitoring
             {
                 _file.UnicastWriteOpenGroup( group, this );
                 ++_currentGroupDepth;
-                _prevlogTime = group.LogTime;
+                _prevlogTime = group.Data.LogTime;
                 _prevLogType = LogEntryType.OpenGroup;
             }
         }

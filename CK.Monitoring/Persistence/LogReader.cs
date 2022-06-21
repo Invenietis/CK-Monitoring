@@ -27,8 +27,10 @@ namespace CK.Monitoring
         /// Current version stamp. Writes are done with this version, but reads MUST handle it.
         /// The first released version is 5.
         /// Version 7 supports the LogLevel.Debug level.
+        /// Version 8 uses a string as the monitor UniqueId instead of a Guid.
+        /// Version 9 introduces the <see cref="IMulticastLogInfo.GrandOutputId"/>.
         /// </summary>
-        public const int CurrentStreamVersion = 7;
+        public const int CurrentStreamVersion = 9;
 
         /// <summary>
         /// The file header for .ckmon files starting from CurrentStreamVersion = 5.
@@ -48,8 +50,7 @@ namespace CK.Monitoring
         /// </param>
         public LogReader( Stream stream, int streamVersion, int headerLength, bool mustClose = true )
         {
-            if( streamVersion < 5 )
-                throw new ArgumentException( "Must be greater or equal to 5 (the first version).", "streamVersion" );
+            Throw.CheckOutOfRangeArgument( streamVersion >= 5 );
             _stream = stream;
             _binaryReader = new CKBinaryReader( stream, Encoding.UTF8, !mustClose );
             _streamVersion = streamVersion;
@@ -74,7 +75,7 @@ namespace CK.Monitoring
         /// </remarks>
         public static LogReader Open( string path, long dataOffset = 0, MulticastFilter? filter = null )
         {
-            if( path == null ) throw new ArgumentNullException( "path" );
+            Throw.CheckNotNullOrEmptyArgument( path );
             FileStream? fs = null;
             try
             {
@@ -106,8 +107,8 @@ namespace CK.Monitoring
         /// </remarks>
         public static LogReader Open( Stream seekableStream, long dataOffset = 0, MulticastFilter? filter = null )
         {
-            if( seekableStream == null ) throw new ArgumentNullException( "seekableStream" );
-            if( !seekableStream.CanSeek ) throw new ArgumentException( "Stream must support seek operations.", "seekableStream" );
+            Throw.CheckNotNullArgument( seekableStream );
+            Throw.CheckArgument( seekableStream.CanSeek );
             LogReaderStreamInfo i = LogReaderStreamInfo.OpenStream( seekableStream );
             var s = i.LogStream;
             if( dataOffset > 0 )
@@ -138,7 +139,7 @@ namespace CK.Monitoring
             /// <summary>
             /// The filtered monitor identifier.
             /// </summary>
-            public readonly Guid MonitorId;
+            public readonly string MonitorId;
 
             /// <summary>
             /// The offset of the last entry in the stream (see <see cref="LogReader.StreamOffset"/>).
@@ -151,19 +152,19 @@ namespace CK.Monitoring
             /// </summary>
             /// <param name="monitorId">Monitor identifier to filter.</param>
             /// <param name="knownLastMonitorEntryOffset">Offset of the last entry in the stream (when known this enables to stop processing as soon as possible).</param>
-            public MulticastFilter( Guid monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
+            public MulticastFilter( string monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
             {
                 MonitorId = monitorId;
                 KnownLastMonitorEntryOffset = knownLastMonitorEntryOffset;
             }
 
             /// <summary>
-            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IUniqueId.UniqueId"/> that
+            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IActivityMonitor.UniqueId"/> that
             /// is explicitly implemented. (This is a mainly for tests.)
             /// </summary>
-            /// <param name="monitor">Activity Monitor to filter.</param>
+            /// <param name="m">Activity Monitor to filter.</param>
             public MulticastFilter( ActivityMonitor m )
-                : this( ((IUniqueId)m).UniqueId )
+                : this( m.UniqueId )
             {
             }
         }

@@ -94,7 +94,7 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
-        public void CKMon_binary_files_can_be_GZip_compressed()
+        public async Task CKMon_binary_files_can_be_GZip_compressed_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "Gzip" );
 
@@ -112,11 +112,11 @@ namespace CK.Monitoring.Tests
 
             using( GrandOutput g = new GrandOutput( c ) )
             {
-                var taskA = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task A", g ), 5 ), TaskCreationOptions.LongRunning );
-                var taskB = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5 ), TaskCreationOptions.LongRunning );
-                var taskC = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5 ), TaskCreationOptions.LongRunning );
+                var taskA = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task A", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
+                var taskB = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
+                var taskC = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
 
-                Task.WaitAll( taskA, taskB, taskC );
+                await Task.WhenAll( taskA, taskB, taskC );
             }
 
             string[] gzipCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputGzip", 1 );
@@ -135,14 +135,14 @@ namespace CK.Monitoring.Tests
             gzipCkmonFile.Length.Should().BeLessThan( rawCkmonFile.Length );
 
             // Test de-duplication between Gzip and non-Gzip
-            MultiLogReader mlr = new MultiLogReader();
+            using MultiLogReader mlr = new MultiLogReader();
             var fileList = mlr.Add( new string[] { gzipCkmonFile.FullName, rawCkmonFile.FullName } );
             fileList.Should().HaveCount( 2 );
 
             var map = mlr.GetActivityMap();
 
             map.Monitors.Should().HaveCount( 4 );
-            // The DispatcherSink monitor define its Topic: CK.Monitoring.DispatcherSink
+            // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
             // Others do not have any topic.
             var notDispatcherSinkMonitors = map.Monitors.Where( m => !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) );
             notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
@@ -208,74 +208,74 @@ namespace CK.Monitoring.Tests
                 _delay = c.Delay;
             }
 
-            public bool Activate( IActivityMonitor m )
+            public ValueTask<bool> ActivateAsync( IActivityMonitor m )
             {
                 ActivatedDelay = _delay;
-                return true;
+                return ValueTask.FromResult( true );
             }
 
-            public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+            public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c )
             {
                 if( c is SlowSinkHandlerConfiguration conf )
                 {
                     _delay = conf.Delay;
                     ActivatedDelay = _delay;
-                    return true;
+                    return ValueTask.FromResult( true );
                 }
-                return false;
+                return ValueTask.FromResult( false );
             }
 
-            public void Deactivate( IActivityMonitor m )
+            public ValueTask DeactivateAsync( IActivityMonitor m )
             {
                 ActivatedDelay = -1;
+                return ValueTask.CompletedTask;
             }
 
-            public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
+            public async ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
             {
                 _delay.Should().BeGreaterOrEqualTo( 0 );
                 _delay.Should().BeLessThan( 1000 );
-                Thread.Sleep( _delay );
+                await Task.Delay( _delay );
             }
 
-            public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
-            {
-            }
+            public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan ) => ValueTask.CompletedTask;
         }
 
-        [Test]
-        public void ApplyConfiguration_can_wait()
-        {
-            var c100 = new GrandOutputConfiguration()
-                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 100 } );
-            var c0 = new GrandOutputConfiguration()
-                            .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 0 } );
-            SlowSinkHandler.ActivatedDelay = -1;
-            using( var g = new GrandOutput( c100 ) )
-            {
-                SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
-                // Without waiting, we must be able to find an apply that
-                // did not succeed in at least 11 tries.
-                int i;
-                for( i = 0; i <= 10; ++i )
-                {
-                    SlowSinkHandler.ActivatedDelay = -1;
-                    g.ApplyConfiguration( c0, waitForApplication: false );
-                    if( SlowSinkHandler.ActivatedDelay == -1 ) break;
-                }
-                i.Should().BeLessThan( 10 );
-                // With wait for application:
-                // ...Artificially adding multiple configurations with 0 delay.
-                for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c0, waitForApplication: false );
-                // ...Applying 100 is effective.
-                g.ApplyConfiguration( c100, waitForApplication: true );
-                SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
-                // ...Artificially adding multiple configurations with 100 delay.
-                for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );
-                // ...Applying 0 is effective.
-                g.ApplyConfiguration( c0, waitForApplication: true );
-                SlowSinkHandler.ActivatedDelay.Should().Be( 0 );
-            }
-        }
+        //[Test]
+        //public void ApplyConfiguration_can_wait()
+        //{
+        //    var c100 = new GrandOutputConfiguration()
+        //                    .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 100 } );
+        //    var c0 = new GrandOutputConfiguration()
+        //                    .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 0 } );
+        //    SlowSinkHandler.ActivatedDelay = -1;
+        //    using( var g = new GrandOutput( c100 ) )
+        //    {
+        //        SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
+        //        // Without waiting, we must be able to find an apply that
+        //        // did not succeed in at least 11 tries.
+        //        int i;
+        //        for( i = 0; i <= 10; ++i )
+        //        {
+        //            SlowSinkHandler.ActivatedDelay = -1;
+        //            g.ApplyConfiguration( c0, waitForApplication: false );
+        //            if( SlowSinkHandler.ActivatedDelay == -1 ) break;
+        //        }
+        //        i.Should().BeLessThan( 10 );
+        //        // ...Artificially adding multiple configurations with 0 delay and no wait
+        //        // to fill the "queue" of pending configurations.
+        //        for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c0, waitForApplication: false );
+        //        // With wait for application:
+        //        // ...Applying 100 is effective.
+        //        g.ApplyConfiguration( c100, waitForApplication: true );
+        //        SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
+        //        // ...Artificially adding multiple configurations with 100 delay.
+        //        for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );
+        //        // ...Applying 0 is effective.
+        //        g.ApplyConfiguration( c0, waitForApplication: true );
+        //        SlowSinkHandler.ActivatedDelay.Should().Be( 0 );
+        //    }
+        //}
 
         [Test]
         public void GrandOutput_signals_its_disposing_via_a_CancellationToken()
@@ -296,7 +296,7 @@ namespace CK.Monitoring.Tests
                 while( Interlocked.Exchange( ref subscribed, 1 ) == 1 )
                 {
                     // This throws if the sink queue is closed.
-                    go.ExternalLog( LogLevel.Fatal, "Test", null );
+                    go.ExternalLog( LogLevel.Fatal, message: "Test", ex: null );
                     atleastOneReceived = true;
                 }
             } );

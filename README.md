@@ -10,7 +10,7 @@ CK-Monitoring is the log <a href="https://en.wikipedia.org/wiki/Sink_(computing)
 <a href="https://docs.microsoft.com/en-us/dotnet/csharp/"><img src="https://img.shields.io/badge/language-C%23-%23178600" title="Go To C# Documentation"></a>
 [![Build status](https://ci.appveyor.com/api/projects/status/pxo8hsxuhqw3ebqa?svg=true)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring) [![Licence](https://img.shields.io/github/license/Invenietis/CK-Monitoring.svg)](https://github.com/Invenietis/CK-Monitoring/blob/develop/LICENSE)
 
-> ⚠️If you are not already familliar with the [ActivityMonitor](https://github.com/Invenietis/CK-ActivityMonitor), i'll suggest to read it's [documentation](https://github.com/Invenietis/CK-ActivityMonitor) first.
+> ℹ️If you are not already familliar with the [ActivityMonitor](https://github.com/Invenietis/CK-ActivityMonitor), i'll suggest to read its [documentation](https://github.com/Invenietis/CK-ActivityMonitor) first.
 
 ## Packages produced by this repository
 
@@ -26,11 +26,9 @@ we always use in practice the static `GrandOutput.Default` property.
 ### Creating a GrandOutput
 Most of the times, you will need only one GrandOutput.
 You can get one by:
-<details>
-<summary> Using the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Expand]</sub>
-</summary>
 
-<p><ul>The Generic Host is a great base for any app, this is what you will probably use most of the time.
+#### Using the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a>
+The Generic Host is a great base for any app, this is what you will probably use most of the time.
 You will need the CK.Monitoring.Hosting NuGet package.
 Now, you can add this line:
 
@@ -46,56 +44,48 @@ public class Program
 
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
-+           .UseMonitoring()
++           .UseCKMonitoring()
             .ConfigureServices((hostContext, services) =>
             {
                 services.AddHostedService<Worker>();
             });
 }
 ```
-Place this line so it run before any ActivityMonitor is instancied.
+Place this line so it run before any ActivityMonitor is instantiated.
 This will configures the GrandOutput.Default and provides a scoped IActivityMonitor to the DI.
+#### Manually by calling `GrandOutput.EnsureActiveDefault()` (Advanced)
+⚠ This is an advanced usage, skip this part if you want to configure your GrandOutput.  
 
-
-</li>
-</p>
-</details>
-
-<details>
-<summary>Manually by calling <span>
-`GrandOutput.EnsureActiveDefault()`
-</span> <sub>[Expand]</sub> </summary>
-<p><ul>
 Simply call
 
 ```csharp
 GrandOutput.EnsureActiveDefault();
 ```
-before any ActivityMonitor is instancied.</ul></p></details>
+before any ActivityMonitor is instantiated.</ul></p></details>
+
 ### Configuring the GrandOutput
 The GrandOutput will output the logs in it's configured handlers.
-CK.Monitoring.Hosting allow you to configure the GrandOutput with a config file.
+CK.Monitoring.Hosting allow you to configure the GrandOutput with a configuration file or any other means thanks to
+standard [configuration providers](https://docs.microsoft.com/en-us/dotnet/core/extensions/configuration-providers).
+
 If you do not use CK.Monitoring.Hosting, you will have to manually configure it.
 
-Here are described all the differents logs handlers you can use:
+The standard handlers (included in CK.Monitoring assembly) are:
 |Handlers|Write logs to|Usages|Metadata|
 |--------|-------------|------|--------|
-|BinaryFile|a binary file, optionally compressed.|To be programmatically read.|All of it.|
-|TextFile| a text files.|To read when no console can be shown, or when persistance is needed. When developing or in production.|log, date, exceptions, monitor ID, and loglevel.|
+|BinaryFile|binary file (extension `.ckmon`), optionally compressed.|To be programmatically read.|All of it.|
+|TextFile| a text files.|To read when no console can be shown, or when persistence is needed. When developing or in production.|log, date, exceptions, monitor ID, and loglevel.|
 |Console|the console. |To read the program output when developing. Doesn't persist the logs.|log, date, exceptions, monitor ID, and loglevel.|
 
 Now, you can configure your GrandOutput:
-<details>
-<summary> with CK.Monitoring.Hosting and the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a> <sub>[Expand]</sub></summary>
-<ul> 
- `UseMonitoring()` by default will use the config section name "Monitoring".
- By default, it will use the config present in the dependency injection, but you can pass a configuration section.
- To add a configuration to your Host, follow the [Official Documentation](https://docs.microsoft.com/en-us/dotnet/core/extensions/configuration).
-If you use a json config provider, your logs config should be located in your json config like this:
+
+#### With CK.Monitoring.Hosting and the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a>
+ `UseCKMonitoring()` uses the configuration section named "CK-Monitoring".
+Using the json configuration provider, a typical configuration is:
 
 ```json
 {
-  "Monitoring": {
+  "CK-Monitoring": {
     "GrandOutput": {
       "MinimalFilter": "Debug",
       "Handlers": {
@@ -108,33 +98,31 @@ If you use a json config provider, your logs config should be located in your js
   }
 }
 ```
-This is a config we often use, this logs onto the Console and to "Logs/Text" timed folders.
-You can read a fully explained config files in the <a href="https://github.com/signature-opensource/CK-Sample-Monitoring/blob/develop/MonitoringDemoApp/appsettings.json"> appsettings.json</a> in the <a href="https://github.com/signature-opensource/CK-Sample-Monitoring">CK-Sample-Monitoring</a>.
+This is a configuration we often use, this logs onto the Console and to "Logs/Text" timed folders.
+You can read a fully explained configuration file in the <a href="https://github.com/signature-opensource/CK-Sample-Monitoring/blob/develop/MonitoringDemoApp/appsettings.json"> appsettings.json</a> in the <a href="https://github.com/signature-opensource/CK-Sample-Monitoring">CK-Sample-Monitoring</a>.
 
 > :information_source: `UseMonitoring()` support dynamically changing configuration.
 
 > :information_source: <a href="https://github.com/signature-opensource/CK-Sample-Monitoring">CK-Sample-Monitoring</a> is a sample repository that shows how an application can be configured with CK.Monitoring.Hosting.
 
 
-</ul>
-</details>
 
-<details>
-<summary>Manually</a> <sub>[Expand]</sub></summary>
-<ul>
-  As we saw earlier, if you instantiate the GrandOutput yourself, you should call `EnsureActiveDefault()`.
-  When `EnsureActiveDefault()` is called without configuration, the default configuration of the `GrandOutput.Default` is equivalent to:
-  ```csharp
-  new GrandOutputConfiguration().AddHandler(
-      new Handlers.TextFileConfiguration()
-      {
-        Path = "Text"
-      })
-  ```
+### Manually
+⚠ This is an advanced usage.  
 
-  You can parameterize where the root path of the log folders.
-  For this, set `LogFile.RootLogPath` that is initially null and can be set only once.
-  You should do that before calling `GrandOutput.EnsureActiveDefault()`:
+As we saw earlier, if you instantiate the GrandOutput yourself, you should call `EnsureActiveDefault()`.
+When `EnsureActiveDefault()` is called without configuration, the default configuration of the `GrandOutput.Default` is equivalent to:
+```csharp
+new GrandOutputConfiguration().AddHandler(
+    new Handlers.TextFileConfiguration()
+    {
+      Path = "Text"
+    })
+```
+
+You can parameterize where the root path of the log folders.
+For this, set `LogFile.RootLogPath` that is initially null and can be set only once.
+You should do that before calling `GrandOutput.EnsureActiveDefault()`:
 
 ```csharp
   // Sets the absolute root of the log folder. 
@@ -146,7 +134,7 @@ From now on, any new ActivityMonitor logs will be routed into text files inside 
 
 The GrandOutput can be reconfigured at any time (and can also be disposed - the `GrandOutput.Default` static properties is then reset to null).
 Reconfigurations handles create/update/delete of currently running handlers based on a key (an identity) that
-depends on the type of each handlers (for "file handlers" for instance, the Path is the key).
+depends on the type of each handlers (for "file handlers" for instance, the `Path` is the key).
 
 ```csharp
   // Sets the absolute root of the log folder. 
@@ -178,67 +166,62 @@ depends on the type of each handlers (for "file handlers" for instance, the Path
 
 
 ### Implementing a GrandOutput client
-<details>
-<summary>The IGrandOutputHandler <sub>[Expand]</sub></summary>
-<ul>
+⚠ This is an advanced usage.
 
-The `IGrandOutputHandler` that all handlers implement is a very simple interface:
+#### The IGrandOutputHandler
+
+The `IGrandOutputHandler` that all handlers implement is a simple interface:
 ```csharp
-    /// <summary>
-    /// Handler interface.
-    /// Object implementing this interface must expose a public constructor that accepts
-    /// its associated <see cref="IHandlerConfiguration"/> object.
-    /// </summary>
-    public interface IGrandOutputHandler
-    {
-        /// <summary>
-        /// Prepares the handler to receive events.
-        /// This is called before any event will be received.
-        /// </summary>
-        /// <param name="m">The monitor to use.</param>
-        /// <returns>True on success, false on error (this handler will not be added).</returns>
-        bool Activate( IActivityMonitor m );
+  /// <summary>
+  /// Handler interface.
+  /// Object implementing this interface must expose a public constructor that accepts
+  /// its associated <see cref="IHandlerConfiguration"/> object.
+  /// </summary>
+  public interface IGrandOutputHandler
+  {
+      /// <summary>
+      /// Prepares the handler to receive events.
+      /// This is called before any event will be received.
+      /// </summary>
+      /// <param name="m">The monitor to use.</param>
+      /// <returns>True on success, false on error (this handler will not be added).</returns>
+      ValueTask<bool> ActivateAsync( IActivityMonitor m );
 
-        /// <summary>
-        /// Called on a regular basis.
-        /// Enables this handler to do any required housekeeping.
-        /// </summary>
-        /// <param name="m">The monitor to use.</param>
-        /// <param name="timerSpan">Indicative timer duration.</param>
-        void OnTimer( IActivityMonitor m, TimeSpan timerSpan );
+      /// <summary>
+      /// Called on a regular basis.
+      /// Enables this handler to do any required housekeeping.
+      /// </summary>
+      /// <param name="m">The monitor to use.</param>
+      /// <param name="timerSpan">Indicative timer duration.</param>
+      ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan );
 
-        /// <summary>
-        /// Handles a log event.
-        /// </summary>
-        /// <param name="m">The monitor to use.</param>
-        /// <param name="logEvent">The log event.</param>
-        void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent );
+      /// <summary>
+      /// Handles a log event.
+      /// </summary>
+      /// <param name="m">The monitor to use.</param>
+      /// <param name="logEvent">The log event.</param>
+      ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent );
 
-        /// <summary>
-        /// Attempts to apply configuration if possible.
-        /// The handler must check the type of the given configuration and any key configuration
-        /// before accepting it and reconfigures it (in such case, true must be returned).
-        /// If this handler considers that this new configuration does not apply to itself, it must return false.
-        /// </summary>
-        /// <param name="m">The monitor to use.</param>
-        /// <param name="c">Configuration to apply.</param>
-        /// <returns>True if the configuration applied.</returns>
-        bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c );
+      /// <summary>
+      /// Attempts to apply configuration if possible.
+      /// The handler must check the type of the given configuration and any key configuration
+      /// before accepting it and reconfigures it (in such case, true must be returned).
+      /// If this handler considers that this new configuration does not apply to itself, it must return false.
+      /// </summary>
+      /// <param name="m">The monitor to use.</param>
+      /// <param name="c">Configuration to apply.</param>
+      /// <returns>True if the configuration applied.</returns>
+      ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c );
 
-        /// <summary>
-        /// Closes this handler.
-        /// This is called after the handler has been removed.
-        /// </summary>
-        /// <param name="m">The monitor to use.</param>
-        void Deactivate( IActivityMonitor m );
-    }
+      /// <summary>
+      /// Closes this handler.
+      /// This is called after the handler has been removed.
+      /// </summary>
+      /// <param name="m">The monitor to use.</param>
+      ValueTask DeactivateAsync( IActivityMonitor m );
+  }
 ```
-</ul>
-</details>
-<details>
-<summary>And the IHandlerConfiguration<sub>[Expand]</sub>
-</summary>
-<ul>
+#### And the IHandlerConfiguration
 Handler configurations must fulfill this even simpler contract:
 
 ```csharp
@@ -255,7 +238,64 @@ Handler configurations must fulfill this even simpler contract:
     }
 ```
 
-</ul>
-</details>
+⚠ Security considerations
+---
+GrandOutput configuration and handler configurations must not be serialized and exchanged with the external world.
+They must remain local, like a hidden implementation detail of the running host.
+
+If some "remote log configuration feature" is needed, it must be done though specific code and only strictly controlled
+changes must be allowed.
+
+#### Required conventions
+
+To ease configuration, choose a relevant name for the handler: for instance "MailAlerter".
+
+- The assembly that implements the handler and its configuration must be: "CK.Monitoring.MailAlerterHandler" (file `CK.Monitoring.MailAlerterHandler.dll`).
+- The handler and its configuration must both be in "CK.Monitoring.Handlers" namespace.
+- The configuration type name must be: "MailAlerterConfiguration" (full name: "CK.Monitoring.Handlers.MailAlerterConfiguration").
+- The handler type name must be: "MailAlerter" (full name: "CK.Monitoring.Handlers.MailAlerter").
+
+```c#
+namespace CK.Monitoring.Handlers
+{
+  public class MailAlerterConfiguration : IHandlerConfiguration
+  {
+    public string? Email { get; set; }
+    //...
+  }
+
+  public class MailAlerter : IGrandOutputHandler
+  {
+    MailAlerterConfiguration _config;
+
+    public DemoSinkHandler( MailAlerterConfiguration c )
+    {
+      _config = c;
+    }
+
+    //...
+  }
+}
+```
+
+By following these conventions, the following configuration (using CK.Monitorig.Hosting with json configuration provider):
+```json
+{
+  "CK-Monitoring": {
+    "GrandOutput": {
+      "Handlers": {
+        "Console": true,
+        "MailAlerter": {
+          "Email": "stupid-dev@signature-code.com"
+        }
+      }
+    }
+  }
+}
+```
+Will automatically tries to load the "CK.Monitoring.MailAlerterHandler" assembly (it must be in the application's binary folder
+of course), instantiate the configuration, the handler and activates it.
+
+This sample is [here](Tests/CK.Monitoring.MailAlerterHandler/).
 
 [![Build history](https://buildstats.info/appveyor/chart/Signature-OpenSource/ck-monitoring?buildCount=100)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring)

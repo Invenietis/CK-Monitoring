@@ -6,7 +6,6 @@ using NUnit.Framework;
 using System.Threading.Tasks;
 using FluentAssertions;
 using System.Threading;
-using CK.Text;
 
 namespace CK.Monitoring.Tests
 {
@@ -88,7 +87,7 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
-        public void external_logs_quick_test()
+        public async Task external_logs_quick_test_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "ExternalLogsQuickTest" );
 
@@ -96,28 +95,39 @@ namespace CK.Monitoring.Tests
             var config = new GrandOutputConfiguration().AddHandler( textConf );
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                Task.Run( () => g.ExternalLog( LogLevel.Info, "Async started." ) ).Wait();
+                await Task.Run( () =>
+                {
+                    ActivityMonitor.StaticLogger.Info( $"Async started from ActivityMonitor.StaticLogger." );
+                    g.ExternalLog( LogLevel.Info, message: "Async started." );
+                } );
                 var m = new ActivityMonitor( false );
                 g.EnsureGrandOutputClient( m );
                 m.Info( "Normal monitor starts." );
                 Task t = Task.Run( () =>
                 {
-                    for( int i = 0; i < 10; ++i ) g.ExternalLog( LogLevel.Info, $"Async n°{i}." );
+                    for( int i = 0; i < 10; ++i )
+                    {
+                        ActivityMonitor.StaticLogger.Info( $"Async n°{i} from ActivityMonitor.StaticLogger." );
+                        g.ExternalLog( LogLevel.Info, $"Async n°{i}." );
+                    }
                 } );
                 m.MonitorEnd( "This is the end." );
-                t.Wait();
+                await t;
             }
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             textLogged.Should()
                         .Contain( "Normal monitor starts." )
+                        .And.Contain( "Async started from ActivityMonitor.StaticLogger." )
                         .And.Contain( "Async started." )
                         .And.Contain( "Async n°0." )
                         .And.Contain( "Async n°9." )
+                        .And.Contain( "Async n°0 from ActivityMonitor.StaticLogger." )
+                        .And.Contain( "Async n°9 from ActivityMonitor.StaticLogger." )
                         .And.Contain( "This is the end." );
         }
 
         [Test]
-        public void external_logs_stress_test()
+        public async Task external_logs_stress_test_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "ExternalLogsStressTest" );
 
@@ -132,10 +142,10 @@ namespace CK.Monitoring.Tests
                      for( int i = 0; i < logCount; ++i )
                      {
                          Thread.Sleep( 2 );
-                         g.ExternalLog( LogLevel.Info, $"{c} n°{i}." );
+                         g.ExternalLog( LogLevel.Info, message: $"{c} n°{i}." );
                      }
                  } ) ).ToArray();
-                Task.WaitAll( tasks );
+                await Task.WhenAll( tasks );
             }
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             for( int c = 0; c < taskCount; ++c )
@@ -143,6 +153,8 @@ namespace CK.Monitoring.Tests
                     textLogged.Should()
                         .Contain( $"{c} n°{i}." );
         }
+
+        static readonly CKTrait _myTag = ActivityMonitor.Tags.Register( nameof( external_logs_filtering ) );
 
         [Test]
         public void external_logs_filtering()
@@ -154,18 +166,35 @@ namespace CK.Monitoring.Tests
             ActivityMonitor.DefaultFilter.Line.Should().Be( LogLevelFilter.Trace );
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
-                g.ExternalLog( LogLevel.Trace, "SHOW 0" );
+                g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, message: "SHOW 0" );
                 g.ExternalLogLevelFilter = LogLevelFilter.Debug;
-                g.ExternalLog( LogLevel.Debug, "SHOW 1" );
+                g.ExternalLog( LogLevel.Debug, message: "SHOW 1" );
                 g.ExternalLogLevelFilter = LogLevelFilter.Error;
-                g.ExternalLog( LogLevel.Warn, "NOSHOW" );
-                g.ExternalLog( LogLevel.Error, "SHOW 2" );
-                g.ExternalLog( LogLevel.Fatal, "SHOW 3" );
-                g.ExternalLog( LogLevel.Trace | LogLevel.IsFiltered, "SHOW 4" );
+                g.ExternalLog( LogLevel.Warn, message: "NOSHOW" );
+                g.ExternalLog( LogLevel.Error, message: "SHOW 2" );
+                g.ExternalLog( LogLevel.Fatal, message: "SHOW 3" );
+                g.ExternalLog( LogLevel.Trace | LogLevel.IsFiltered, message: "SHOW 4" );
                 g.ExternalLogLevelFilter = LogLevelFilter.None;
-                g.ExternalLog( LogLevel.Debug, "NOSHOW" );
-                g.ExternalLog( LogLevel.Trace, "SHOW 4" );
+                g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
+                g.ExternalLog( LogLevel.Trace, message: "SHOW 4" );
+
+                g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
+                g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeTrue();
+
+                ActivityMonitor.Tags.AddFilter( _myTag, new LogClamper( LogFilter.Verbose, true ) );
+
+                // Verbose allows Info, not Trace lines.
+                g.ExternalLog( LogLevel.Info, _myTag, message: "SHOW 5" );
+                g.ExternalLog( LogLevel.Trace, _myTag, message: "NOSHOW" );
+
+                g.IsExternalLogEnabled( LogLevel.Info, _myTag ).Should().BeTrue();
+                g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).Should().BeFalse();
+
+                ActivityMonitor.Tags.RemoveFilter( _myTag );
+
+                g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).Should().BeTrue();
+                g.ExternalLog( LogLevel.Trace, _myTag, message: "SHOW 6" );
             }
             string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
             textLogged.Should()
@@ -174,6 +203,8 @@ namespace CK.Monitoring.Tests
                         .And.Contain( "SHOW 2" )
                         .And.Contain( "SHOW 3" )
                         .And.Contain( "SHOW 4" )
+                        .And.Contain( "SHOW 5" )
+                        .And.Contain( "SHOW 6" )
                         .And.NotContain( "NOSHOW" );
         }
 
@@ -258,10 +289,13 @@ namespace CK.Monitoring.Tests
             textConf.MaximumTotalKbToKeep.Should().Be( 100_000, "Default HousekeepingRate configuration" );
 
             // Change configuration for tests
-            textConf.HousekeepingRate = 1; // Run every 500ms
+            textConf.HousekeepingRate = 1; // Run every 500ms normally (here TimerDuration is set to 100ms).
             textConf.MaximumTotalKbToKeep = 0; // Always delete file beyond max size
             textConf.MinimumTimeSpanToKeep = TimeSpan.FromSeconds( 3 ); // Delete files older than 3 seconds
             var config = new GrandOutputConfiguration().AddHandler( textConf );
+
+            // Changes the default 500 ms to trigger OnTimerAsync more often.
+            config.TimerDuration = TimeSpan.FromMilliseconds( 100 );
 
             // TEST DELETION BY DATE
 
@@ -271,13 +305,13 @@ namespace CK.Monitoring.Tests
                 g.EnsureGrandOutputClient( m );
                 Thread.Sleep( 5 );
                 m.Info( "Hello world" );
-                Thread.Sleep( 700 );
+                Thread.Sleep( 30 );
 
                 string tempFile = Directory.EnumerateFiles( folder ).Single();
                 File.Exists( tempFile ).Should().BeTrue( "Log file was created and exists" );
 
-                // Wait for next flush (500ms), and deletion threshold (3000ms)
-                Thread.Sleep( 4000 );
+                // Wait for next flush (~100ms), and deletion threshold (3000ms)
+                Thread.Sleep( 3200 );
 
                 File.Exists( tempFile ).Should().BeTrue( "Log file wasn't deleted yet - it's still active" );
             }
@@ -286,14 +320,11 @@ namespace CK.Monitoring.Tests
             // Open another GrandOutput to trigger housekeeping
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                // Wait for next flush (500 ms)
-                Thread.Sleep( 600 );
+                // Wait for next flush (~100 ms)
+                Thread.Sleep( 200 );
             }
 
             File.Exists( finalLogFile ).Should().BeFalse( "Inactive log file was deleted" );
-
-            // TEST DELETION BY FILE SIZE
-
         }
 
         [Test]
@@ -303,14 +334,15 @@ namespace CK.Monitoring.Tests
 
             var textConf = new Handlers.TextFileConfiguration() { Path = "AutoDelete_Size" };
             // Change configuration for tests
-            textConf.HousekeepingRate = 1; // Run every 500ms
+            textConf.HousekeepingRate = 1; // Run every 500ms normally (here TimerDuration is set to 100ms).
             textConf.MaximumTotalKbToKeep = 1; // Always delete file beyond max size
             textConf.MinimumTimeSpanToKeep = TimeSpan.Zero; // Make minimum timespan
             var config = new GrandOutputConfiguration().AddHandler( textConf );
 
-            int lineLengthToLogToGet1000bytes = 1000 - 413;
+            int lineLengthToLogToGet1000bytes = 500;
 
-            // TEST DELETION BY SIZE
+            // Changes the default 500 ms to trigger OnTimerAsync more often.
+            config.TimerDuration = TimeSpan.FromMilliseconds( 100 );
 
             // Create 3*1 KB log files
             for( int i = 0; i < 3; i++ )
@@ -323,23 +355,23 @@ namespace CK.Monitoring.Tests
                 }
             }
 
-            long getTotalLogSize()
+            long GetTotalLogSize()
             {
                 return Directory.EnumerateFiles( folder ).Sum( x => new FileInfo( x ).Length );
             }
 
-            var totalLogSize = getTotalLogSize();
-            totalLogSize.Should().Be( 3000 );
+            var totalLogSize = GetTotalLogSize();
+            totalLogSize.Should().BeGreaterThan( 2500 );
 
             // Open another GrandOutput to trigger housekeeping.
             // Note: this DOES create a file!
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                // Wait for next flush (500 ms)
-                Thread.Sleep( 600 );
+                // Wait for next flush (~100 ms)
+                Thread.Sleep( 200 );
             }
             var files = Directory.GetFiles( folder ).Select( f => Path.GetFileName( f ) );
-            files.Should().HaveCount( 2, $"Only 2 files should be kept - the last log file, and 1x1KB file: {files.Concatenate()}" );
+            files.Should().HaveCount( 2, $"Only 2 files should be kept - the last log file, and 1x~1KB file: {files.Concatenate()}" );
         }
 
         static void DumpSampleLogs1( Random r, GrandOutput g )

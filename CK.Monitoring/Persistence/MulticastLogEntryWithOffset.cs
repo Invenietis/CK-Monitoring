@@ -4,7 +4,7 @@ namespace CK.Monitoring
     /// <summary>
     /// Immutable capture of a log <see cref="Entry"/> and its <see cref="Offset"/>.
     /// </summary>
-    public struct MulticastLogEntryWithOffset
+    public readonly struct MulticastLogEntryWithOffset
     {
         /// <summary>
         /// The log entry.

@@ -14,7 +14,7 @@ namespace CK.Monitoring
     /// </summary>
     public sealed partial class MultiLogReader : IDisposable
     {
-        readonly ConcurrentDictionary<Guid,LiveIndexedMonitor> _monitors;
+        readonly ConcurrentDictionary<string,LiveIndexedMonitor> _monitors;
         readonly ConcurrentDictionary<string,RawLogFile> _files;
         readonly ReaderWriterLockSlim _lockWriteRead;
 
@@ -22,22 +22,39 @@ namespace CK.Monitoring
         DateTime _globalFirstEntryTime;
         DateTime _globalLastEntryTime;
 
-        internal class LiveIndexedMonitor
+        /// <summary>
+        /// Events raised (possibly concurrently) each time a new <see cref="ILiveMonitor"/>
+        /// appears.
+        /// </summary>
+        public event Action<ILiveMonitor>? OnLiveMonitorAppeared; 
+
+        internal class LiveIndexedMonitor : ILiveMonitor
         {
-            internal readonly Guid MonitorId;
             internal readonly List<RawLogFileMonitorOccurence> _files;
+            IdentityCard? _identityCard;
+            readonly CancellationTokenSource _identityCardCreated;
             internal DateTimeStamp _firstEntryTime;
             internal int _firstDepth;
             internal DateTimeStamp _lastEntryTime;
             internal int _lastDepth;
             internal Dictionary<CKTrait,int>? _tags; 
 
-            internal LiveIndexedMonitor( Guid monitorId )
+            internal LiveIndexedMonitor( string monitorId )
             {
                 MonitorId = monitorId;
                 _files = new List<RawLogFileMonitorOccurence>();
                 _firstEntryTime = DateTimeStamp.MaxValue;
                 _lastEntryTime = DateTimeStamp.MinValue;
+                _identityCardCreated = new CancellationTokenSource();
+            }
+
+            public string MonitorId { get; }
+
+            public IdentityCard? IdentityCard => _identityCard;
+
+            public void OnIdentityCardCreated( Action<ILiveMonitor> action )
+            {
+                _identityCardCreated.Token.UnsafeRegister( _ => action( this ), null );
             }
 
             internal void Register( RawLogFileMonitorOccurence fileOccurrence, bool newOccurrence, long streamOffset, IMulticastLogEntry log )
@@ -61,15 +78,60 @@ namespace CK.Monitoring
                         if( _tags == null )
                         {
                             _tags = new Dictionary<CKTrait, int>();
-                            foreach( var t in log.Tags.AtomicTraits ) _tags.Add( t, 1 );
+                            foreach( var t in log.Tags.AtomicTraits )
+                            {
+                                HandleIdentityCardTag( log, t );
+                                _tags.Add( t, 1 );
+                            }
                         }
                         else
                         {
                             foreach( var t in log.Tags.AtomicTraits )
                             {
+                                HandleIdentityCardTag( log, t );
                                 _tags.TryGetValue( t, out var count );
                                 _tags[t] = count + 1;
                             }
+                        }
+                    }
+                }
+            }
+
+            void HandleIdentityCardTag( IMulticastLogEntry log, CKTrait t )
+            {
+                if( t == IdentityCard.Tags.IdentityCardFull )
+                {
+                    if( _identityCard == null )
+                    {
+                        _identityCard = IdentityCard.TryCreate( log.Text );
+                        if( _identityCard != null )
+                        {
+                            _identityCardCreated.Cancel();
+                        }
+                    }
+                    else
+                    {
+                        var other = IdentityCard.TryCreate( log.Text );
+                        if( other != null )
+                        {
+                            _identityCard.Add( other );
+                        }
+                    }
+                }
+                else if( t == IdentityCard.Tags.IdentityCardUpdate )
+                {
+                    var added = IdentityCard.TryUnpack( log.Text ) as IReadOnlyList<(string, string)>;
+                    if( added != null )
+                    {
+                        if( _identityCard == null )
+                        {
+                            _identityCard = new IdentityCard();
+                            _identityCard.Add( added );
+                            _identityCardCreated.Cancel();
+                        }
+                        else
+                        {
+                            _identityCard.Add( added );
                         }
                     }
                 }
@@ -88,7 +150,7 @@ namespace CK.Monitoring
             /// <summary>
             /// The monitor's identifier.
             /// </summary>
-            public readonly Guid MonitorId;
+            public readonly string MonitorId;
             /// <summary>
             /// First offset for this <see cref="MonitorId"/> in this <see cref="LogFile"/>.
             /// </summary>
@@ -114,8 +176,13 @@ namespace CK.Monitoring
             /// <returns>A log reader that will read only entries from this monitor.</returns>
             public LogReader CreateFilteredReaderAndMoveTo( long streamOffset )
             {
-                var r = LogReader.Open( LogFile.FileName, streamOffset != -1 ? streamOffset : FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
-                r.MoveNext();
+                if( streamOffset == -1 ) streamOffset = FirstOffset;
+                var r = LogReader.Open( LogFile.FileName, streamOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                if( !r.MoveNext() )
+                {
+                    r.Dispose();
+                    Throw.InvalidDataException( $"Unable to read '{LogFile.FileName}' for monitor '{MonitorId}' from offset {streamOffset}.", r.ReadException );
+                }
                 return r;
             }
 
@@ -129,10 +196,15 @@ namespace CK.Monitoring
             {
                 var r = LogReader.Open( LogFile.FileName, FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
                 while( r.MoveNext() && r.Current.LogTime < logTime ) ;
+                if( r.ReadException != null || r.BadEndOfFileMarker )
+                {
+                    r.Dispose();
+                    Throw.InvalidDataException( $"Unable to read '{LogFile.FileName}' for monitor '{MonitorId}' from offset {LastOffset}.", r.ReadException );
+                }
                 return r;
             }
 
-            internal RawLogFileMonitorOccurence( RawLogFile f, Guid monitorId, long streamOffset )
+            internal RawLogFileMonitorOccurence( RawLogFile f, string monitorId, long streamOffset )
             {
                 LogFile = f;
                 MonitorId = monitorId;
@@ -215,7 +287,7 @@ namespace CK.Monitoring
             {
                 try
                 {
-                    var monitorOccurrences = new Dictionary<Guid, RawLogFileMonitorOccurence>();
+                    var monitorOccurrences = new Dictionary<string, RawLogFileMonitorOccurence>();
                     var monitorOccurrenceList = new List<RawLogFileMonitorOccurence>();
                     using( var r = LogReader.Open( _fileName ) )
                     {
@@ -245,7 +317,7 @@ namespace CK.Monitoring
                 }
             }
 
-            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<Guid, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
+            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<string, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
             {
                 bool newOccurrence = false;
                 if( !monitorOccurrence.TryGetValue( log.MonitorId, out RawLogFileMonitorOccurence? occ ) )
@@ -276,7 +348,7 @@ namespace CK.Monitoring
         /// </summary>
         public MultiLogReader()
         {
-            _monitors = new ConcurrentDictionary<Guid, LiveIndexedMonitor>();
+            _monitors = new ConcurrentDictionary<string, LiveIndexedMonitor>();
             _files = new ConcurrentDictionary<string, RawLogFile>( StringComparer.OrdinalIgnoreCase );
             _lockWriteRead = new ReaderWriterLockSlim();
             _globalInfoLock = new object();
@@ -344,8 +416,16 @@ namespace CK.Monitoring
         {
             Debug.Assert( fileOccurrence.MonitorId == log.MonitorId );
             Debug.Assert( !newOccurrence || (fileOccurrence.FirstEntryTime == log.LogTime && fileOccurrence.LastEntryTime == log.LogTime ) );
-            LiveIndexedMonitor m = _monitors.GetOrAdd( log.MonitorId, id => new LiveIndexedMonitor( id ) );
+            // This is required to detect the fact that it's this call that created the final monitor (the GetOrAdd may call the
+            // value factory but another thread may have already set it) and we must ensure that the OnNewLiveMonitor is
+            // called once and only once per new live monitor.
+            LiveIndexedMonitor? proposal = null;
+            LiveIndexedMonitor m = _monitors.GetOrAdd( log.MonitorId, id => proposal = new LiveIndexedMonitor( id ) );
             m.Register( fileOccurrence, newOccurrence, streamOffset, log );
+            if( proposal == m )
+            {
+                OnLiveMonitorAppeared?.Invoke( m );
+            }
             return m;
         }
 

@@ -4,6 +4,7 @@ using System.Threading;
 using CK.Core;
 using System.Reflection;
 using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CK.Monitoring
 {
@@ -17,19 +18,28 @@ namespace CK.Monitoring
     {
         readonly List<WeakReference<GrandOutputClient>> _clients;
         readonly DispatcherSink _sink;
+        readonly IdentityCard _identityCard;
         LogFilter _minimalFilter;
-
-        int _handleCriticalErrors;
 
         static GrandOutput? _default;
         static MonitorTraceListener? _traceListener;
         static readonly object _defaultLock = new object();
 
         /// <summary>
-        /// The tag that marks all external log entry sent when <see cref="HandleCriticalErrors"/>
-        /// is true.
+        /// The tag that marks all external log entry sent by <see cref="AppDomain.UnhandledException"/>
+        /// and <see cref="System.Threading.Tasks.TaskScheduler.UnobservedTaskException"/>.
         /// </summary>
-        public static CKTrait CriticalErrorTag = ActivityMonitor.Tags.Context.FindOrCreate( "CriticalError" );
+        public static readonly CKTrait UnhandledException = ActivityMonitor.Tags.Register( "UnhandledException" );
+
+        /// <summary>
+        /// The name of the fake monitor for external logs.
+        /// </summary>
+        public const string ExternalLogMonitorUniqueId = "§ext";
+
+        /// <summary>
+        /// The default grand output identifier.
+        /// </summary>
+        public const string UnknownGrandOutputId = "§none";
 
         /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
@@ -59,10 +69,6 @@ namespace CK.Monitoring
         /// that uses <see cref="EnsureGrandOutputClient(IActivityMonitor)"/> on newly created ActivityMonitor.
         /// </para>
         /// <para>
-        /// The Default GrandOutput has by default its <see cref="HandleCriticalErrors"/> sets to true: it handles Critical errors (by subscribing
-        /// to <see cref="CriticalErrorCollector.OnErrorFromBackgroundThreads"/>).
-        /// </para>
-        /// <para>
         /// The Default GrandOutput also adds a <see cref="MonitorTraceListener"/> in the <see cref="Trace.Listeners"/> collection that
         /// has <see cref="MonitorTraceListener.FailFast"/> sets to false: <see cref="MonitoringFailFastException"/> are thrown instead of
         /// calling <see cref="Environment.FailFast(string)"/>.
@@ -81,14 +87,13 @@ namespace CK.Monitoring
             {
                 if( _default == null )
                 {
-                    bool ensureStaticIntialization = LogFile.TrackActivityMonitorLoggingError; //lgtm [cs/useless-assignment-to-local]
                     if( configuration == null )
                     {
                         configuration = new GrandOutputConfiguration()
                                             .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
                         configuration.InternalClone = true;
                     }
-                    _default = new GrandOutput( true, configuration, true );
+                    _default = new GrandOutput( true, configuration );
                     ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                     _traceListener = new MonitorTraceListener( _default, failFast: false );
                     if( clearExistingTraceListeners ) Trace.Listeners.Clear();
@@ -116,7 +121,7 @@ namespace CK.Monitoring
         /// </param>
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication = false )
         {
-            if( configuration == null ) throw new ArgumentNullException( nameof( configuration ) );
+            Throw.CheckNotNullArgument( configuration );
             if( !configuration.InternalClone )
             {
                 configuration = configuration.Clone();
@@ -131,16 +136,16 @@ namespace CK.Monitoring
         /// assembly and namespace as their configuration objects and named the 
         /// same without the "Configuration" suffix.
         /// </summary>
-        static public Func<IHandlerConfiguration, IGrandOutputHandler> CreateHandler = config =>
+        public static Func<IHandlerConfiguration, IServiceProvider, IGrandOutputHandler> CreateHandler { get; set; } = (config,sp) =>
             {
                 var t = config.GetType();
                 var name = t.FullName;
                 Debug.Assert( name != null && t.AssemblyQualifiedName != null );
-                if( !name.EndsWith( "Configuration" ) ) throw new Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
+                if( !name.EndsWith( "Configuration" ) ) Throw.Exception( $"Configuration handler type name must end with 'Configuration': {name}." );
                 name = t.AssemblyQualifiedName.Replace( "Configuration,", "," );
                 t = Type.GetType( name, throwOnError: true );
                 Debug.Assert( t != null );
-                return (IGrandOutputHandler)Activator.CreateInstance( t, new[] { config } )!;
+                return (IGrandOutputHandler)ActivatorUtilities.CreateInstance( sp, t, config );
             };
 
         static GrandOutput()
@@ -153,29 +158,29 @@ namespace CK.Monitoring
         /// Initializes a new <see cref="GrandOutput"/>. 
         /// </summary>
         /// <param name="config">The configuration.</param>
-        /// <param name="handleCriticalErrors">True to handle critical errors.</param>
-        public GrandOutput( GrandOutputConfiguration config, bool handleCriticalErrors = false )
-            : this( false, config, handleCriticalErrors )
+        public GrandOutput( GrandOutputConfiguration config )
+            : this( false, config )
         {
         }
 
-        GrandOutput( bool isDefault, GrandOutputConfiguration config, bool handleCriticalErrors )
+        GrandOutput( bool isDefault, GrandOutputConfiguration config )
         {
             if( config == null ) throw new ArgumentNullException( nameof( config ) );
-            // Creates the client list first.
+            // Creates the identity card and the client list first.
+            _identityCard = new IdentityCard();
             _clients = new List<WeakReference<GrandOutputClient>>();
             _minimalFilter = LogFilter.Undefined;
             // Starts the pump thread. Its monitor will be registered
             // in this GrandOutput.
-            _sink = new DispatcherSink(
-                            m => DoEnsureGrandOutputClient( m ),
-                            config.TimerDuration ?? TimeSpan.FromMilliseconds(500),
-                            TimeSpan.FromMinutes( 5 ),
-                            DoGarbageDeadClients,
-                            OnFiltersChanged,
-                            isDefault );
-            HandleCriticalErrors = handleCriticalErrors;
+            _sink = new DispatcherSink( m => DoEnsureGrandOutputClient( m ),
+                                        _identityCard,
+                                        config.TimerDuration ?? TimeSpan.FromMilliseconds(500),
+                                        TimeSpan.FromMinutes( 5 ),
+                                        DoGarbageDeadClients,
+                                        OnFiltersChanged,
+                                        isDefault );
             ApplyConfiguration( config, waitForApplication: true );
+            ActivityMonitor.StaticLogger.OnStaticLog += _sink.ExternalOrStaticLog;
         }
 
         /// <summary>
@@ -197,7 +202,7 @@ namespace CK.Monitoring
 
         GrandOutputClient? DoEnsureGrandOutputClient( IActivityMonitor monitor )
         {
-            Func<GrandOutputClient?> reg = () =>
+            GrandOutputClient? Register()
             {
                 var c = new GrandOutputClient( this );
                 lock( _clients )
@@ -206,9 +211,19 @@ namespace CK.Monitoring
                     else _clients.Add( new WeakReference<GrandOutputClient>( c ) );
                 }
                 return c;
-            };
-            return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, reg );
+            }
+            return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, Register );
         }
+
+        /// <summary>
+        /// Gets the identity card of this GrandOutput.
+        /// </summary>
+        public IdentityCard IdentityCard => _identityCard;
+
+        /// <summary>
+        /// Gets this GrandOutput identifier: this is the identifier of the dispatcher sink monitor.
+        /// </summary>
+        public string GrandOutpuId => _sink.SinkMonitorId;
 
         /// <summary>
         /// Gets or directly sets the filter level for ExternalLog methods (without using the <see cref="GrandOutputConfiguration.ExternalLogLevelFilter"/> configuration).
@@ -217,11 +232,6 @@ namespace CK.Monitoring
         /// Note that <see cref="ApplyConfiguration(GrandOutputConfiguration, bool)"/> changes this property.
         /// </summary>
         public LogLevelFilter ExternalLogLevelFilter { get; set; }
-
-        /// <summary></summary>
-        [Obsolete( "Use ExternalLogLevelFilter instead.", true)]
-        [System.ComponentModel.EditorBrowsable( System.ComponentModel.EditorBrowsableState.Never )]
-        public LogLevelFilter ExternalLogFilter { get; set; }
 
         /// <summary>
         /// Gets or directly sets the minimal filter (without using the <see cref="GrandOutputConfiguration.MinimalFilter"/> configuration).
@@ -250,27 +260,46 @@ namespace CK.Monitoring
             if( externalLogFilter.HasValue ) ExternalLogLevelFilter = externalLogFilter.Value;
         }
 
-
         /// <summary>
-        /// Gets whether a log level should be emitted.
-        /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
-        /// bit set, the decision has already been taken and we return true.
-        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>
-        /// (and if it is <see cref="LogLevelFilter.None"/>, the static <see cref="ActivityMonitor.DefaultFilter"/>).
+        /// Gets whether an <see cref="ExternalLog(LogLevel, string, Exception?)"/> level should be emitted.
         /// </summary>
         /// <param name="level">Log level to test.</param>
         /// <returns>True if this level should be logged otherwise false.</returns>
-        public bool IsExternalLogEnabled( LogLevel level )
+        public bool IsExternalLogEnabled( LogLevel level ) => ActivityMonitor.StaticLogger.ShouldLog( level, ExternalLogLevelFilter );
+
+        /// <summary>
+        /// Gets whether an <see cref="ExternalLog(LogLevel, CKTrait, string, Exception?)"/> level should be emitted.
+        /// </summary>
+        /// <param name="level">Log level to test.</param>
+        /// <param name="tags">Log tags to test.</param>
+        /// <returns>True if this should be logged otherwise false.</returns>
+        public bool IsExternalLogEnabled( LogLevel level, CKTrait tags ) => ActivityMonitor.StaticLogger.ShouldLog( level, tags, ExternalLogLevelFilter );
+
+        /// <summary>
+        /// Logs an entry from any contextless source to this GrandOutput only (as opposed to using <see cref="ActivityMonitor.StaticLogger"/>
+        /// that will be handled by all existing GrandOutput instances).
+        /// </summary>
+        /// <remarks>
+        /// We consider that as long has the log level has <see cref="LogLevel.IsFiltered">IsFiltered</see> bit
+        /// set, the decision has already been taken and here we do our job: dispatching the log.
+        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
+        /// </remarks>
+        /// <param name="level">Log level.</param>
+        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
+        /// <param name="message">String message.</param>
+        /// <param name="ex">Optional exception.</param>
+        public void ExternalLog( LogLevel level, CKTrait tags, string message, Exception? ex = null )
         {
-            if( (level & LogLevel.IsFiltered) != 0 ) return true;
-            LogLevelFilter filter = ExternalLogLevelFilter;
-            if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
-            return (int)filter <= (int)(level & LogLevel.Mask);
+            if( (level & LogLevel.IsFiltered) != 0
+                || ActivityMonitor.StaticLogger.ShouldLog( level, tags, ExternalLogLevelFilter ) )
+            {
+                _sink.ExternalLog( level, tags, message, ex );
+            }
         }
 
         /// <summary>
-        /// Logs an entry from any contextless source.
-        /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
+        /// Logs an entry from any contextless source to this GrandOutput only (as opposed to using <see cref="ActivityMonitor.StaticLogger"/>
+        /// that will log to all existing GrandOutput instances).
         /// </summary>
         /// <remarks>
         /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see> bit
@@ -280,31 +309,14 @@ namespace CK.Monitoring
         /// <param name="level">Log level.</param>
         /// <param name="message">String message.</param>
         /// <param name="ex">Optional exception.</param>
-        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
-        public void ExternalLog( LogLevel level, string message, Exception? ex = null, CKTrait? tags = null )
+        public void ExternalLog( LogLevel level, string message, Exception? ex = null )
         {
-            if( (level & LogLevel.IsFiltered) == 0 )
+            if( (level & LogLevel.IsFiltered) != 0
+                || ActivityMonitor.StaticLogger.ShouldLog( level, ExternalLogLevelFilter ) )
             {
-                LogLevelFilter filter = ExternalLogLevelFilter;
-                if( filter == LogLevelFilter.None ) filter = ActivityMonitor.DefaultFilter.Line;
-                if( (int)filter > (int)(level & LogLevel.Mask) ) return;
+                _sink.ExternalLog( level, null, message, ex );
             }
-            _sink.ExternalLog( level, message, ex, tags ?? ActivityMonitor.Tags.Empty );
         }
-
-        /// <summary>
-        /// Logs an entry from any contextless source.
-        /// The monitor target has <see cref="Guid.Empty"/> as its <see cref="ActivityMonitor.UniqueId"/>.
-        /// </summary>
-        /// <remarks>
-        /// We consider that as long has the log level has <see cref="CK.Core.LogLevel.IsFiltered">IsFiltered</see>
-        /// bit set, the decision has already being taken and here we do our job: dispatching of the log.
-        /// But for logs that do not claim to have been filtered, we challenge the <see cref="ExternalLogLevelFilter"/>.
-        /// </remarks>
-        /// <param name="level">Log level.</param>
-        /// <param name="message">String message.</param>
-        /// <param name="tags">Optional tags (that must belong to <see cref="ActivityMonitor.Tags.Context"/>).</param>
-        public void ExternalLog( LogLevel level, string message, CKTrait? tags ) => ExternalLog( level, message, null, tags );
 
         /// <summary>
         /// Gets a cancellation token that is cancelled at the start
@@ -317,52 +329,13 @@ namespace CK.Monitoring
         /// </summary>
         public IGrandOutputSink Sink => _sink;
 
-        /// <summary>
-        /// Gets or sets whether this GrandOutput subscribes to <see cref="ActivityMonitor.CriticalErrorCollector"/>
-        /// events and sends them by calling <see cref="ExternalLog(CK.Core.LogLevel, string, Exception, CKTrait)">ExternalLog</see>
-        /// with a <see cref="CriticalErrorTag"/> tag.
-        /// Defaults to true for the <see cref="Default"/> GrandOutput, false otherwise.
-        /// </summary>
-        public bool HandleCriticalErrors
-        {
-            get { return _handleCriticalErrors != 0; }
-            set
-            {
-                if( value )
-                {
-                    if( Interlocked.Exchange( ref _handleCriticalErrors, 1 ) == 0 )
-                    {
-                        ActivityMonitor.CriticalErrorCollector.OnErrorFromBackgroundThreads += CriticalErrorCollector_OnErrorFromBackgroundThreads;
-                    }
-                }
-                else
-                {
-                    if( Interlocked.Exchange( ref _handleCriticalErrors, 0 ) == 1 )
-                    {
-                        ActivityMonitor.CriticalErrorCollector.OnErrorFromBackgroundThreads -= CriticalErrorCollector_OnErrorFromBackgroundThreads;
-                    }
-                }
-            }
-        }
-
-        void CriticalErrorCollector_OnErrorFromBackgroundThreads( object? sender, CriticalErrorCollector.ErrorEventArgs e )
-        {
-            int c = e.Errors.Count;
-            while( --c >= 0 )
-            {
-                var err = e.Errors[c];
-                ExternalLog( LogLevel.Fatal, err.Comment, err.Exception, CriticalErrorTag );
-            }
-        }
-
         void DoGarbageDeadClients()
         {
             lock( _clients )
             {
                 for( int i = 0; i < _clients.Count; ++i )
                 {
-                    GrandOutputClient? cw;
-                    if( !_clients[i].TryGetTarget( out cw ) || !cw.IsBoundToMonitor )
+                    if( !_clients[i].TryGetTarget( out GrandOutputClient? cw ) || !cw.IsBoundToMonitor )
                     {
                         _clients.RemoveAt( i-- );
                     }
@@ -384,7 +357,6 @@ namespace CK.Monitoring
         {
             if( _sink.Stop() )
             {
-                HandleCriticalErrors = false;
                 lock( _defaultLock )
                 {
                     if( _default == this )
@@ -397,6 +369,7 @@ namespace CK.Monitoring
 
                     }
                 }
+                ActivityMonitor.StaticLogger.OnStaticLog -= _sink.ExternalOrStaticLog;
                 SignalClients();
                 _sink.Finalize( millisecondsBeforeForceClose );
             }
@@ -408,8 +381,7 @@ namespace CK.Monitoring
             {
                 for( int i = 0; i < _clients.Count; ++i )
                 {
-                    GrandOutputClient? cw;
-                    if( _clients[i].TryGetTarget( out cw ) && cw.IsBoundToMonitor )
+                    if( _clients[i].TryGetTarget( out GrandOutputClient? cw ) && cw.IsBoundToMonitor )
                     {
                         cw.OnGrandOutputDisposedOrMinimalFilterChanged();
                     }

@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CK.Core;
 
-namespace CK.Monitoring.Tests
+namespace CK.Monitoring
 {
     public class StupidStringClient : ActivityMonitorTextHelperClient
     {
@@ -16,7 +16,7 @@ namespace CK.Monitoring.Tests
             public readonly Exception Exception;
             public readonly DateTimeStamp LogTime;
 
-            public Entry( ActivityMonitorLogData d )
+            public Entry( ref ActivityMonitorLogData d )
             {
                 Level = d.Level;
                 Tags = d.Tags;
@@ -26,12 +26,8 @@ namespace CK.Monitoring.Tests
             }
 
             public Entry( IActivityLogGroup d )
+                : this( ref d.Data )
             {
-                Level = d.GroupLevel;
-                Tags = d.GroupTags;
-                Text = d.GroupText;
-                Exception = d.Exception;
-                LogTime = d.LogTime;
             }
 
             public override string ToString()
@@ -52,18 +48,18 @@ namespace CK.Monitoring.Tests
             WriteConclusionTraits = writeConclusionTraits;
         }
 
-        protected override void OnEnterLevel( ActivityMonitorLogData data )
+        protected override void OnEnterLevel( ref ActivityMonitorLogData data )
         {
-            Entries.Add( new Entry( data ) );
+            Entries.Add( new Entry( ref data ) );
             Writer.WriteLine();
             Writer.Write( data.MaskedLevel.ToString() + ": " + data.Text );
             if( WriteTags ) Writer.Write( "-[{0}]", data.Tags.ToString() );
             if( data.Exception != null ) Writer.Write( "Exception: " + data.Exception.Message );
         }
 
-        protected override void OnContinueOnSameLevel( ActivityMonitorLogData data )
+        protected override void OnContinueOnSameLevel( ref ActivityMonitorLogData data )
         {
-            Entries.Add( new Entry( data ) );
+            Entries.Add( new Entry( ref data ) );
             Writer.Write( data.Text );
             if( WriteTags ) Writer.Write( "-[{0}]", data.Tags.ToString() );
             if( data.Exception != null ) Writer.Write( "Exception: " + data.Exception.Message );
@@ -79,9 +75,9 @@ namespace CK.Monitoring.Tests
             Entries.Add( new Entry( g ) );
             Writer.WriteLine();
             Writer.Write( new String( '+', g.Depth ) );
-            Writer.Write( "{1} ({0})", g.MaskedGroupLevel, g.GroupText );
-            if( g.Exception != null ) Writer.Write( "Exception: " + g.Exception.Message );
-            if( WriteTags ) Writer.Write( "-[{0}]", g.GroupTags.ToString() );
+            Writer.Write( "{1} ({0})", g.Data.MaskedLevel, g.Data.Text );
+            if( g.Data.Exception != null ) Writer.Write( "Exception: " + g.Data.Exception.Message );
+            if( WriteTags ) Writer.Write( "-[{0}]", g.Data.Tags.ToString() );
         }
 
         protected override void OnGroupClose( IActivityLogGroup g, IReadOnlyList<ActivityLogGroupConclusion> conclusions )

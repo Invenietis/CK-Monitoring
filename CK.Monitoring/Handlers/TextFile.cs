@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using CK.Core;
 
 namespace CK.Monitoring.Handlers
@@ -29,11 +30,12 @@ namespace CK.Monitoring.Handlers
         /// Initialization of the handler: computes the path.
         /// </summary>
         /// <param name="m">The monitor to use.</param>
-        public bool Activate( IActivityMonitor m )
+        public ValueTask<bool> ActivateAsync( IActivityMonitor m )
         {
-            using( m.OpenGroup( LogLevel.Trace, $"Initializing TextFile handler (MaxCountPerFile = {_file.MaxCountPerFile}).", null ) )
+            using( m.OpenTrace( $"Initializing TextFile handler (MaxCountPerFile = {_file.MaxCountPerFile})." ) )
             {
-                return _file.Initialize( m );
+                _file.Initialize( m );
+                return ValueTask.FromResult( true );
             }
         }
 
@@ -42,9 +44,10 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="logEvent">The log entry.</param>
-        public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
+        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
         {
-            _file.Write( logEvent.Entry );
+            _file.Write( logEvent );
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
@@ -52,7 +55,7 @@ namespace CK.Monitoring.Handlers
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
+        public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan )
         {
             // Don't really care of the overflow here.
             if( --_countFlush == 0 )
@@ -66,6 +69,7 @@ namespace CK.Monitoring.Handlers
                 _file.RunFileHousekeeping( m, _config.MinimumTimeSpanToKeep, _config.MaximumTotalKbToKeep * 1000L );
                 _countHousekeeping = _config.HousekeepingRate;
             }
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
@@ -77,25 +81,26 @@ namespace CK.Monitoring.Handlers
         /// <param name="m">The monitor to use.</param>
         /// <param name="c">Configuration to apply.</param>
         /// <returns>True if the configuration applied.</returns>
-        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+        public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c )
         {
-            if( c is not TextFileConfiguration cF || cF.Path != _config.Path ) return false;
+            if( c is not TextFileConfiguration cF || cF.Path != _config.Path ) return ValueTask.FromResult( false );
             _config = cF;
             _file.MaxCountPerFile = cF.MaxCountPerFile;
             _file.Flush();
             _countFlush = _config.AutoFlushRate;
             _countHousekeeping = _config.HousekeepingRate;
-            return true;
+            return ValueTask.FromResult( true );
         }
 
         /// <summary>
         /// Closes the file if it is opened.
         /// </summary>
         /// <param name="m">The monitor to use to track activity.</param>
-        public void Deactivate( IActivityMonitor m )
+        public ValueTask DeactivateAsync( IActivityMonitor m )
         {
-            m.SendLine( LogLevel.Info, $"Closing file for TextFile handler.", null );
+            m.Info( "Closing file for TextFile handler." );
             _file.Close();
+            return ValueTask.CompletedTask;
         }
 
     }

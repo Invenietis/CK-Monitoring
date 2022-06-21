@@ -1,17 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\Common\Shared.props" />
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
+    <TargetFramework>net6.0</TargetFramework>
     <IsPackable>False</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\CK.Monitoring\CK.Monitoring.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="5.10.3" />
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="$(CKActivityMonitorVersion)" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.3" />
-    <PackageReference Include="NUnit" Version="3.12.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
+    <PackageReference Include="FluentAssertions" Version="6.7.0" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.2.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Logs\CKMonWriterClient\" />
+    <Folder Include="Logs\MissingEntries\" />
   </ItemGroup>
 </Project>

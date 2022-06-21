@@ -68,15 +68,15 @@ namespace CK.Monitoring
         string? ComputeBasePath( IActivityMonitor m )
         {
             string? rootPath = null;
-            if( String.IsNullOrWhiteSpace( _configPath ) ) m.SendLine( LogLevel.Error, "The configured path is empty.", null );
-            else if( FileUtil.IndexOfInvalidPathChars( _configPath ) >= 0 ) m.SendLine( LogLevel.Error, $"The configured path '{_configPath}' is invalid.", null );
+            if( String.IsNullOrWhiteSpace( _configPath ) ) m.Error( "The configured path is empty." );
+            else if( FileUtil.IndexOfInvalidPathChars( _configPath ) >= 0 ) m.Error( $"The configured path '{_configPath}' is invalid." );
             else
             {
                 rootPath = _configPath;
                 if( !Path.IsPathRooted( rootPath ) )
                 {
                     string? rootLogPath = LogFile.RootLogPath;
-                    if( String.IsNullOrWhiteSpace( rootLogPath ) ) m.SendLine( LogLevel.Error, $"The relative path '{_configPath}' requires that LogFile.RootLogPath be specified.", null );
+                    if( String.IsNullOrWhiteSpace( rootLogPath ) ) m.Error( $"The relative path '{_configPath}' requires that LogFile.RootLogPath be specified." );
                     else rootPath = Path.Combine( rootLogPath, _configPath );
                 }
             }
@@ -122,7 +122,7 @@ namespace CK.Monitoring
                 }
                 catch( Exception ex )
                 {
-                    monitor.SendLine( LogLevel.Error, null, ex );
+                    monitor.Error( ex );
                 }
             }
             return false;
@@ -210,9 +210,8 @@ namespace CK.Monitoring
                         // Skip currently-opened temporary file
                         continue;
                     }
-
-                    string datePart = file.Name.Substring( 2, file.Name.Length - _fileNameSuffix.Length - 4 );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) )
+                    var datePart = file.Name.AsSpan( 2 );
+                    if( FileUtil.TryMatchFileNameUniqueTimeUtcFormat( ref datePart, out DateTime d ) )
                     {
                         if( d >= minDate )
                         {
@@ -226,8 +225,8 @@ namespace CK.Monitoring
                 // Final files are <date> + _fileNameSuffix (see CloseCurrentFile())
                 else if( file.Name.EndsWith( _fileNameSuffix ) )
                 {
-                    string datePart = file.Name.Substring( 0, file.Name.Length - _fileNameSuffix.Length );
-                    if( FileUtil.TryParseFileNameUniqueTimeUtcFormat( datePart, out DateTime d, allowSuffix: true ) )
+                    var datePart = file.Name.AsSpan();
+                    if( FileUtil.TryMatchFileNameUniqueTimeUtcFormat( ref datePart, out DateTime d ) )
                     {
                         if( d >= minDate )
                         {
@@ -246,7 +245,7 @@ namespace CK.Monitoring
                 // Note: The comparer is a reverse comparer. The most RECENT log file is the FIRST.
                 candidates.Sort( ( a, b ) => DateTime.Compare( b.Key, a.Key ) );
                 candidates.RemoveRange( 0, preservedByDateCount );
-                m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Debug, $"Considering {candidates.Count} log files to delete.", m.NextLogTime(), null );
+                m.Debug( $"Considering {candidates.Count} log files to delete." );
 
                 long totalFileSize = byteLengthOfPreservedByDate;
                 foreach( var kvp in candidates )
@@ -255,14 +254,14 @@ namespace CK.Monitoring
                     totalFileSize += file.Length;
                     if( totalFileSize > totalBytesToKeep )
                     {
-                        m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Trace, $"Deleting file {file.FullName} (housekeeping).", m.NextLogTime(), null );
+                        m.Trace( $"Deleting file {file.FullName} (housekeeping)." );
                         try
                         {
                             file.Delete();
                         }
                         catch( Exception ex )
                         {
-                            m.UnfilteredLog( ActivityMonitor.Tags.Empty, LogLevel.Warn, $"Failed to delete file {file.FullName} (housekeeping).", m.NextLogTime(), ex );
+                            m.Warn( $"Failed to delete file {file.FullName} (housekeeping).", ex );
                         }
                     }
                 }

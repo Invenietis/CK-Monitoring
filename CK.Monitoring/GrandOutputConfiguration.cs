@@ -15,7 +15,7 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets or sets the timer duration. This is used to enable housekeeping features such
         /// as cleaning up the weak references to the <see cref="GrandOutputClient"/> and calling
-        /// the <see cref="IGrandOutputHandler.OnTimer(IActivityMonitor, TimeSpan)"/>.
+        /// the <see cref="IGrandOutputHandler.OnTimerAsync(IActivityMonitor, TimeSpan)"/>.
         /// Defaults to 500 milliseconds.
         /// </summary>
         public TimeSpan? TimerDuration { get; set; } = null;
@@ -29,11 +29,21 @@ namespace CK.Monitoring
         public LogFilter? MinimalFilter { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the filter level for <see cref="GrandOutput.ExternalLog(LogLevel, string, Exception, CKTrait)"/> methods.
+        /// Gets or sets the filter level for <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait, string, Exception)"/> methods.
         /// This, when not null, impacts the <see cref="GrandOutput.ExternalLogLevelFilter"/> property that defaults to <see cref="LogLevelFilter.None"/>
         /// (the <see cref="ActivityMonitor.DefaultFilter"/>.<see cref="LogFilter.Line">Line</see> is used).
         /// </summary>
         public LogLevelFilter? ExternalLogLevelFilter { get; set; } = null;
+
+        /// <summary>
+        /// Gets or sets whether unhandled exceptions from <see cref="AppDomain.UnhandledException"/>
+        /// and <see cref="System.Threading.Tasks.TaskScheduler.UnobservedTaskException"/> are sent to
+        /// the <see cref="GrandOutput.ExternalLog(LogLevel, CKTrait?, string, Exception?)"/>.
+        /// <para>
+        /// Defaults to true for the <see cref="GrandOutput.Default"/> instance and false for the other ones.
+        /// </para>
+        /// </summary>
+        public bool? TrackUnhandledExceptions { get; set; } = null;
 
         /// <summary>
         /// Gets the list of handlers configuration.
@@ -59,6 +69,17 @@ namespace CK.Monitoring
         public GrandOutputConfiguration SetExternalLogLevelFilter( LogLevelFilter? filter )
         {
             ExternalLogLevelFilter = filter;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the <see cref="TrackUnhandledExceptions"/> (fluent interface).
+        /// </summary>
+        /// <param name="track">The value.</param>
+        /// <returns>This configuration.</returns>
+        public GrandOutputConfiguration SetTrackUnhandledExceptions( bool? track )
+        {
+            TrackUnhandledExceptions = track;
             return this;
         }
 
@@ -94,7 +115,8 @@ namespace CK.Monitoring
             {
                 TimerDuration = TimerDuration,
                 ExternalLogLevelFilter = ExternalLogLevelFilter,
-                MinimalFilter = MinimalFilter
+                MinimalFilter = MinimalFilter,
+                TrackUnhandledExceptions = TrackUnhandledExceptions
             };
             c.Handlers.AddRange( Handlers.Select( h => h.Clone() ) );
             return c;

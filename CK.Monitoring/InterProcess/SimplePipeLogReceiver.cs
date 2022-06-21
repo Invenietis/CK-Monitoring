@@ -98,18 +98,30 @@ namespace CK.Monitoring.InterProcess
                     switch( e.LogType )
                     {
                         case LogEntryType.Line:
-                            if( _monitor.ShouldLogLine( e.LogLevel, e.FileName, e.LineNumber ) )
                             {
-                                _monitor.UnfilteredLog( e.Tags, e.LogLevel | LogLevel.IsFiltered, e.Text, e.LogTime, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
+                                if( _monitor.ShouldLogLine( e.LogLevel, e.Tags, out var finalTags ) )
+                                {
+                                    var d = new ActivityMonitorLogData( e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
+                                    d.SetExplicitLogTime( e.LogTime );
+                                    _monitor.UnfilteredLog( ref d );
+                                }
+                                break;
                             }
-                            break;
                         case LogEntryType.OpenGroup:
-                            _monitor.UnfilteredOpenGroup( _monitor.ShouldLogGroup( e.LogLevel, e.FileName, e.LineNumber )
-                                                            ? new ActivityMonitorGroupData( e.LogLevel | LogLevel.IsFiltered, e.Tags, e.Text, e.LogTime, CKException.CreateFrom( e.Exception ), null, e.FileName, e.LineNumber )
-                                                            : null );
+                            {
+                                ActivityMonitorLogData d;
+                                if( _monitor.ShouldLogLine( e.LogLevel, e.Tags, out var finalTags ) )
+                                {
+                                    d = new ActivityMonitorLogData( e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
+                                    d.SetExplicitLogTime( e.LogTime );
+                                }
+                                else d = default;
+                                _monitor.UnfilteredOpenGroup( ref d );
+                            }
+
                             break;
                         case LogEntryType.CloseGroup:
-                            _monitor.CloseGroup( e.LogTime, e.Conclusions );
+                            _monitor.CloseGroup( e.Conclusions, e.LogTime );
                             break;
                     }
                 }
@@ -117,7 +129,7 @@ namespace CK.Monitoring.InterProcess
             catch( Exception ex )
             {
                 _endFlag = LogReceiverEndStatus.Error;
-                ActivityMonitor.CriticalErrorCollector.Add( ex, $"While {nameof( SimpleLogPipeReceiver)}.Run." );
+                _monitor.UnfilteredLog( LogLevel.Fatal, null, "While receiving pipe logs.", ex );
             }
         }
 

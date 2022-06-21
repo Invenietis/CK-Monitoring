@@ -1,5 +1,4 @@
 using CK.Core;
-using CK.Text;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -25,7 +24,7 @@ namespace CK.Monitoring
                        'u', 'v', 'w', 'x', 'y', 'z',
                        '+', '/'};
         readonly StringBuilder _builder;
-        readonly Dictionary<Guid, string> _monitorNames;
+        readonly Dictionary<string, string> _monitorNames;
         DateTime _lastLogTime;
         readonly bool _useDeltaTime;
         readonly string _timeFormat;
@@ -59,9 +58,9 @@ namespace CK.Monitoring
         {
             _useDeltaTime = useDeltaTime;
             _builder = new StringBuilder();
-            _monitorNames = new Dictionary<Guid, string>
+            _monitorNames = new Dictionary<string, string>
             {
-                { Guid.Empty, "###" }
+                { GrandOutput.ExternalLogMonitorUniqueId, "###" }
             };
             _timeFormat = timeFormat;
             _timeFormatLength = DateTime.UtcNow.ToString( timeFormat ).Length;
@@ -72,12 +71,7 @@ namespace CK.Monitoring
         static string B64ConvertInt( int value )
         {
             //https://www.codeproject.com/Articles/27493/Convert-an-integer-to-a-base-64-string-and-back-ag
-            // length should be 3 only
-            char[] c = new char[3];
-            c[0] = _b64e[(value & 258048) >> 12];
-            c[1] = _b64e[(value & 4032) >> 06];
-            c[2] = _b64e[(value & 63)];
-            return new string( c );
+            return String.Create( 3, value, (s,v) => { s[0] = _b64e[(value & 258048) >> 12]; s[1] = _b64e[(value & 4032) >> 06]; s[2] = _b64e[(value & 63)]; } );
         }
 
         string GetFormattedDate( IMulticastLogEntry e )
@@ -110,7 +104,7 @@ namespace CK.Monitoring
             /// <param name="indentationPrefix">Indentation prefix.</param>
             /// <param name="monitorId">The monitor id, the constructor will prepend a '~' character.</param>
             /// <param name="date">The formatted date of the entry.</param>
-            /// <param name="entryText">The rest of the text entry.</param>
+            /// <param name="entryText">The tags and the text entry.</param>
             public FormattedEntry( char logLevel, string indentationPrefix, string monitorId, string date, string entryText )
             {
                 LogLevel = logLevel;
@@ -119,6 +113,11 @@ namespace CK.Monitoring
                 MonitorId = "~" + monitorId;
                 EntryText = entryText;
             }
+
+            /// <summary>
+            /// Gets whether this line is a valid one or the default struct.
+            /// </summary>
+            public bool IsValid => IndentationPrefix != null;
 
             /// <summary>
             /// The level character.
@@ -146,12 +145,20 @@ namespace CK.Monitoring
             public readonly string EntryText;
 
             /// <summary>
-            /// Returns the log entry formatted: 
-            /// <see cref="FormattedDate"/> + " " + <see cref="MonitorId"/> + " " + <see cref="EntryText"/>.
+            /// Writes this entry to a string builder.
             /// </summary>
-            /// <returns>The full formatted entry line.</returns>
-            public override string ToString() => FormattedDate + " " + MonitorId + " " + LogLevel + " " + IndentationPrefix + EntryText;
-
+            /// <param name="b">This builder.</param>
+            /// <returns>The builder to enable fluent syntax.</returns>
+            public StringBuilder Write( StringBuilder b ) => IndentationPrefix == null
+                                                                 ? b                                          
+                                                                 : b.Append( FormattedDate )
+                                                                    .Append( ' ' )
+                                                                    .Append( MonitorId )
+                                                                    .Append( ' ' )
+                                                                    .Append( LogLevel )
+                                                                    .Append( ' ' )
+                                                                    .Append( IndentationPrefix )
+                                                                    .Append( EntryText );
         }
 
         /// <summary>
@@ -163,14 +170,12 @@ namespace CK.Monitoring
         public string FormatEntryString( IMulticastLogEntry logEntry, string? entrySeparator = null )
         {
             if( entrySeparator == null ) entrySeparator = Environment.NewLine;
-            var logOutput = FormatEntry( logEntry );
-            if( logOutput.Key == null )
+            var (before, entry) = FormatEntry( logEntry );
+            if( before.IsValid )
             {
-                return logOutput.Value.ToString();
+                before.Write( _builder ).Append( entrySeparator );
             }
-            _builder.Append( logOutput.Key.Value.ToString() )
-                .Append( entrySeparator )
-                .Append( logOutput.Value.ToString() );
+            entry.Write( _builder );
             string output = _builder.ToString();
             _builder.Clear();
             return output;
@@ -180,13 +185,13 @@ namespace CK.Monitoring
         /// Format the <paramref name="logEntry"/>
         /// </summary>
         /// <param name="logEntry"></param>
-        /// <returns>(FormattedEntry optionalEntry, FormattedEntry entry)</returns>
-        public KeyValuePair<FormattedEntry?, FormattedEntry> FormatEntry( IMulticastLogEntry logEntry )
+        /// <returns>A possible first entry - for monitor numbering - and the entry itself.</returns>
+        public (FormattedEntry Before, FormattedEntry Entry) FormatEntry( IMulticastLogEntry logEntry )
         {
-            FormattedEntry? firstLine;
+            FormattedEntry before = default;
             string formattedDate = GetFormattedDate( logEntry );
 
-            char logLevel = CharLogLevel( logEntry );
+            char logLevel = logEntry.LogLevel.ToChar();
             string indentationPrefix = ActivityMonitorTextHelperClient.GetMultilinePrefixWithDepth( logEntry.Text != null ? logEntry.GroupDepth : logEntry.GroupDepth - 1 );
 
             if( !_monitorNames.TryGetValue( logEntry.MonitorId, out string? monitorId ) )
@@ -199,20 +204,21 @@ namespace CK.Monitoring
                 }
                 monitorId = B64ConvertInt( _monitorNames.Count );
                 _monitorNames.Add( logEntry.MonitorId, monitorId );
-                firstLine = new FormattedEntry( 'i', indentationPrefix, monitorId, formattedDate, $"Monitor: ~{logEntry.MonitorId}. {_monitorResetLog}" );
+                Debug.Assert( LogLevel.Info.ToChar() == 'i' );
+                before = new FormattedEntry( 'i',
+                                             indentationPrefix,
+                                             monitorId,
+                                             formattedDate,
+                                             $" [] Monitor: ~{logEntry.MonitorId}. {_monitorResetLog}" );
             }
-            else
-            {
-                firstLine = null;
-            }
-
             string multiLinePrefix = _blankSpacePrefix + indentationPrefix;
 
             if( logEntry.Text != null )
             {
                 Debug.Assert( logEntry.LogType != LogEntryType.CloseGroup );
                 if( logEntry.LogType == LogEntryType.OpenGroup ) _builder.Append( "> " );
-                multiLinePrefix += "  ";
+                _builder.Append( " [" ).Append( logEntry.Tags ).Append( "] " );
+                multiLinePrefix += "   ";
                 _builder.AppendMultiLine( multiLinePrefix, logEntry.Text, false );
                 if( logEntry.Exception != null )
                 {
@@ -228,20 +234,20 @@ namespace CK.Monitoring
                 {
                     if( logEntry.Conclusions.Count == 1 )
                     {
-                        _builder.AppendMultiLine( multiLinePrefix, logEntry.Conclusions.Single().Text, false );
+                        _builder.AppendMultiLine( multiLinePrefix + ' ', logEntry.Conclusions.Single().Text, false );
                     }
                     else
                     {
-                        _builder.Append( " | " ).Append( logEntry.Conclusions.Count ).Append( " conclusion" );
+                        _builder.Append( logEntry.Conclusions.Count ).Append( " conclusion" );
                         if( logEntry.Conclusions.Count > 1 ) _builder.Append( 's' );
                         _builder.Append( ':' ).AppendLine();
-                        multiLinePrefix += "   | ";
+                        multiLinePrefix += ' ';
                         bool first = true;
                         foreach( var c in logEntry.Conclusions )
                         {
                             if( !first ) _builder.AppendLine();
                             first = false;
-                            _builder.AppendMultiLine( multiLinePrefix, c.Text, true );
+                            _builder.AppendMultiLine( multiLinePrefix + ' ', c.Text, true );
                         }
                     }
 
@@ -249,32 +255,17 @@ namespace CK.Monitoring
             }
             string outputLine = _builder.ToString();
             _builder.Clear();
-            return new KeyValuePair<FormattedEntry?, FormattedEntry>( firstLine, new FormattedEntry( logLevel, indentationPrefix, monitorId, formattedDate, outputLine ) );
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="e">The IMulticastLogEntry being formatted.</param>
-        /// <returns>The char corresponding to the LogLevel</returns>
-        char CharLogLevel( IMulticastLogEntry e )
-        {
-            // Level is one char.
-            return (e.LogLevel & LogLevel.Mask) switch
-            {
-                LogLevel.Debug => 'd',
-                LogLevel.Trace => ' ',
-                LogLevel.Info => 'i',
-                LogLevel.Warn => 'W',
-                LogLevel.Error => 'E',
-                _ => 'F',
-            };
+            return (before, new FormattedEntry( logLevel,
+                                                 indentationPrefix,
+                                                 monitorId,
+                                                 formattedDate,
+                                                 outputLine ));
         }
 
         void ClearMonitorNames()
         {
             _monitorNames.Clear();
-            _monitorNames.Add( Guid.Empty, "###" );
+            _monitorNames.Add( GrandOutput.ExternalLogMonitorUniqueId, "###" );
         }
 
         /// <summary>

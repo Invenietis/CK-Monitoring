@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using CK.Core;
 
 namespace CK.Monitoring
@@ -16,7 +17,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <returns>True on success, false on error (this handler will not be added).</returns>
-        bool Activate( IActivityMonitor m );
+        ValueTask<bool> ActivateAsync( IActivityMonitor m );
 
         /// <summary>
         /// Called on a regular basis.
@@ -24,14 +25,14 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="timerSpan">Indicative timer duration.</param>
-        void OnTimer( IActivityMonitor m, TimeSpan timerSpan );
+        ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan );
 
         /// <summary>
         /// Handles a log event.
         /// </summary>
         /// <param name="m">The monitor to use.</param>
         /// <param name="logEvent">The log event.</param>
-        void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent );
+        ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent );
 
         /// <summary>
         /// Attempts to apply configuration if possible.
@@ -42,14 +43,14 @@ namespace CK.Monitoring
         /// <param name="m">The monitor to use.</param>
         /// <param name="c">Configuration to apply.</param>
         /// <returns>True if the configuration applied.</returns>
-        bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c );
+        ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c );
 
         /// <summary>
         /// Closes this handler.
         /// This is called after the handler has been removed.
         /// </summary>
         /// <param name="m">The monitor to use.</param>
-        void Deactivate( IActivityMonitor m );
+        ValueTask DeactivateAsync( IActivityMonitor m );
     }
 
 }
