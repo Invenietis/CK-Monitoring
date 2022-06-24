@@ -69,6 +69,10 @@ namespace CK.Monitoring
             infos.Add( ("MachineName", Environment.MachineName) );
             infos.Add( ("UserName", Environment.UserName) );
             infos.Add( ("OSVersion", Environment.OSVersion.ToString()) );
+
+            infos.Add( ("RuntimeInformation/ProcessArchitecture", System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString()) );
+            infos.Add( ("RuntimeInformation/OSArchitecture", System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString()) );
+
             if( OperatingSystem.IsWindows() ) infos.Add( ("OS", "Windows") );
             else if( OperatingSystem.IsLinux() ) infos.Add( ("OS", "Linux") );
             else if( OperatingSystem.IsMacOS() ) infos.Add( ("OS", "MacOS") );
@@ -76,9 +80,11 @@ namespace CK.Monitoring
             else if( OperatingSystem.IsAndroid() ) infos.Add( ("OS", "Android") );
             else if( OperatingSystem.IsFreeBSD() ) infos.Add( ("OS", "FreeBSD") );
             else if( OperatingSystem.IsIOS() ) infos.Add( ("OS", "IOS") );
+            else if( OperatingSystem.IsMacOS() ) infos.Add( ("OS", "MacOS") );
             else if( OperatingSystem.IsMacCatalyst() ) infos.Add( ("OS", "MacCatalyst") );
             else if( OperatingSystem.IsTvOS() ) infos.Add( ("OS", "TvOS") );
             else if( OperatingSystem.IsWatchOS() ) infos.Add( ("OS", "WatchOS") );
+            else infos.Add( ("OS", "Other") );
         }
 
         static void AddTimeZone( IActivityMonitor monitor, List<(string Key, string Value)> infos )
