@@ -9,7 +9,7 @@ namespace CK.Monitoring
     /// <summary>
     /// A trace listener that sends System.Diagnostic traces to the provided GrandOutput.
     /// All log entries sent by it have the tag "TraceListener".
-    /// When <see cref="FailFast"/> is true, a <see cref="MonitoringFailFastException"/> is thrown instead of
+    /// When <see cref="FailFast"/> is false (the default), a <see cref="MonitoringFailFastException"/> is thrown instead of
     /// calling <see cref="Environment.FailFast(string)"/>.
     /// <para>
     /// The <see cref="GrandOutput.Default"/> creates an instance of this listener and, by default,
@@ -33,7 +33,7 @@ namespace CK.Monitoring
     /// </para>
     /// </para>
     /// </remarks>
-    public class MonitorTraceListener : TraceListener
+    public sealed class MonitorTraceListener : TraceListener
     {
         /// <summary>
         /// Tag used for all the logs sent.
@@ -51,7 +51,8 @@ namespace CK.Monitoring
         /// </param>
         public MonitorTraceListener( GrandOutput grandOutput, bool failFast )
         {
-            GrandOutput = grandOutput ?? throw new ArgumentNullException( nameof( grandOutput ) );
+            Throw.CheckNotNullArgument( grandOutput );
+            GrandOutput = grandOutput;
             FailFast = failFast;
         }
 
