@@ -365,7 +365,7 @@ namespace CK.Monitoring
                 return ReadGroupClosed( streamVersion, r, t, logLevel );
             }
             DateTimeStamp time = new DateTimeStamp( DateTime.FromBinary( r.ReadInt64() ), (t & StreamLogType.HasUniquifier) != 0 ? r.ReadByte() : (Byte)0 );
-            if( time.TimeUtc.Year < 2014 || time.TimeUtc.Year > 3000 ) throw new InvalidDataException( "Date year before 2014 or after 3000 are considered invalid." );
+            Throw.CheckData( "Year before 2014 or after 3000 is considered invalid.", time.TimeUtc.Year >= 2014 && time.TimeUtc.Year < 3000 );
             CKTrait tags = ActivityMonitor.Tags.Empty;
             string? fileName = null;
             int lineNumber = 0;
@@ -377,7 +377,7 @@ namespace CK.Monitoring
             {
                 fileName = r.ReadString();
                 lineNumber = streamVersion < 6 ? r.ReadInt32() : r.ReadNonNegativeSmallInt32();
-                if( lineNumber > 100*1000 ) throw new InvalidDataException( "LineNumber greater than 100K is considered invalid." );
+                Throw.CheckData( lineNumber <= 100*1000 );
             }
             if( (t & StreamLogType.HasException) != 0 )
             {
