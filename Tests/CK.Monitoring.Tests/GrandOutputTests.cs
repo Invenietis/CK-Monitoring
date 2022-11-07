@@ -149,7 +149,8 @@ namespace CK.Monitoring.Tests
             notDispatcherSinkMonitors.ElementAt( 1 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
             // 2022-11-07: this fails on AppVeyor...
             // Invalid data: 'level < (1 << (int)LogLevel.NumberOfBits)'
-            // notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+            await Task.Delay( 2000 );
+            notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
         }
 
         [Test]
