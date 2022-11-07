@@ -486,12 +486,12 @@ namespace CK.Monitoring
             // Found the 0 end marker?
             if( level != 0 )
             {
-                if( level >= (1 << (int)LogLevel.NumberOfBits) ) throw new InvalidDataException();
+                Throw.CheckData( level < (1 << (int)LogLevel.NumberOfBits) );
                 if (streamVersion < 7) level <<= 1;
                 l = (LogLevel)level;
 
                 ushort type = r.ReadUInt16();
-                if( type >= ((int)StreamLogType.MaxFlag * 2 - 1) ) throw new InvalidDataException();
+                Throw.CheckData( type < ((int)StreamLogType.MaxFlag * 2 - 1) );
                 t = (StreamLogType)type;
             }
         }
