@@ -150,7 +150,7 @@ namespace CK.Monitoring.Tests
             // 2022-11-07: this fails on AppVeyor...
             // Invalid data: 'level < (1 << (int)LogLevel.NumberOfBits)'
             // Waiting here fix the issue...
-            await Task.Delay( 500 );
+            await Task.Delay( 1000 );
             notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
         }
 
