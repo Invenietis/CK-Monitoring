@@ -1,3 +1,4 @@
+using CK.Core;
 using FluentAssertions;
 using NUnit.Framework;
 using System;
@@ -154,6 +155,21 @@ namespace CK.Monitoring.Tests
                     var i = (IReadOnlyDictionary<string, IReadOnlyCollection<string>>)IdentityCard.TryUnpack( s );
                     i.Should().BeEquivalentTo( c.Identities );
                 }
+            }
+        }
+
+        [Test]
+        public void CoreApplicationIdentity_initialize_injects_CoreApplicationIdentity_values()
+        {
+            using var g = new GrandOutput( new GrandOutputConfiguration() );
+            CoreApplicationIdentity.Initialize();
+            g.IdentityCard.Identities["AppIdentity"].Should().NotBeEmpty();
+            g.IdentityCard.Identities["AppIdentity/InstanceId"].Single().Should().Be( CoreApplicationIdentity.InstanceId );
+            g.IdentityCard.Identities["AppIdentity/ContextualId"].Single().Should().Be( CoreApplicationIdentity.Instance.ContextualId );
+            // The empty ContextDescriptor cannot be a valid value.
+            if( CoreApplicationIdentity.Instance.ContextDescriptor.Length > 0 )
+            {
+                g.IdentityCard.Identities["AppIdentity/ContextDescriptor"].Single().Should().Be( CoreApplicationIdentity.Instance.ContextDescriptor );
             }
         }
     }

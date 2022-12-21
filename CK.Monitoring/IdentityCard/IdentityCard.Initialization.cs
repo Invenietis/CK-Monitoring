@@ -10,16 +10,18 @@ namespace CK.Monitoring
     {
         internal void LocalInitialize( IActivityMonitor monitor, bool isDefaultGrandOutput )
         {
-            static (string Key, string Value)[] GetAppIdentityInfos()
+            static IEnumerable<(string Key, string Value)> GetAppIdentityInfos()
             {
                 var coreId = CoreApplicationIdentity.Instance;
                 var id = coreId.DomainName;
                 if( coreId.EnvironmentName.Length > 0 ) id += '/' + coreId.EnvironmentName;
                 id += '/' + coreId.PartyName;
-                return new[] { ("AppIdentity", id),
-                               ("AppIdentity/InstanceId", CoreApplicationIdentity.InstanceId),
-                               ("AppIdentity/ContextualId", coreId.ContextualId),
-                               ("AppIdentity/ContextDescriptor", coreId.ContextDescriptor) };
+                var v = new[] { ("AppIdentity", id),
+                                ("AppIdentity/InstanceId", CoreApplicationIdentity.InstanceId),
+                                ("AppIdentity/ContextualId", coreId.ContextualId) };
+                return coreId.ContextDescriptor.Length > 0
+                        ? v.Append( ("AppIdentity/ContextDescriptor", coreId.ContextDescriptor) )
+                        : v;
             }
 
             bool appIdentityInitialized = CoreApplicationIdentity.IsInitialized;
@@ -30,7 +32,7 @@ namespace CK.Monitoring
                 // If the Core identity is ready, do it now.
                 if( appIdentityInitialized )
                 {
-                    infos.AddRangeArray( GetAppIdentityInfos() );
+                    infos.AddRange( GetAppIdentityInfos() );
                 }
 
                 AddEnvironment( infos );
