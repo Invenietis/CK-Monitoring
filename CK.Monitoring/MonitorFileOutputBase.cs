@@ -95,7 +95,7 @@ namespace CK.Monitoring
                 {
                     int alreadyWritten = _maxCountPerFile - _countRemainder;
                     _maxCountPerFile = value;
-                    if( _output != null && alreadyWritten > _maxCountPerFile )
+                    if( _output != null && alreadyWritten >= _maxCountPerFile )
                     {
                         CloseCurrentFile();
                     }
