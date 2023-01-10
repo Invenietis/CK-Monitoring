@@ -93,11 +93,12 @@ namespace CK.Monitoring
             {
                 if( _maxCountPerFile != value )
                 {
-                    if( _output != null && _countRemainder > _maxCountPerFile )
+                    int alreadyWritten = _maxCountPerFile - _countRemainder;
+                    _maxCountPerFile = value;
+                    if( _output != null && alreadyWritten >= _maxCountPerFile )
                     {
                         CloseCurrentFile();
                     }
-                    _maxCountPerFile = value;
                 }
             }
         }
@@ -110,7 +111,7 @@ namespace CK.Monitoring
         public bool Initialize( IActivityMonitor monitor )
         {
             if( _basePath != null ) return true;
-            if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
+            Throw.CheckNotNullArgument( monitor );
             string? b = ComputeBasePath( monitor );
             if( b != null )
             {
