@@ -251,5 +251,58 @@ namespace CK.Monitoring.Hosting.Tests
             sent.Should().Be( "Hello World!" );
 
         }
+
+        [Test]
+        public async Task StaticGates_works_Async()
+        {
+            AsyncLock.Gate.IsOpen.Should().BeFalse();
+            AsyncLock.Gate.HasDisplayName.Should().BeTrue( "Otherwise it wouldn't be configurable." );
+            AsyncLock.Gate.DisplayName.Should().Be( "AsyncLock" );
+            try
+            {
+                var config = new DynamicConfigurationSource();
+                config["CK-Monitoring:GrandOutput:StaticGates"] = "AsyncLock";
+                var host = new HostBuilder()
+                            .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
+                            .UseCKMonitoring()
+                            .Build();
+                await host.StartAsync();
+
+                AsyncLock.Gate.IsOpen.Should().BeTrue();
+
+                await host.StopAsync();
+            }
+            finally
+            {
+                AsyncLock.Gate.IsOpen = false;
+            }
+        }
+
+        [Test]
+        public async Task DotNetEventSources_works_Async()
+        {
+            var current = DotNetEventSourceCollector.GetLevel( "System.Runtime", out var found );
+            found.Should().BeTrue();
+            current.Should().BeNull();
+            try
+            {
+                var config = new DynamicConfigurationSource();
+                config["CK-Monitoring:GrandOutput:DotNetEventSources"] = "System.Runtime:V(erbose only V matters)";
+                var host = new HostBuilder()
+                            .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
+                            .UseCKMonitoring()
+                            .Build();
+                await host.StartAsync();
+
+                var configured = DotNetEventSourceCollector.GetLevel( "System.Runtime", out _ );
+                configured.Should().Be( System.Diagnostics.Tracing.EventLevel.Verbose );
+                await host.StopAsync();
+            }
+            finally
+            {
+                DotNetEventSourceCollector.Disable( "System.Runtime" );
+            }
+        }
+
     }
 }

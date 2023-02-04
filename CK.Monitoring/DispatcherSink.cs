@@ -192,6 +192,8 @@ namespace CK.Monitoring
             _filterChange( c.MinimalFilter, c.ExternalLogLevelFilter );
             if( c.TimerDuration.HasValue ) TimerDuration = c.TimerDuration.Value;
             SetUnhandledExceptionTracking( c.TrackUnhandledExceptions ?? _isDefaultGrandOutput );
+            if( !string.IsNullOrEmpty( c.StaticGates ) ) StaticGateConfigurator.ApplyConfiguration( monitor, c.StaticGates );
+            if( !string.IsNullOrEmpty( c.DotNetEventSources ) ) DotNetEventSourceConfigurator.ApplyConfiguration( monitor, c.DotNetEventSources );
             List<IGrandOutputHandler> toKeep = new List<IGrandOutputHandler>();
             for( int iConf = 0; iConf < c.Handlers.Count; ++iConf )
             {
