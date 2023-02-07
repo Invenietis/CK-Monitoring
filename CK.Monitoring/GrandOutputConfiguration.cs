@@ -2,6 +2,7 @@ using CK.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics.Tracing;
 
 namespace CK.Monitoring
 {
@@ -49,6 +50,22 @@ namespace CK.Monitoring
         /// Gets the list of handlers configuration.
         /// </summary>
         public List<IHandlerConfiguration> Handlers { get; } = new List<IHandlerConfiguration>();
+
+        /// <summary>
+        /// Gets or sets a configuration for <see cref="StaticGateConfigurator"/>: semi colon separated <see cref="StaticGate.DisplayName"/>
+        /// to activate or suffixed with ":!" to deactivate them.
+        /// See <see cref="StaticGateConfigurator"/>.
+        /// </summary>
+        public string? StaticGates { get; set; }
+
+        /// <summary>
+        /// Gets or sets a configuration for <see cref="DotNetEventSourceCollector"/>: semi colon separated <see cref="EventSource.Name"/>
+        /// suffixed with ":[Level]" where [Level] is L (<see cref="EventLevel.LogAlways"/>), C (<see cref="EventLevel.Critical"/>),
+        /// E (<see cref="EventLevel.Error"/>), W (<see cref="EventLevel.Warning"/>), I (<see cref="EventLevel.Informational"/>),
+        /// V (<see cref="EventLevel.Verbose"/>) or ! to disable the source.
+        /// See <see cref="DotNetEventSourceConfigurator"/>.
+        /// </summary>
+        public string? DotNetEventSources { get; set; }
 
         /// <summary>
         /// Sets the <see cref="MinimalFilter"/> (fluent interface).
@@ -116,7 +133,9 @@ namespace CK.Monitoring
                 TimerDuration = TimerDuration,
                 ExternalLogLevelFilter = ExternalLogLevelFilter,
                 MinimalFilter = MinimalFilter,
-                TrackUnhandledExceptions = TrackUnhandledExceptions
+                TrackUnhandledExceptions = TrackUnhandledExceptions,
+                StaticGates = StaticGates,
+                DotNetEventSources = DotNetEventSources
             };
             c.Handlers.AddRange( Handlers.Select( h => h.Clone() ) );
             return c;

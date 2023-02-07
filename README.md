@@ -243,7 +243,7 @@ Handler configurations must fulfill this even simpler contract:
 GrandOutput configuration and handler configurations must not be serialized and exchanged with the external world.
 They must remain local, like a hidden implementation detail of the running host.
 
-If some "remote log configuration feature" is needed, it must be done though specific code and only strictly controlled
+If a kind of "remote log configuration feature" is needed, it must be done though specific code and only strictly controlled
 changes must be allowed.
 
 #### Required conventions
