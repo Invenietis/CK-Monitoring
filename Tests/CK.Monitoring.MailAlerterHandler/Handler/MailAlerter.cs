@@ -33,7 +33,7 @@ namespace CK.Monitoring.Handlers
 
         public ValueTask DeactivateAsync( IActivityMonitor m ) => default;
 
-        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
+        public ValueTask HandleAsync( IActivityMonitor m, InputLogEntry logEvent )
         {
             if( logEvent.Tags.IsSupersetOf( CK.Monitoring.MailAlerter.SendMail ) )
             {

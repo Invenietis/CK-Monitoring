@@ -235,7 +235,7 @@ namespace CK.Monitoring.Tests
                 return ValueTask.CompletedTask;
             }
 
-            public async ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
+            public async ValueTask HandleAsync( IActivityMonitor m, InputLogEntry logEvent )
             {
                 _delay.Should().BeGreaterOrEqualTo( 0 );
                 _delay.Should().BeLessThan( 1000 );

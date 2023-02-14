@@ -28,8 +28,8 @@ namespace CK.Monitoring
     /// should be an opt-in choice: at the early stage of a project, we often deploy applications compiled in Debug and such deployments should behave
     /// as most as possible as Release ones.
     /// <para>
-    /// We generally don't use the "fail fast" approach in our architecture. One of the main reason is the using IDisposable (kind of) RAII pattern that
-    /// is heavily used in .Net, fail fast breaks this pattern .
+    /// We generally don't use the "brutal fail fast" approach in our architecture. One of the main reason is the using IDisposable (kind of) RAII pattern that
+    /// is heavily used in .Net, fail fast breaks this pattern.
     /// </para>
     /// </para>
     /// </remarks>
@@ -168,8 +168,8 @@ namespace CK.Monitoring
         static string BuildMessage( string? format, object?[]? args = null, string? source = null, int? id = null )
         {
             StringBuilder sb = new StringBuilder();
-            if( !string.IsNullOrEmpty( source ) ) sb.Append( $"[{source}] " );
-            if( id.HasValue && id.Value != 0 ) sb.Append( $"<{id.Value}> " );
+            if( !string.IsNullOrEmpty( source ) ) sb.Append( '[' ).Append( source ).Append( ']' );
+            if( id.HasValue && id.Value != 0 ) sb.Append( '<' ).Append( id.Value ).Append( "> " );
             if( args != null && args.Length > 0 )
             {
                 sb.AppendFormat( CultureInfo.InvariantCulture, format ?? "No Trace format provided.", args );

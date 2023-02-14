@@ -16,6 +16,11 @@ namespace CK.Monitoring
     /// </summary>
     public sealed partial class GrandOutput : IDisposable
     {
+        /// <summary>
+        /// Tags for warning and errors related to <see cref="InputLogDataPoolCapacity"/>.
+        /// </summary>
+        public static CKTrait InputLogPoolAlertTag = ActivityMonitor.Tags.Register( "GrandOutputInputLogPoolAlert" );
+
         readonly List<WeakReference<GrandOutputClient>> _clients;
         readonly DispatcherSink _sink;
         readonly IdentityCard _identityCard;
@@ -180,7 +185,7 @@ namespace CK.Monitoring
                                         OnFiltersChanged,
                                         isDefault );
             ApplyConfiguration( config, waitForApplication: true );
-            ActivityMonitor.OnStaticLog += _sink.ExternalOrStaticLog;
+            ActivityMonitor.OnStaticLog += _sink.OnStaticLog;
         }
 
         /// <summary>
@@ -193,10 +198,10 @@ namespace CK.Monitoring
         /// <returns>A newly created client or the already existing one.</returns>
         public GrandOutputClient EnsureGrandOutputClient( IActivityMonitor monitor )
         {
-            if( IsDisposed ) throw new ObjectDisposedException( nameof( GrandOutput ) );
-            if( monitor == null ) throw new ArgumentNullException( nameof( monitor ) );
+            if( IsDisposed ) Throw.ObjectDisposedException( nameof( GrandOutput ) );
+            Throw.CheckNotNullArgument( monitor );
             var c = DoEnsureGrandOutputClient( monitor );
-            if( c == null ) throw new ObjectDisposedException( nameof( GrandOutput ) );
+            if( c == null ) Throw.ObjectDisposedException( nameof( GrandOutput ) );
             return c;
         }
 
@@ -372,7 +377,7 @@ namespace CK.Monitoring
 
                     }
                 }
-                ActivityMonitor.OnStaticLog -= _sink.ExternalOrStaticLog;
+                ActivityMonitor.OnStaticLog -= _sink.OnStaticLog;
                 SignalClients();
                 _sink.Finalize( millisecondsBeforeForceClose );
             }
@@ -400,7 +405,5 @@ namespace CK.Monitoring
         {
             Dispose( Timeout.Infinite );
         }
-
-
     }
 }

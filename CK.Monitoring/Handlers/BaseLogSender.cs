@@ -14,8 +14,9 @@ namespace CK.Monitoring.Handlers
     public abstract class BaseLogSender<TConfiguration> : IGrandOutputHandler where TConfiguration : IBaseLogSenderConfiguration
     {
         TConfiguration _config;
-        readonly FIFOBuffer<IMulticastLogEntry> _buffer;
+        readonly FIFOBuffer<InputLogEntry> _buffer;
         ISender? _sender;
+        int _lostEntries;
         bool _firstSuccess;
 
         /// <summary>
@@ -45,7 +46,7 @@ namespace CK.Monitoring.Handlers
         protected BaseLogSender( TConfiguration c )
         {
             _config = c;
-            _buffer = new FIFOBuffer<IMulticastLogEntry>( c.InitialBufferSize );
+            _buffer = new FIFOBuffer<InputLogEntry>( c.InitialBufferSize );
         }
 
         /// <summary>
@@ -117,6 +118,11 @@ namespace CK.Monitoring.Handlers
             if( _buffer.Capacity != newC )
             {
                 monitor.Info( $"Resizing buffer from '{_buffer.Capacity}' to '{newC}'." );
+                while( newC < _buffer.Count )
+                {
+                    ++_lostEntries;
+                    _buffer.Pop().Release();
+                }
                 _buffer.Capacity = newC;
             }
             _config = c;
@@ -132,14 +138,14 @@ namespace CK.Monitoring.Handlers
         /// If the sender has not been created yet and the application identity is ready
         /// but CreateSenderAsync returned null: the exception will remove this handler from the sink's handler list.
         /// </exception>
-        public virtual async ValueTask HandleAsync( IActivityMonitor monitor, IMulticastLogEntry logEvent )
+        public virtual async ValueTask HandleAsync( IActivityMonitor monitor, InputLogEntry logEvent )
         {
             if( _sender == null && SenderCanBeCreated )
             {
                 _sender = await CreateSenderAsync( monitor );
                 if( _sender == null )
                 {
-                    throw new CKException( $"Unable to create the sender." );
+                    Throw.CKException( "Unable to create the sender." );
                 }
             }
             if( _sender != null )
@@ -150,30 +156,49 @@ namespace CK.Monitoring.Handlers
                     {
                         if( !_sender.IsActuallyConnected || !await _sender.TrySendAsync( monitor, _buffer.Peek() ) )
                         {
-                            _buffer.Push( logEvent );
+                            PushEntry( logEvent );
                             return;
                         }
-                        _buffer.Pop();
+                        _buffer.Pop().Release();
                     }
                 }
                 if( !_sender.IsActuallyConnected || !await _sender.TrySendAsync( monitor, logEvent ) )
                 {
-                    _buffer.Push( logEvent );
+                    PushEntry( logEvent );
                 }
-                else if( !_firstSuccess )
+                else 
                 {
-                    _firstSuccess = true;
-                    if( _buffer.Capacity != _config.LostBufferSize )
+                    if( _lostEntries > 0 )
                     {
-                        monitor.Info( $"Successfully sent the first logs: resizing buffer from '{_buffer.Capacity}' to '{_config.LostBufferSize}'." );
-                        _buffer.Capacity = _config.LostBufferSize;
+                        monitor.Error( $"{_lostEntries} log entries failed to be sent (current Capacity is {_buffer.Capacity})." );
+                        _lostEntries = 0;
+                    }
+                    if( !_firstSuccess )
+                    {
+                        _firstSuccess = true;
+                        if( _buffer.Capacity != _config.LostBufferSize )
+                        {
+                            monitor.Info( $"Successfully sent the first logs: resizing buffer from '{_buffer.Capacity}' to '{_config.LostBufferSize}'." );
+                            _buffer.Capacity = _config.LostBufferSize;
+                        }
                     }
                 }
             }
             else
             {
-                _buffer.Push( logEvent );
+                PushEntry( logEvent );
             }
+        }
+
+        private void PushEntry( InputLogEntry logEvent )
+        {
+            if( _buffer.IsFull )
+            {
+                ++_lostEntries;
+                _buffer.Pop().Release();
+            }
+            logEvent.AddRef();
+            _buffer.Push( logEvent );
         }
 
         /// <summary>
@@ -183,6 +208,7 @@ namespace CK.Monitoring.Handlers
         /// <returns>The awaitable.</returns>
         public virtual async ValueTask DeactivateAsync( IActivityMonitor monitor )
         {
+            while( _buffer.Count > 0 ) _buffer.Pop().Release();
             if( _sender != null )
             {
                 await _sender.DisposeAsync();

@@ -13,7 +13,7 @@ namespace CK.Monitoring.Hosting.Tests
 
         public static int ActivateCount;
         public static int ApplyConfigurationCount;
-        public static ConcurrentBag<IMulticastLogEntry> LogEvents = new ConcurrentBag<IMulticastLogEntry>();
+        public static ConcurrentBag<InputLogEntry> LogEvents = new();
         public static int DeactivateCount;
         public static int OnTimerCount;
 
@@ -21,6 +21,7 @@ namespace CK.Monitoring.Hosting.Tests
         {
             ActivateCount = 0;
             ApplyConfigurationCount = 0;
+            foreach( var e in LogEvents ) e.Release();
             LogEvents.Clear();
             DeactivateCount = 0;
             OnTimerCount = 0;
@@ -50,8 +51,9 @@ namespace CK.Monitoring.Hosting.Tests
             return ValueTask.FromResult( false );
         }
 
-        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
+        public ValueTask HandleAsync( IActivityMonitor m, InputLogEntry logEvent )
         {
+            logEvent.AddRef();
             LogEvents.Add( logEvent );
             return ValueTask.CompletedTask;
         }

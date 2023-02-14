@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace CK.Monitoring
 {
-    internal class DispatcherSink : IGrandOutputSink
+    internal partial class DispatcherSink : IGrandOutputSink
     {
-        readonly Channel<IMulticastLogEntry?> _queue;
+        readonly Channel<InputLogEntry?> _queue;
 
         readonly Task _task;
         readonly List<IGrandOutputHandler> _handlers;
@@ -21,7 +21,7 @@ namespace CK.Monitoring
         readonly Action _externalOnTimer;
         readonly object _confTrigger;
         readonly Action<IActivityMonitor> _initialRegister;
-        readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
+        readonly Action<LogFilter?,LogLevelFilter?> _filterChange;
         readonly CancellationTokenSource _stopTokenSource;
         readonly object _externalLogLock;
         readonly string _sinkMonitorId;
@@ -42,12 +42,12 @@ namespace CK.Monitoring
                                TimeSpan timerDuration,
                                TimeSpan externalTimerDuration,
                                Action externalTimer,
-                               Action<LogFilter?, LogLevelFilter?> filterChange,
+                               Action<LogFilter?,LogLevelFilter?> filterChange,
                                bool isDefaultGrandOutput )
         {
             _initialRegister = initialRegister;
             _identityCard = identityCard;
-            _queue = Channel.CreateUnbounded<IMulticastLogEntry?>( new UnboundedChannelOptions() { SingleReader = true } );
+            _queue = Channel.CreateUnbounded<InputLogEntry?>( new UnboundedChannelOptions() { SingleReader = true } );
             _handlers = new List<IGrandOutputHandler>();
             _confTrigger = new object();
             _stopTokenSource = new CancellationTokenSource();
@@ -134,6 +134,7 @@ namespace CK.Monitoring
                             faulty.Add( h );
                         }
                     }
+                    e.Release();
                 }
                 #endregion
                 #region Process OnTimer (if not closing)
@@ -182,8 +183,6 @@ namespace CK.Monitoring
         {
             ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
         }
-
-        void OnAwaker( object? state ) => _queue.Writer.TryWrite( null );
 
         async ValueTask DoConfigureAsync( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
@@ -260,8 +259,7 @@ namespace CK.Monitoring
             }
             if( _isDefaultGrandOutput )
             {
-                var msg = $"GrandOutput.Default configuration n°{_configurationCount++}.";
-                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitor.Tags.Empty, msg, null );
+                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitor.Tags.Empty, $"GrandOutput.Default configuration n°{_configurationCount++}." );
             }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
@@ -317,7 +315,7 @@ namespace CK.Monitoring
 
         public bool IsRunning => !_stopTokenSource.IsCancellationRequested;
 
-        public void Handle( IMulticastLogEntry logEvent ) => _queue.Writer.TryWrite( logEvent );
+        public void Handle( InputLogEntry logEvent ) => _queue.Writer.TryWrite( logEvent );
 
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
@@ -334,7 +332,7 @@ namespace CK.Monitoring
             }
         }
 
-        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex, string monitorId = GrandOutput.ExternalLogMonitorUniqueId )
+        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex = null, string monitorId = GrandOutput.ExternalLogMonitorUniqueId )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -343,22 +341,18 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
-                                                 monitorId,
-                                                 LogEntryType.Line,
-                                                 prevLogTime,
-                                                 depth: 0,
-                                                 text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
-                                                 t: logTime,
-                                                 level: level,
-                                                 fileName: null,
-                                                 lineNumber: 0,
-                                                 tags: tags ?? ActivityMonitor.Tags.Empty,
-                                                 ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
+            var e = InputLogEntry.AcquireInputLogEntry( _sinkMonitorId,
+                                                        monitorId,
+                                                        prevLogTime,
+                                                        string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
+                                                        logTime,
+                                                        level,
+                                                        tags ?? ActivityMonitor.Tags.Empty,
+                                                        CKExceptionData.CreateFrom( ex ) );
             Handle( e );
         }
 
-        public void ExternalOrStaticLog( ref ActivityMonitorLogData d )
+        public void OnStaticLog( ref ActivityMonitorLogData d )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -367,18 +361,13 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
-                                                 GrandOutput.ExternalLogMonitorUniqueId,
-                                                 LogEntryType.Line,
-                                                 prevLogTime,
-                                                 depth: 0,
-                                                 d.Text,
-                                                 logTime,
-                                                 d.Level,
-                                                 d.FileName,
-                                                 d.LineNumber,
-                                                 d.Tags,
-                                                 d.ExceptionData );
+            var e = InputLogEntry.AcquireInputLogEntry( _sinkMonitorId,
+                                                        ref d,
+                                                        groupDepth: 0,
+                                                        LogEntryType.Line,
+                                                        GrandOutput.ExternalLogMonitorUniqueId,
+                                                        LogEntryType.Line,
+                                                        prevLogTime );
             Handle( e );
         }
 
@@ -415,11 +404,8 @@ namespace CK.Monitoring
             else
             {
                 string? exText = e.ExceptionObject.ToString();
-                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'.", null );
+                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'." );
             }
         }
-
-
-
     }
 }
