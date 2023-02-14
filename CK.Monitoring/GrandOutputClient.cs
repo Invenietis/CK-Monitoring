@@ -29,7 +29,7 @@ namespace CK.Monitoring
         /// </summary>
         void IActivityMonitorBoundClient.SetMonitor( IActivityMonitorImpl? source, bool forceBuggyRemove )
         {
-            if( source != null && _monitorSource != null ) throw ActivityMonitorClient.CreateMultipleRegisterOnBoundClientException( this );
+            if( source != null && _monitorSource != null ) ActivityMonitorClient.ThrowMultipleRegisterOnBoundClientException( this );
             // Silently ignore null => null or monitor => same monitor.
             if( source != _monitorSource )
             {

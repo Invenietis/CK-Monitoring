@@ -180,7 +180,7 @@ namespace CK.Monitoring
                                         OnFiltersChanged,
                                         isDefault );
             ApplyConfiguration( config, waitForApplication: true );
-            ActivityMonitor.StaticLogger.OnStaticLog += _sink.ExternalOrStaticLog;
+            ActivityMonitor.OnStaticLog += _sink.ExternalOrStaticLog;
         }
 
         /// <summary>
@@ -265,15 +265,16 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="level">Log level to test.</param>
         /// <returns>True if this level should be logged otherwise false.</returns>
-        public bool IsExternalLogEnabled( LogLevel level ) => ActivityMonitor.StaticLogger.ShouldLog( level, ExternalLogLevelFilter );
-
+        public bool IsExternalLogEnabled( LogLevel level ) => ((int)level & (int)LogLevel.Mask) >= (ExternalLogLevelFilter == LogLevelFilter.None
+                                                                               ? (int)ActivityMonitor.DefaultFilter.Line
+                                                                               : (int)ExternalLogLevelFilter);
         /// <summary>
         /// Gets whether an <see cref="ExternalLog(LogLevel, CKTrait, string, Exception?)"/> level should be emitted.
         /// </summary>
         /// <param name="level">Log level to test.</param>
         /// <param name="tags">Log tags to test.</param>
         /// <returns>True if this should be logged otherwise false.</returns>
-        public bool IsExternalLogEnabled( LogLevel level, CKTrait tags ) => ActivityMonitor.StaticLogger.ShouldLog( level, tags, ExternalLogLevelFilter );
+        public bool IsExternalLogEnabled( LogLevel level, CKTrait tags ) => ActivityMonitor.Tags.ApplyForLine( level, tags, ExternalLogLevelFilter );
 
         /// <summary>
         /// Logs an entry from any contextless source to this GrandOutput only (as opposed to using <see cref="ActivityMonitor.StaticLogger"/>
@@ -291,7 +292,7 @@ namespace CK.Monitoring
         public void ExternalLog( LogLevel level, CKTrait tags, string message, Exception? ex = null )
         {
             if( (level & LogLevel.IsFiltered) != 0
-                || ActivityMonitor.StaticLogger.ShouldLog( level, tags, ExternalLogLevelFilter ) )
+                || ActivityMonitor.Tags.ApplyForLine( level, tags, ExternalLogLevelFilter ) )
             {
                 _sink.ExternalLog( level, tags, message, ex );
             }
@@ -312,7 +313,9 @@ namespace CK.Monitoring
         public void ExternalLog( LogLevel level, string message, Exception? ex = null )
         {
             if( (level & LogLevel.IsFiltered) != 0
-                || ActivityMonitor.StaticLogger.ShouldLog( level, ExternalLogLevelFilter ) )
+                || ((int)level & (int)LogLevel.Mask) >= (ExternalLogLevelFilter == LogLevelFilter.None
+                                                                               ? (int)ActivityMonitor.DefaultFilter.Line
+                                                                               : (int)ExternalLogLevelFilter) )
             {
                 _sink.ExternalLog( level, null, message, ex );
             }
@@ -369,7 +372,7 @@ namespace CK.Monitoring
 
                     }
                 }
-                ActivityMonitor.StaticLogger.OnStaticLog -= _sink.ExternalOrStaticLog;
+                ActivityMonitor.OnStaticLog -= _sink.ExternalOrStaticLog;
                 SignalClients();
                 _sink.Finalize( millisecondsBeforeForceClose );
             }
