@@ -11,7 +11,17 @@ namespace CK.Monitoring.Tests
     public class CriticalErrorsTests
     {
         [SetUp]
-        public void InitializePath() => TestHelper.InitalizePaths();
+        public void InitializePath()
+        {
+            TestHelper.InitalizePaths();
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
+
+        [TearDown]
+        public void WaitForNoMoreAliveInputLogEntry()
+        {
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
 
         // We cannot test these... since the test process fails fast.
         [TestCase( "Trace.Fail", true, Explicit = true )]

@@ -10,7 +10,8 @@ namespace CK.Monitoring
     /// A trace listener that sends System.Diagnostic traces to the provided GrandOutput.
     /// All log entries sent by it have the tag "TraceListener".
     /// When <see cref="FailFast"/> is false (the default), a <see cref="MonitoringFailFastException"/> is thrown instead of
-    /// calling <see cref="Environment.FailFast(string)"/>.
+    /// calling <see cref="Environment.FailFast(string)"/>. This supports <see cref="Trace.Fail(string?)"/>, <see cref="Trace.Assert(bool)"/>,
+    /// <see cref="Debug.Fail(string?)"/> and <see cref="Debug.Assert(bool)"/>.
     /// <para>
     /// The <see cref="GrandOutput.Default"/> creates an instance of this listener and, by default,
     /// removes all the other ones.

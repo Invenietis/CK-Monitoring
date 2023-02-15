@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System;
+using System.Diagnostics;
 
 namespace CK.Monitoring
 {
@@ -10,7 +11,7 @@ namespace CK.Monitoring
     {
         /// <summary>
         /// Gets the current pool capacity. It starts at 200 and increases (with a warning) until <see cref="MaximalPoolCapacity"/>
-        /// is reached (where errors are emitted). Warnings and errors are tagged with <see cref="InputLogPoolAlertTag"/>.
+        /// is reached (where errors are emitted). Warnings and errors are tagged with <see cref="GrandOutput.InputLogPoolAlertTag"/>.
         /// </summary>
         public static int CurrentPoolCapacity => _currentCapacity;
 
@@ -20,16 +21,23 @@ namespace CK.Monitoring
         public const int PoolCapacityIncrement = 10;
 
         /// <summary>
-        /// The maximal capacity. Once reached, newly acquired <see cref="ActivityMonitorExternalLogData"/> are garbage
+        /// Gets the maximal capacity. Once reached, newly acquired <see cref="InputLogEntry"/> are garbage
         /// collected instead of returned to the pool.
         /// </summary>
         public static int MaximalPoolCapacity => _maximalCapacity;
+
+        /// <summary>
+        /// Gets the current number of <see cref="InputLogEntry"/> that are alive (not yet released).
+        /// When there is no log activity and no entry have been cached, this must be 0.
+        /// </summary>
+        public static int AliveCount => _aliveItems;
 
         readonly static ConcurrentQueue<InputLogEntry> _items = new();
         static InputLogEntry? _fastItem;
         static int _numItems;
         static int _currentCapacity = 200;
         static int _maximalCapacity = 2000;
+        static int _aliveItems;
         static DateTime _nextPoolError;
 
         // For Log, OpenGroup and StaticLogger.
@@ -78,6 +86,7 @@ namespace CK.Monitoring
 
         static InputLogEntry Aquire()
         {
+            Interlocked.Increment( ref _aliveItems );
             var item = _fastItem;
             if( item == null || Interlocked.CompareExchange( ref _fastItem, null, item ) != item )
             {
@@ -95,6 +104,8 @@ namespace CK.Monitoring
 
         static void Release( InputLogEntry c )
         {
+            Debug.Assert( c != CloseSentinel );
+            Interlocked.Decrement( ref _aliveItems );
             if( _fastItem != null || Interlocked.CompareExchange( ref _fastItem, c, null ) != null )
             {
                 int poolCount = Interlocked.Increment( ref _numItems );

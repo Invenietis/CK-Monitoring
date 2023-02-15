@@ -46,6 +46,13 @@ namespace CK.Monitoring.Tests
             TestHelper.PrepareLogFolder( "Gzip" );
             TestHelper.PrepareLogFolder( "Termination" );
             TestHelper.PrepareLogFolder( "TerminationLost" );
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
+
+        [TearDown]
+        public void WaitForNoMoreAliveInputLogEntry()
+        {
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
         }
 
         [Explicit]
@@ -174,6 +181,8 @@ namespace CK.Monitoring.Tests
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
+                Console.WriteLine( "Pouf" );
+                //Thread.Sleep( 50 );
             }
             ActivityMonitor.DefaultFilter = LogFilter.Trace;
         }
@@ -356,16 +365,14 @@ namespace CK.Monitoring.Tests
                 DumpMonitor1082Entries( m, loop );
                 g.Dispose( 0 );
             }
-            // All tempoary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
-            fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
-            // There is less that the normal {loop} "~~~~~FINAL TRACE~~~~~" in text logs.
+            fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ), "All temporary files have been closed." );
             fileNames
                 .Where( n => n.EndsWith( ".txt" ) )
                 .Select( n => File.ReadAllText( n ) )
                 .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
                 .Sum()
-                .Should().BeLessThan( loop );
+                .Should().BeLessThan( loop, $"There is less that the normal {loop} \"~~~~~FINAL TRACE~~~~~\" in text logs." );
         }
 
         static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )

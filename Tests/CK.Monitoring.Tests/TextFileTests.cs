@@ -48,7 +48,17 @@ namespace CK.Monitoring.Tests
         #endregion
 
         [SetUp]
-        public void InitializePath() => TestHelper.InitalizePaths();
+        public void InitializePath()
+        {
+            TestHelper.InitalizePaths();
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
+
+        [TearDown]
+        public void WaitForNoMoreAliveInputLogEntry()
+        {
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
 
         [Test]
         public void text_file_auto_flush_and_reconfiguration()

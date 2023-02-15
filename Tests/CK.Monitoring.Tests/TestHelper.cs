@@ -44,6 +44,16 @@ namespace CK.Monitoring
             }
         }
 
+        public static void WaitForNoMoreAliveInputLogEntry()
+        {
+            int count = 0;
+            while( InputLogEntry.AliveCount > 0 )
+            {
+                Thread.Sleep( 50 );
+                if( ++count > 20 ) Throw.InvalidOperationException( $"InputLogEntry.AliveCount stays at {InputLogEntry.AliveCount} after 1 second." );
+            }
+        }
+
         public static List<StupidStringClient> ReadAllLogs( DirectoryInfo folder, bool recurse )
         {
             List<StupidStringClient> logs = new List<StupidStringClient>();

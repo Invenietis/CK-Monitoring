@@ -15,6 +15,8 @@ namespace CK.Monitoring
     /// </summary>
     public sealed partial class InputLogEntry : IMulticastLogEntry
     {
+        internal static readonly InputLogEntry CloseSentinel = new InputLogEntry();
+
         [AllowNull] string _grandOutputId;
         [AllowNull] string _monitorId;
         [AllowNull] CKTrait _tags;
@@ -66,6 +68,7 @@ namespace CK.Monitoring
             _logLevel = data.Level;
             _fileName = data.FileName;
             _lineNumber = data.LineNumber;
+            Console.WriteLine( _text );
         }
 
         // Only for monitor.CloseGroup().
@@ -89,6 +92,7 @@ namespace CK.Monitoring
             _conclusions = conclusions;
             _previousEntryType = previousEntryType;
             _previousLogTime = previousLogTime;
+            Console.WriteLine( "<Closed Group>" );
         }
 
         // For SinkLog.
@@ -114,6 +118,7 @@ namespace CK.Monitoring
             _tags = tags;
             _previousLogTime = prevLogTime;
             _exception = ex;
+            Console.WriteLine( _text );
         }
 
         /// <inheritdoc />

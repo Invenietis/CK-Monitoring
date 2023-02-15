@@ -118,9 +118,13 @@ namespace CK.Monitoring
                 Debug.Assert( newConf != null, "Except at the start, this is never null." );
                 if( newConf.Length > 0 ) await DoConfigureAsync( monitor, newConf );
                 List<IGrandOutputHandler>? faulty = null;
-                #region Process event if any.
+                #region Process event if any (including the CloseSentinel).
                 if( e != null )
                 {
+                    // The CloseSentinel is the "soft stop": it ensures that any entries added prior
+                    // to the call to stop have been handled (but if _forceClose is set, this is ignored).
+                    if( e == InputLogEntry.CloseSentinel ) break;
+                    // Regular handling.
                     foreach( var h in _handlers )
                     {
                         try
@@ -175,6 +179,19 @@ namespace CK.Monitoring
                 }
             }
             await awaker.DisposeAsync();
+            // Whether we are in _forceClose or not, release any remaining entries that may
+            // have been written to the channel.
+            while( _queue.Reader.TryRead( out var more ) )
+            {
+                // Do NOT handle these entries!
+                // This GrandOuput/Sink is closed, handling them would be too risky
+                // and semantically questionable.
+                // We only release the entries that have been written to the defunct channel.
+                if( more != null && more != InputLogEntry.CloseSentinel )
+                {
+                    more.Release();
+                }
+            }
             foreach( var h in _handlers ) await SafeActivateOrDeactivateAsync( monitor, h, false );
             monitor.MonitorEnd();
         }
@@ -294,7 +311,8 @@ namespace CK.Monitoring
         /// </returns>
         public bool Stop()
         {
-            if( _queue.Writer.TryComplete() )
+            // TryWrite and TryComplete return false if the channel has been completed.
+            if( _queue.Writer.TryWrite( InputLogEntry.CloseSentinel ) && _queue.Writer.TryComplete() )
             {
                 _identityCard.LocalUninitialize( _isDefaultGrandOutput );
                 SetUnhandledExceptionTracking( false );
@@ -315,7 +333,18 @@ namespace CK.Monitoring
 
         public bool IsRunning => !_stopTokenSource.IsCancellationRequested;
 
-        public void Handle( InputLogEntry logEvent ) => _queue.Writer.TryWrite( logEvent );
+        public void Handle( InputLogEntry logEvent )
+        {
+            // If we cannot write the entry, we must release it right now.
+            // A race condition may appear here: Stop() calls TryWrite( CloseSentinel ) && TryComplete(),
+            // and we may be here between the 2 calls which means that regular entries have been written
+            // after the CloseSentinel. This is why the handling of the CloseSentinel drains any remaining
+            // entries before leaving ProcessAsync.
+            if( !_queue.Writer.TryWrite( logEvent ) )
+            {
+                logEvent.Release();
+            }
+        }
 
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
