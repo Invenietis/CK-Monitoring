@@ -181,8 +181,6 @@ namespace CK.Monitoring.Tests
                 g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeTrue();
                 g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
-                Console.WriteLine( "Pouf" );
-                //Thread.Sleep( 50 );
             }
             ActivityMonitor.DefaultFilter = LogFilter.Trace;
         }
