@@ -61,7 +61,7 @@ Simply call
 ```csharp
 GrandOutput.EnsureActiveDefault();
 ```
-before any ActivityMonitor is instantiated.</ul></p></details>
+before any ActivityMonitor is instantiated.
 
 ### Configuring the GrandOutput
 The GrandOutput will output the logs in it's configured handlers.
@@ -71,6 +71,7 @@ standard [configuration providers](https://docs.microsoft.com/en-us/dotnet/core/
 If you do not use CK.Monitoring.Hosting, you will have to manually configure it.
 
 The standard handlers (included in CK.Monitoring assembly) are:
+
 |Handlers|Write logs to|Usages|Metadata|
 |--------|-------------|------|--------|
 |BinaryFile|binary file (extension `.ckmon`), optionally compressed.|To be programmatically read.|All of it.|
@@ -99,13 +100,13 @@ Using the json configuration provider, a typical configuration is:
 }
 ```
 This is a configuration we often use, this logs onto the Console and to "Logs/Text" timed folders.
-You can read a fully explained configuration file in the <a href="https://github.com/signature-opensource/CK-Sample-Monitoring/blob/develop/MonitoringDemoApp/appsettings.json"> appsettings.json</a> in the <a href="https://github.com/signature-opensource/CK-Sample-Monitoring">CK-Sample-Monitoring</a>.
+You can read a fully explained configuration file in [appsettings.json](https://github.com/signature-opensource/CK-Sample-Monitoring/blob/develop/MonitoringDemoApp/appsettings.json)
+in the [CK-Sample-Monitoring](https://github.com/signature-opensource/CK-Sample-Monitoring).
 
-> :information_source: `UseMonitoring()` support dynamically changing configuration.
+> ℹ️ `UseMonitoring()` support dynamically changing configuration.
 
-> :information_source: <a href="https://github.com/signature-opensource/CK-Sample-Monitoring">CK-Sample-Monitoring</a> is a sample repository that shows how an application can be configured with CK.Monitoring.Hosting.
-
-
+> ℹ️ [CK-Sample-Monitoring](https://github.com/signature-opensource/CK-Sample-Monitoring) is a sample repository that shows how an application can be configured 
+> with CK.Monitoring.Hosting. The demo application dynamically reacts to the change of the appsettings.
 
 ### Manually
 ⚠ This is an advanced usage.  
@@ -200,7 +201,7 @@ The `IGrandOutputHandler` that all handlers implement is a simple interface:
       /// </summary>
       /// <param name="m">The monitor to use.</param>
       /// <param name="logEvent">The log event.</param>
-      ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent );
+      ValueTask HandleAsync( IActivityMonitor m, InputEntry logEvent );
 
       /// <summary>
       /// Attempts to apply configuration if possible.
@@ -296,6 +297,6 @@ By following these conventions, the following configuration (using CK.Monitorig.
 Will automatically tries to load the "CK.Monitoring.MailAlerterHandler" assembly (it must be in the application's binary folder
 of course), instantiate the configuration, the handler and activates it.
 
-This sample is [here](Tests/CK.Monitoring.MailAlerterHandler/).
+Sample code: [MailAlerterConfiguration](Tests/CK.Monitoring.MailAlerterHandler/Handler/MailAlerterConfiguration.cs) and [MailAlerter](Tests/CK.Monitoring.MailAlerterHandler/Handler/MailAlerter.cs).
 
 [![Build history](https://buildstats.info/appveyor/chart/Signature-OpenSource/ck-monitoring?buildCount=100)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring)
