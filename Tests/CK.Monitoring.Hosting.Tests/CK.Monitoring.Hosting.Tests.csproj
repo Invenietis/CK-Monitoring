@@ -16,9 +16,9 @@
   </ItemGroup>
   <ItemGroup>
     <!--
-    This only ensures that the MailAlerter is compiled. finding_MailAlerter_handler_by_conventions_Async test copies the dll.
+    This only ensures that the MailAlerter is compiled. 
     But we don't want for this test the CK.Monitoring.MailAlerterHandler.dll to be copied into the bin of this test project 
-    (test finding_MailAlerter_handler_by_conventions_Async will explicitly copy the MailAlerterHandler dll).
+    (the test finding_MailAlerter_handler_by_conventions_Async will explicitly copy the MailAlerterHandler dll).
     This reproduces a real "plugin mode".
     -->
     <ProjectReference Include="..\CK.Monitoring.MailAlerterHandler\CK.Monitoring.MailAlerterHandler.csproj" ReferenceOutputAssembly="false" Private="false" />

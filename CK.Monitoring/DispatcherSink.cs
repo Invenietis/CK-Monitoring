@@ -104,7 +104,7 @@ namespace CK.Monitoring
             // First register to the OnChange to avoid missing an update...
             _identityCard.OnChanged += IdentityCardOnChanged;
             // ...then sends the current content of the identity card.
-            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardFull, _identityCard.ToString(), null );
+            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.IdentityCardFull, _identityCard.ToString(), null );
             // Configures the next timer due date.
             long now = DateTime.UtcNow.Ticks;
             _nextTicks = now + _timerDuration.Ticks;
@@ -125,17 +125,37 @@ namespace CK.Monitoring
                     // to the call to stop have been handled (but if _forceClose is set, this is ignored).
                     if( e == InputLogEntry.CloseSentinel ) break;
                     // Regular handling.
-                    foreach( var h in _handlers )
+                    // An identity update that comes from this monitor id (the sink's monitor identifier)
+                    // has been sent by IdentityCardOnChanged: we let it sink to the handlers.
+                    // Others (with an independent monitor identifier) are not sent to the handlers, they are
+                    // updating this IdentityCard and will trigger a IdentityCardOnChanged (or not if no change occurred).
+                    if( !ReferenceEquals( e.MonitorId, _sinkMonitorId )
+                        && e.Tags.Overlaps( ActivityMonitorSimpleSenderExtension.IdentityCard.IdentityCardUpdate ) )
                     {
-                        try
+                        var i = IdentityCard.TryUnpack( e.Text );
+                        if( i is IReadOnlyList<(string,string)> identityInfo )
                         {
-                            await h.HandleAsync( monitor, e );
+                            _identityCard.Add( identityInfo );
                         }
-                        catch( Exception ex )
+                        else
                         {
-                            monitor.Fatal( $"{h.GetType()}.Handle() crashed.", ex );
-                            if( faulty == null ) faulty = new List<IGrandOutputHandler>();
-                            faulty.Add( h );
+                            monitor.Error( $"Invalid {nameof(ActivityMonitorSimpleSenderExtension.AddIdentityInformation)} payload: '{e.Text}'." );
+                        }
+                    }
+                    else
+                    {
+                        foreach( var h in _handlers )
+                        {
+                            try
+                            {
+                                await h.HandleAsync( monitor, e );
+                            }
+                            catch( Exception ex )
+                            {
+                                monitor.Fatal( $"{h.GetType()}.Handle() crashed.", ex );
+                                if( faulty == null ) faulty = new List<IGrandOutputHandler>();
+                                faulty.Add( h );
+                            }
                         }
                     }
                     e.Release();
@@ -198,7 +218,7 @@ namespace CK.Monitoring
 
         void IdentityCardOnChanged( IdentiCardChangedEvent change )
         {
-            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
+            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitorSimpleSenderExtension.IdentityCard.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
         }
 
         async ValueTask DoConfigureAsync( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
