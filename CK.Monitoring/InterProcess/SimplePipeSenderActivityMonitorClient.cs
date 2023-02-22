@@ -9,7 +9,7 @@ namespace CK.Monitoring.InterProcess
     /// Simple activity monitor client that uses a <see cref="AnonymousPipeClientStream"/> to sends log
     /// entries to a <see cref="SimpleLogPipeReceiver"/>.
     /// </summary>
-    public class SimplePipeSenderActivityMonitorClient : IActivityMonitorClient, IDisposable
+    public sealed class SimplePipeSenderActivityMonitorClient : IActivityMonitorClient, IDisposable
     {
         readonly CKBinaryWriter _writer;
         readonly AnonymousPipeClientStream _client;
