@@ -3,8 +3,10 @@ using FluentAssertions;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests
@@ -171,6 +173,33 @@ namespace CK.Monitoring.Tests
             {
                 g.IdentityCard.Identities["AppIdentity/ContextDescriptor"].Single().Should().Be( CoreApplicationIdentity.Instance.ContextDescriptor );
             }
+        }
+
+        [Test]
+        public void ActivityMonitorSimpleSenderExtension_AddIdentityInformation_updates_the_identity_card()
+        {
+            string folder = TestHelper.PrepareLogFolder( "AddIdentityInformation" );
+            var textConf = new Handlers.TextFileConfiguration() { Path = "AddIdentityInformation", AutoFlushRate = 1 };
+
+            using var g = new GrandOutput( new GrandOutputConfiguration() { TimerDuration = TimeSpan.FromMilliseconds( 15 ), Handlers = { textConf } } );
+            var m = new ActivityMonitor( false );
+            g.EnsureGrandOutputClient( m );
+            m.AddIdentityInformation( "Hello", "World!" );
+            m.AddIdentityInformation( "Hello", "World2" );
+            m.AddIdentityInformation( "Hello", "World!" );
+
+            Thread.Sleep( 100 );
+
+            g.IdentityCard.Identities["Hello"].Should().NotBeEmpty( "The identity card has been updated." );
+            g.IdentityCard.Identities["Hello"].Should().BeEquivalentTo( new[] { "World!", "World2" }, o => o.WithoutStrictOrdering() );
+
+            string tempFile = Directory.EnumerateFiles( folder ).Single();
+            var lines = TestHelper.FileReadAllText( tempFile ).Split( Environment.NewLine, StringSplitOptions.RemoveEmptyEntries );
+            var helloUpdateLines = lines.Where( l => l.Contains( $"Hello{ActivityMonitorSimpleSenderExtension.IdentityCard.KeySeparator}World!" ) );
+            helloUpdateLines.Should().HaveCount( 1, "The Hello line has been added only once." );
+
+            var hello2UpdateLines = lines.Where( l => l.Contains( $"Hello{ActivityMonitorSimpleSenderExtension.IdentityCard.KeySeparator}World2" ) );
+            hello2UpdateLines.Should().HaveCount( 1, "The Hello World2 line has been added only once." );
         }
     }
 }

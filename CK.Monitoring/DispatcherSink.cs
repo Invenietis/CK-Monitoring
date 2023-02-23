@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace CK.Monitoring
 {
-    internal class DispatcherSink : IGrandOutputSink
+    internal partial class DispatcherSink : IGrandOutputSink
     {
-        readonly Channel<IMulticastLogEntry?> _queue;
+        readonly Channel<InputLogEntry?> _queue;
 
         readonly Task _task;
         readonly List<IGrandOutputHandler> _handlers;
@@ -21,7 +21,7 @@ namespace CK.Monitoring
         readonly Action _externalOnTimer;
         readonly object _confTrigger;
         readonly Action<IActivityMonitor> _initialRegister;
-        readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
+        readonly Action<LogFilter?,LogLevelFilter?> _filterChange;
         readonly CancellationTokenSource _stopTokenSource;
         readonly object _externalLogLock;
         readonly string _sinkMonitorId;
@@ -42,12 +42,12 @@ namespace CK.Monitoring
                                TimeSpan timerDuration,
                                TimeSpan externalTimerDuration,
                                Action externalTimer,
-                               Action<LogFilter?, LogLevelFilter?> filterChange,
+                               Action<LogFilter?,LogLevelFilter?> filterChange,
                                bool isDefaultGrandOutput )
         {
             _initialRegister = initialRegister;
             _identityCard = identityCard;
-            _queue = Channel.CreateUnbounded<IMulticastLogEntry?>( new UnboundedChannelOptions() { SingleReader = true } );
+            _queue = Channel.CreateUnbounded<InputLogEntry?>( new UnboundedChannelOptions() { SingleReader = true } );
             _handlers = new List<IGrandOutputHandler>();
             _confTrigger = new object();
             _stopTokenSource = new CancellationTokenSource();
@@ -104,7 +104,7 @@ namespace CK.Monitoring
             // First register to the OnChange to avoid missing an update...
             _identityCard.OnChanged += IdentityCardOnChanged;
             // ...then sends the current content of the identity card.
-            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardFull, _identityCard.ToString(), null );
+            monitor.UnfilteredLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.IdentityCardFull, _identityCard.ToString(), null );
             // Configures the next timer due date.
             long now = DateTime.UtcNow.Ticks;
             _nextTicks = now + _timerDuration.Ticks;
@@ -118,22 +118,47 @@ namespace CK.Monitoring
                 Debug.Assert( newConf != null, "Except at the start, this is never null." );
                 if( newConf.Length > 0 ) await DoConfigureAsync( monitor, newConf );
                 List<IGrandOutputHandler>? faulty = null;
-                #region Process event if any.
+                #region Process event if any (including the CloseSentinel).
                 if( e != null )
                 {
-                    foreach( var h in _handlers )
+                    // The CloseSentinel is the "soft stop": it ensures that any entries added prior
+                    // to the call to stop have been handled (but if _forceClose is set, this is ignored).
+                    if( e == InputLogEntry.CloseSentinel ) break;
+                    // Regular handling.
+                    // An identity update that comes from this monitor id (the sink's monitor identifier)
+                    // has been sent by IdentityCardOnChanged: we let it sink to the handlers.
+                    // Others (with an independent monitor identifier) are not sent to the handlers, they are
+                    // updating this IdentityCard and will trigger a IdentityCardOnChanged (or not if no change occurred).
+                    if( !ReferenceEquals( e.MonitorId, _sinkMonitorId )
+                        && e.Tags.Overlaps( ActivityMonitorSimpleSenderExtension.IdentityCard.IdentityCardUpdate ) )
                     {
-                        try
+                        var i = IdentityCard.TryUnpack( e.Text );
+                        if( i is IReadOnlyList<(string,string)> identityInfo )
                         {
-                            await h.HandleAsync( monitor, e );
+                            _identityCard.Add( identityInfo );
                         }
-                        catch( Exception ex )
+                        else
                         {
-                            monitor.Fatal( $"{h.GetType()}.Handle() crashed.", ex );
-                            if( faulty == null ) faulty = new List<IGrandOutputHandler>();
-                            faulty.Add( h );
+                            monitor.Error( $"Invalid {nameof(ActivityMonitorSimpleSenderExtension.AddIdentityInformation)} payload: '{e.Text}'." );
                         }
                     }
+                    else
+                    {
+                        foreach( var h in _handlers )
+                        {
+                            try
+                            {
+                                await h.HandleAsync( monitor, e );
+                            }
+                            catch( Exception ex )
+                            {
+                                monitor.Fatal( $"{h.GetType()}.Handle() crashed.", ex );
+                                if( faulty == null ) faulty = new List<IGrandOutputHandler>();
+                                faulty.Add( h );
+                            }
+                        }
+                    }
+                    e.Release();
                 }
                 #endregion
                 #region Process OnTimer (if not closing)
@@ -174,16 +199,27 @@ namespace CK.Monitoring
                 }
             }
             await awaker.DisposeAsync();
+            // Whether we are in _forceClose or not, release any remaining entries that may
+            // have been written to the channel.
+            while( _queue.Reader.TryRead( out var more ) )
+            {
+                // Do NOT handle these entries!
+                // This GrandOuput/Sink is closed, handling them would be too risky
+                // and semantically questionable.
+                // We only release the entries that have been written to the defunct channel.
+                if( more != null && more != InputLogEntry.CloseSentinel )
+                {
+                    more.Release();
+                }
+            }
             foreach( var h in _handlers ) await SafeActivateOrDeactivateAsync( monitor, h, false );
             monitor.MonitorEnd();
         }
 
         void IdentityCardOnChanged( IdentiCardChangedEvent change )
         {
-            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, IdentityCard.Tags.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
+            ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitorSimpleSenderExtension.IdentityCard.IdentityCardUpdate, change.PackedAddedInfo, null, _sinkMonitorId );
         }
-
-        void OnAwaker( object? state ) => _queue.Writer.TryWrite( null );
 
         async ValueTask DoConfigureAsync( IActivityMonitor monitor, GrandOutputConfiguration[] newConf )
         {
@@ -260,8 +296,7 @@ namespace CK.Monitoring
             }
             if( _isDefaultGrandOutput )
             {
-                var msg = $"GrandOutput.Default configuration n°{_configurationCount++}.";
-                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitor.Tags.Empty, msg, null );
+                ExternalLog( LogLevel.Info | LogLevel.IsFiltered, ActivityMonitor.Tags.Empty, $"GrandOutput.Default configuration n°{_configurationCount++}." );
             }
             lock( _confTrigger )
                 Monitor.PulseAll( _confTrigger );
@@ -296,7 +331,8 @@ namespace CK.Monitoring
         /// </returns>
         public bool Stop()
         {
-            if( _queue.Writer.TryComplete() )
+            // TryWrite and TryComplete return false if the channel has been completed.
+            if( _queue.Writer.TryWrite( InputLogEntry.CloseSentinel ) && _queue.Writer.TryComplete() )
             {
                 _identityCard.LocalUninitialize( _isDefaultGrandOutput );
                 SetUnhandledExceptionTracking( false );
@@ -317,7 +353,18 @@ namespace CK.Monitoring
 
         public bool IsRunning => !_stopTokenSource.IsCancellationRequested;
 
-        public void Handle( IMulticastLogEntry logEvent ) => _queue.Writer.TryWrite( logEvent );
+        public void Handle( InputLogEntry logEvent )
+        {
+            // If we cannot write the entry, we must release it right now.
+            // A race condition may appear here: Stop() calls TryWrite( CloseSentinel ) && TryComplete(),
+            // and we may be here between the 2 calls which means that regular entries have been written
+            // after the CloseSentinel. This is why the handling of the CloseSentinel drains any remaining
+            // entries before leaving ProcessAsync.
+            if( !_queue.Writer.TryWrite( logEvent ) )
+            {
+                logEvent.Release();
+            }
+        }
 
         public void ApplyConfiguration( GrandOutputConfiguration configuration, bool waitForApplication )
         {
@@ -334,7 +381,7 @@ namespace CK.Monitoring
             }
         }
 
-        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex, string monitorId = GrandOutput.ExternalLogMonitorUniqueId )
+        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex = null, string monitorId = GrandOutput.ExternalLogMonitorUniqueId )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -343,22 +390,18 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
-                                                 monitorId,
-                                                 LogEntryType.Line,
-                                                 prevLogTime,
-                                                 depth: 0,
-                                                 text: string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
-                                                 t: logTime,
-                                                 level: level,
-                                                 fileName: null,
-                                                 lineNumber: 0,
-                                                 tags: tags ?? ActivityMonitor.Tags.Empty,
-                                                 ex: ex != null ? CKExceptionData.CreateFrom( ex ) : null );
+            var e = InputLogEntry.AcquireInputLogEntry( _sinkMonitorId,
+                                                        monitorId,
+                                                        prevLogTime,
+                                                        string.IsNullOrEmpty( message ) ? ActivityMonitor.NoLogText : message,
+                                                        logTime,
+                                                        level,
+                                                        tags ?? ActivityMonitor.Tags.Empty,
+                                                        CKExceptionData.CreateFrom( ex ) );
             Handle( e );
         }
 
-        public void ExternalOrStaticLog( ref ActivityMonitorLogData d )
+        public void OnStaticLog( ref ActivityMonitorLogData d )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -367,18 +410,13 @@ namespace CK.Monitoring
                 prevLogTime = _externalLogLastTime;
                 _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
             }
-            var e = LogEntry.CreateMulticastLog( _sinkMonitorId,
-                                                 GrandOutput.ExternalLogMonitorUniqueId,
-                                                 LogEntryType.Line,
-                                                 prevLogTime,
-                                                 depth: 0,
-                                                 d.Text,
-                                                 logTime,
-                                                 d.Level,
-                                                 d.FileName,
-                                                 d.LineNumber,
-                                                 d.Tags,
-                                                 d.ExceptionData );
+            var e = InputLogEntry.AcquireInputLogEntry( _sinkMonitorId,
+                                                        ref d,
+                                                        groupDepth: 0,
+                                                        LogEntryType.Line,
+                                                        GrandOutput.ExternalLogMonitorUniqueId,
+                                                        LogEntryType.Line,
+                                                        prevLogTime );
             Handle( e );
         }
 
@@ -415,11 +453,8 @@ namespace CK.Monitoring
             else
             {
                 string? exText = e.ExceptionObject.ToString();
-                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'.", null );
+                ExternalLog( LogLevel.Fatal, GrandOutput.UnhandledException, $"AppDomain.CurrentDomain.UnhandledException raised with Exception object '{exText}'." );
             }
         }
-
-
-
     }
 }

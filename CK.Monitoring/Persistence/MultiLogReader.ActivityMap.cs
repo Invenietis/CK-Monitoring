@@ -291,7 +291,7 @@ namespace CK.Monitoring
             /// <summary>
             /// A disposable paged reader that gives access to <see cref="Entries"/> by unifying all the raw log 
             /// files and removing duplicates from them.
-            /// Pages are sequentially accessed from a first page (obtained by <see cref="ReadFirstPage(DateTimeStamp, int)"/>) and the by calling <see cref="ForwardPage"/>.
+            /// Pages are sequentially accessed from a first page (obtained by <see cref="ReadFirstPage(DateTimeStamp, int)"/>) and then by calling <see cref="ForwardPage"/>.
             /// </summary>
             public sealed class LivePage : IDisposable
             {

@@ -17,7 +17,7 @@ namespace CK.Monitoring.InterProcess
     /// parent process local monitor.
     /// </para>
     /// </summary>
-    public class SimpleLogPipeReceiver : IDisposable
+    public sealed class SimpleLogPipeReceiver : IDisposable
     {
         readonly AnonymousPipeServerStream _server;
         readonly CKBinaryReader _reader;

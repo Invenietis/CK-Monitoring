@@ -51,34 +51,16 @@ namespace CK.Monitoring
         public const int CurrentVersion = 1;
 
         /// <summary>
-        /// Holds tags related to identity tags.
+        /// Gets the tag that identify an <see cref="IdentityCardFull"/> snapshot.
+        /// The log text is the identity's packed <see cref="ToString()"/>.
         /// </summary>
-        public static class Tags
-        {
-            /// <summary>
-            /// Gets the tag that identify an <see cref="IdentityCardFull"/> snapshot.
-            /// The log text is the identity's packed <see cref="ToString()"/>.
-            /// </summary>
-            /// <remarks>
-            /// Current implementation uses string packing to exchange identity card.
-            /// One day, it should use a more efficient (binary representation). To handle this new
-            /// representation, This tag should be deprecated, internalized, and a simple "IdentityCard"
-            /// should replace it.
-            /// </remarks>
-            public static readonly CKTrait IdentityCardFull = ActivityMonitor.Tags.Context.FindOrCreate( nameof( IdentityCardFull ) );
-
-            /// <summary>
-            /// Gets the tag that identify an addition to an <see cref="IdentityCardFull"/>.
-            /// The log text is the added key/value pairs packed with <see cref="Pack(IReadOnlyList{ValueTuple{string, string}})"/>.
-            /// </summary>
-            /// <remarks>
-            /// Current implementation uses string packing to exchange identity card updates.
-            /// One day, it should use a more efficient (binary representation). To handle this new
-            /// representation, This tag should be deprecated, internalized, and "IdentityCardAdd"
-            /// should replace it.
-            /// </remarks>
-            public static readonly CKTrait IdentityCardUpdate = ActivityMonitor.Tags.Context.FindOrCreate( nameof( IdentityCardUpdate ) );
-        }
+        /// <remarks>
+        /// Current implementation uses string packing to exchange identity card.
+        /// One day, it should use a more efficient (binary representation). To handle this new
+        /// representation, This tag should be deprecated, internalized, and a simple "IdentityCard"
+        /// should replace it.
+        /// </remarks>
+        public static readonly CKTrait IdentityCardFull = ActivityMonitor.Tags.Context.FindOrCreate( nameof( IdentityCardFull ) );
 
         /// <summary>
         /// Initializes a new empty <see cref="IdentityCard"/>.
@@ -237,13 +219,7 @@ namespace CK.Monitoring
         AddOneResult DoAdd( string key, string value )
         {
             Debug.Assert( Monitor.IsEntered( _card ) );
-            Throw.CheckNotNullOrEmptyArgument( key );
-            Throw.CheckNotNullOrEmptyArgument( value );
-            Throw.CheckArgument( "Invalid newline character in identity key.", key.AsSpan().IndexOfAny( "\r\n\f\u0085\u2028\u2029" ) < 0 );
-            Throw.CheckArgument( "First 8 characters (NUl, SOH, STX, ETX, EOT, ENQ, ACK, BEL, BSP) cannot appear.",
-                                  key.AsSpan().IndexOfAny( "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008" ) < 0 );
-            Throw.CheckArgument( "First 8 characters (NUl, SOH, STX, ETX, EOT, ENQ, ACK, BEL, BSP) cannot appear.",
-                                  value.AsSpan().IndexOfAny( "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008" ) < 0 );
+            ActivityMonitorSimpleSenderExtension.IdentityCard.CkeckIdentityInformation( key, value );
             return DoAddWithoutChecks( _card, key, value );
         }
 
@@ -276,6 +252,7 @@ namespace CK.Monitoring
         /// <returns>The packed string (empty for no values).</returns>
         public static string Pack( IReadOnlyList<(string Key, string Value)> values )
         {
+            Debug.Assert( ActivityMonitorSimpleSenderExtension.IdentityCard.KeySeparator == '\u0002' );
             Throw.CheckArgument( values != null && values.Count > 0 );
             if( values.Count == 1 )
             {

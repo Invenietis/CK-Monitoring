@@ -41,7 +41,7 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Opens a log stream, handling version and compression.
-        /// On success, its Stream positionned after the header (before the first log entry).
+        /// On success, its Stream positioned after the header (before the first log entry).
         /// Supports headers:
         /// <list type="bullet">
         ///   <item>Old version header (05 00 00 00).</item>

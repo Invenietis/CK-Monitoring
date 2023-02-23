@@ -5,20 +5,20 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AspNet.Tester" Version="4.0.1" />
-    <PackageReference Include="FluentAssertions" Version="6.7.0" />
+    <PackageReference Include="CK.AspNet.Tester" Version="4.0.2" />
+    <PackageReference Include="FluentAssertions" Version="6.10.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.2.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.3.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\CK.Monitoring.Hosting\CK.Monitoring.Hosting.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!--
-    This only ensures that the MailAlerter is compiled. finding_MailAlerter_handler_by_conventions_Async test copies the dll.
+    This only ensures that the MailAlerter is compiled. 
     But we don't want for this test the CK.Monitoring.MailAlerterHandler.dll to be copied into the bin of this test project 
-    (test finding_MailAlerter_handler_by_conventions_Async will explicitly copy the MailAlerterHandler dll).
+    (the test finding_MailAlerter_handler_by_conventions_Async will explicitly copy the MailAlerterHandler dll).
     This reproduces a real "plugin mode".
     -->
     <ProjectReference Include="..\CK.Monitoring.MailAlerterHandler\CK.Monitoring.MailAlerterHandler.csproj" ReferenceOutputAssembly="false" Private="false" />

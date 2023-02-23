@@ -10,7 +10,17 @@ namespace CK.Monitoring.Tests.Persistence
     public class PrevVersionsDataSupportTests
     {
         [SetUp]
-        public void InitalizePaths() => TestHelper.InitalizePaths();
+        public void InitalizePaths()
+        {
+            TestHelper.InitalizePaths();
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
+
+        [TearDown]
+        public void WaitForNoMoreAliveInputLogEntry()
+        {
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
 
         [TestCase( 5 )]
         [TestCase( 6 )]

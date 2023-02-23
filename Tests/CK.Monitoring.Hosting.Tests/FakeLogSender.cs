@@ -73,7 +73,7 @@ namespace CK.Monitoring.Hosting.Tests
             return Task.FromResult<ISender?>( s );
         }
 
-        public override ValueTask HandleAsync( IActivityMonitor monitor, IMulticastLogEntry logEvent )
+        public override ValueTask HandleAsync( IActivityMonitor monitor, InputLogEntry logEvent )
         {
             // Consider only TestTag logs.
             if( logEvent.Tags.IsSupersetOf( TestTag ) )

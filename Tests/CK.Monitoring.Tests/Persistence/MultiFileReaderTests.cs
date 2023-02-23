@@ -13,7 +13,17 @@ namespace CK.Monitoring.Tests.Persistence
     public class MultiFileReaderTests
     {
         [SetUp]
-        public void InitalizePaths() => TestHelper.InitalizePaths();
+        public void InitalizePaths()
+        {
+            TestHelper.InitalizePaths();
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
+
+        [TearDown]
+        public void WaitForNoMoreAliveInputLogEntry()
+        {
+            TestHelper.WaitForNoMoreAliveInputLogEntry();
+        }
 
         [Test]
         public void artificially_generated_missing_log_entries_are_detected()

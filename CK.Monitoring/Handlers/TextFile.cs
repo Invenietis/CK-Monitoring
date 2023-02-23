@@ -42,9 +42,9 @@ namespace CK.Monitoring.Handlers
         /// <summary>
         /// Writes a log entry.
         /// </summary>
-        /// <param name="m">The monitor to use.</param>
+        /// <param name="monitor">The monitor to use.</param>
         /// <param name="logEvent">The log entry.</param>
-        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent )
+        public ValueTask HandleAsync( IActivityMonitor monitor, InputLogEntry logEvent )
         {
             _file.Write( logEvent );
             return ValueTask.CompletedTask;

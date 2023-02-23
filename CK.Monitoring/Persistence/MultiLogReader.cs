@@ -99,7 +99,7 @@ namespace CK.Monitoring
 
             void HandleIdentityCardTag( IMulticastLogEntry log, CKTrait t )
             {
-                if( t == IdentityCard.Tags.IdentityCardFull )
+                if( t == IdentityCard.IdentityCardFull )
                 {
                     if( _identityCard == null )
                     {
@@ -118,7 +118,7 @@ namespace CK.Monitoring
                         }
                     }
                 }
-                else if( t == IdentityCard.Tags.IdentityCardUpdate )
+                else if( t == ActivityMonitorSimpleSenderExtension.IdentityCard.IdentityCardUpdate )
                 {
                     var added = IdentityCard.TryUnpack( log.Text ) as IReadOnlyList<(string, string)>;
                     if( added != null )
