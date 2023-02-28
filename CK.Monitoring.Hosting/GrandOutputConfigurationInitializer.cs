@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting
 {
+
     sealed class GrandOutputConfigurationInitializer
     {
         /// <summary>
@@ -56,10 +57,30 @@ namespace CK.Monitoring.Hosting
         {
             builder.ConfigureLogging( ( ctx, loggingBuilder ) =>
             {
+                Debug.Assert( ReferenceEquals( ctx.Properties, builder.Properties ) );
                 Initialize( ctx.HostingEnvironment, loggingBuilder, ctx.Configuration, configSection( ctx.Configuration ) );
+                // If the BuilderMonitor has been requested, replay its logs.
+                var builderMonitor = (IActivityMonitor?)ctx.Properties.GetValueOrDefault( typeof( IActivityMonitor ) );
+                if( builderMonitor != null )
+                {
+                    // Instead of relying only on the GrandOuput.Defaut, simply calls the AutoConfiguration action:
+                    // if more than one GrandOuput currently exists, they will receive the logs of the new Host initialization.
+                    ActivityMonitor.AutoConfiguration?.Invoke( builderMonitor );
+                    // Removes the client and replays its logs.
+                    var replayer = builderMonitor.Output.UnregisterClient<BuilderMonitorReplayClient>( _ => true );
+                    if( replayer == null )
+                    {
+                        builderMonitor.Warn( "The BuilderMonitorReplayClient has been removed from the builderMonitor output. This is weird..." );
+                    }
+                    else
+                    {
+                        replayer.Replay( builderMonitor );
+                    }
+                }
             } );
-            builder.ConfigureServices( services =>
+            builder.ConfigureServices( (ctx, services) =>
             {
+                Debug.Assert( ReferenceEquals( ctx.Properties, builder.Properties ) );
                 Debug.Assert( _target != null );
                 services.AddHostedService( sp => new HostedService( _target ) );
                 services.TryAddScoped( _ => new ActivityMonitor() );

@@ -27,7 +27,7 @@ we always use in practice the static `GrandOutput.Default` property.
 Most of the times, you will need only one GrandOutput.
 You can get one by:
 
-#### Using the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a>
+#### Using the [.NET Generic Host](https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host)
 The Generic Host is a great base for any app, this is what you will probably use most of the time.
 You will need the CK.Monitoring.Hosting NuGet package.
 Now, you can add this line:
@@ -53,6 +53,12 @@ public class Program
 ```
 Place this line so it run before any ActivityMonitor is instantiated.
 This will configures the GrandOutput.Default and provides a scoped IActivityMonitor to the DI.
+
+> ℹ️ An activity monitor is available on `IHostBuilder` and `HostBuilderContext`: simply call 
+> the `GetBuilderMonitor()` extension method on them. This monitor will write its logs as soon as the
+> GrandOuptout and its configured handlers will be available.
+
+
 #### Manually by calling `GrandOutput.EnsureActiveDefault()` (Advanced)
 ⚠ This is an advanced usage, skip this part if you want to configure your GrandOutput.  
 
@@ -80,8 +86,8 @@ The standard handlers (included in CK.Monitoring assembly) are:
 
 Now, you can configure your GrandOutput:
 
-#### With CK.Monitoring.Hosting and the <a href="https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host">.NET Generic Host</a>
- `UseCKMonitoring()` uses the configuration section named "CK-Monitoring".
+#### With CK.Monitoring.Hosting and the .NET Generic Host
+`UseCKMonitoring()` uses the configuration section named "CK-Monitoring".
 Using the json configuration provider, a typical configuration is:
 
 ```json
@@ -161,10 +167,6 @@ depends on the type of each handlers (for "file handlers" for instance, the `Pat
   // Initializes the GrandOutput.Default singleton with the configuration object.
   GrandOutput.EnsureActiveDefault( conf );
 ```
-
-</ul>
-</details>
-
 
 ### Implementing a GrandOutput client
 ⚠ This is an advanced usage.

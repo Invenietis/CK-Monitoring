@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -170,10 +171,11 @@ namespace CK.Monitoring
             if( _solutionFolder.IsEmptyPath )
             {
                 NormalizedPath path = AppContext.BaseDirectory;
-                var s = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );
-                if( s.IsEmptyPath ) throw new InvalidOperationException( $"Unable to find CK-Monitoring.sln above '{AppContext.BaseDirectory}'." );
-                _solutionFolder = s.RemoveLastPart();
-                LogFile.RootLogPath = Path.Combine( _solutionFolder, "Tests", "CK.Monitoring.Tests", "Logs" );
+                Debug.Assert( path.Parts[^3] == "bin" );
+                var root = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );
+                if( root.IsEmptyPath ) Throw.InvalidOperationException( $"Unable to find CK-Monitoring.sln above '{AppContext.BaseDirectory}'." );
+                _solutionFolder = root.RemoveLastPart();
+                LogFile.RootLogPath = path.RemoveLastPart( 3 ).AppendPart( "Logs" );
                 ConsoleMonitor.Info( $"SolutionFolder is: {_solutionFolder}\r\nRootLogPath is: {LogFile.RootLogPath}" );
             }
         }

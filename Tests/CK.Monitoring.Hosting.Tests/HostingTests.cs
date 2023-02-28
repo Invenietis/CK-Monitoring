@@ -1,7 +1,6 @@
 using CK.AspNet.Tester;
 using CK.Core;
 using FluentAssertions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -13,6 +12,7 @@ using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting.Tests
 {
+
     [TestFixture]
     public partial class HostingTests
     {

@@ -337,7 +337,7 @@ namespace CK.Monitoring.Tests
                 g.EnsureGrandOutputClient( m );
                 DumpMonitor1082Entries( m, loop );
             }
-            // All tempoary files have been closed.
+            // All temporary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
             // The {loop} "~~~~~FINAL TRACE~~~~~" appear in text logs.
