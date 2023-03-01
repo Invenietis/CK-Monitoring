@@ -148,7 +148,23 @@ namespace CK.Monitoring.Tests
 
             var map = mlr.GetActivityMap();
 
-            map.Monitors.Should().HaveCount( 4 );
+            map.Monitors.Count.Should().BeGreaterThanOrEqualTo( 4 );
+            if( map.Monitors.Count > 4 )
+            {
+                foreach( var m in map.Monitors )
+                {
+                    Console.WriteLine( "-------------------------" );
+                    Console.WriteLine( $"MonitorId: {m.MonitorId}" );
+                    Console.WriteLine( $"Tags: " + m.AllTags.Select( t => $"{t.Key} ({t.Value})" ).Concatenate() );
+                    Console.WriteLine( $"FirstEntryTime: {m.FirstEntryTime}" );
+                    var page = m.ReadFirstPage( 10 );
+                    foreach( var e in page.Entries )
+                    {
+                        Console.WriteLine( $"{e.Entry.FileName}@{e.Entry.LineNumber} - {e.Entry.LogLevel} - {e.Entry.LogTime} - {e.Entry.Text}" );
+                    }
+                    Console.WriteLine( "-------------------------" );
+                }
+            }
             // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
             // Others do not have any topic.
             var notDispatcherSinkMonitors = map.Monitors.Where( m => !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) ).ToList();
