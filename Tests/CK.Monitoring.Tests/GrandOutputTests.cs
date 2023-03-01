@@ -101,6 +101,37 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
+        public void reading_static_logger_entries()
+        {
+            string folder = TestHelper.PrepareLogFolder( "StaticLogger" );
+
+            var c = new GrandOutputConfiguration()
+            {
+                Handlers = { new Handlers.BinaryFileConfiguration { Path = folder } }
+            };
+
+            using( GrandOutput g = new GrandOutput( c ) )
+            {
+                ActivityMonitor.StaticLogger.Info( "This is a static log." );
+            }
+            string ckmon = TestHelper.WaitForCkmonFilesInDirectory( folder, 1 ).Single();
+            using var r = LogReader.Open( ckmon );
+            r.BadEndOfFileMarker.Should().BeFalse();
+            r.ReadException.Should().BeNull();
+            bool foundStaticLog = false;
+            while( r.MoveNext() )
+            {
+                if( r.CurrentMulticast.MonitorId == ActivityMonitor.ExternalLogMonitorUniqueId)
+                {
+                    r.CurrentMulticast.FileName.Should().EndWith( "GrandOutputTests.cs" );
+                    r.CurrentMulticast.Text.Should().Be( "This is a static log." );
+                    foundStaticLog = true;
+                }
+            }
+            foundStaticLog.Should().BeTrue();
+        }
+
+        [Test]
         public async Task CKMon_binary_files_can_be_GZip_compressed_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "Gzip" );

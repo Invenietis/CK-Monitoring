@@ -192,7 +192,7 @@ namespace CK.Monitoring
         {
             get
             {
-                if( _current == null ) throw new InvalidOperationException();
+                Throw.CheckState( _current != null );
                 return _current;
             }
         }
@@ -200,12 +200,15 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets the <see cref="Current"/> entry if the underlying entry is a <see cref="IMulticastLogEntry"/>, <see langword="null"/> otherwise.
         /// This captures the actual entry when a <see cref="CurrentFilter"/> is set (Current is then a mere Unicast entry).
+        /// <para>
+        /// <see cref="MoveNext"/> must be called before getting the first entry.
+        /// </para>
         /// </summary>
         public IMulticastLogEntry? CurrentMulticast
         {
             get
             {
-                if( _current == null ) throw new InvalidOperationException();
+                Throw.CheckState( _current != null );
                 return _currentMulticast;
             }
         }
