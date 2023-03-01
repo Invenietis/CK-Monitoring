@@ -151,18 +151,25 @@ namespace CK.Monitoring.Tests
             map.Monitors.Count.Should().BeGreaterThanOrEqualTo( 4 );
             if( map.Monitors.Count > 4 )
             {
-                foreach( var m in map.Monitors )
+                try
                 {
-                    Console.WriteLine( "-------------------------" );
-                    Console.WriteLine( $"MonitorId: {m.MonitorId}" );
-                    Console.WriteLine( $"Tags: " + m.AllTags.Select( t => $"{t.Key} ({t.Value})" ).Concatenate() );
-                    Console.WriteLine( $"FirstEntryTime: {m.FirstEntryTime}" );
-                    var page = m.ReadFirstPage( 10 );
-                    foreach( var e in page.Entries )
+                    foreach( var m in map.Monitors )
                     {
-                        Console.WriteLine( $"{e.Entry.FileName}@{e.Entry.LineNumber} - {e.Entry.LogLevel} - {e.Entry.LogTime} - {e.Entry.Text}" );
+                        Console.WriteLine( "-------------------------" );
+                        Console.WriteLine( $"MonitorId: {m.MonitorId}" );
+                        Console.WriteLine( $"Tags: " + m.AllTags.Select( t => $"{t.Key} ({t.Value})" ).Concatenate() );
+                        Console.WriteLine( $"FirstEntryTime: {m.FirstEntryTime}" );
+                        var page = m.ReadFirstPage( 10 );
+                        foreach( var e in page.Entries )
+                        {
+                            Console.WriteLine( $"{e.Entry.FileName}@{e.Entry.LineNumber} - {e.Entry.LogLevel} - {e.Entry.LogTime} - {e.Entry.Text}" );
+                        }
+                        Console.WriteLine( "-------------------------" );
                     }
-                    Console.WriteLine( "-------------------------" );
+                }
+                catch( Exception ex )
+                {
+                    Console.WriteLine( CKExceptionData.CreateFrom( ex ).ToString() );
                 }
             }
             // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
