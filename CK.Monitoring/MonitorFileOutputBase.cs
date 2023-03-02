@@ -35,9 +35,9 @@ namespace CK.Monitoring
         /// <param name="useGzipCompression">True to gzip the file.</param>
         protected MonitorFileOutputBase( string configuredPath, string fileNameSuffix, int maxCountPerFile, bool useGzipCompression )
         {
-            if( configuredPath == null ) throw new ArgumentNullException( nameof( configuredPath ) );
-            if( string.IsNullOrEmpty( fileNameSuffix ) ) throw new ArgumentException( nameof( fileNameSuffix ) );
-            if( maxCountPerFile < 1 ) throw new ArgumentException( "Must be greater than 0.", nameof( maxCountPerFile ) );
+            Throw.CheckNotNullArgument( configuredPath );
+            Throw.CheckNotNullOrEmptyArgument( fileNameSuffix );
+            Throw.CheckOutOfRangeArgument( maxCountPerFile > 0 );
             _configPath = configuredPath;
             _maxCountPerFile = maxCountPerFile;
             _fileNameSuffix = fileNameSuffix;

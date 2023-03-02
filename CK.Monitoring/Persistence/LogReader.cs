@@ -1,5 +1,6 @@
 using CK.Core;
 using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,7 +12,7 @@ namespace CK.Monitoring
     /// <summary>
     /// A log reader acts as an enumerator of <see cref="ILogEntry"/> that are stored in a <see cref="Stream"/>.
     /// </summary>
-    public sealed class LogReader : IEnumerator<ILogEntry>
+    public sealed class LogReader : IEnumerator<ILogEntry>, IDisposable
     {
         Stream? _stream;
         CKBinaryReader? _binaryReader;
@@ -36,7 +37,7 @@ namespace CK.Monitoring
         /// The file header for .ckmon files starting from CurrentStreamVersion = 5.
         /// That's C, K, M, O and N (ASCII).
         /// </summary>
-        public static readonly byte[] FileHeader = new byte[] { 0x43, 0x4b, 0x4d, 0x4f, 0x4e };
+        public static ReadOnlySpan<byte> FileHeader => new byte[] { 0x43, 0x4b, 0x4d, 0x4f, 0x4e };
 
         /// <summary>
         /// Initializes a new <see cref="LogReader"/> on an uncompressed stream with an explicit version number.
@@ -119,11 +120,20 @@ namespace CK.Monitoring
                 }
                 else
                 {
-                    var buffer = new byte[8192];
-                    int toRead;
-                    while( (toRead = (int)Math.Min( 8192, dataOffset )) > 0 && s.Read( buffer, 0, toRead ) == toRead )
+                    var buffer = ArrayPool<byte>.Shared.Rent( 8192 );
+                    try
                     {
-                        dataOffset -= toRead;
+                        int toRead;
+                        while( (toRead = (int)Math.Min( buffer.Length, dataOffset )) > 0 )
+                        {
+                            int len = s.Read( buffer, 0, toRead );
+                            if( len == 0 ) break;
+                            dataOffset -= len;
+                        }
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return( buffer );
                     }
                 }
             }
