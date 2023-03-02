@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CK.Core;
 
 namespace CK.Monitoring
 {
@@ -19,7 +16,7 @@ namespace CK.Monitoring
 
         /// <summary>
         /// Gets the identity card if some log entries from this monitor
-        /// have <see cref="IdentityCard.Tags.IdentityCardFull"/> or <see cref="IdentityCard.Tags.IdentityCardUpdate"/>.
+        /// have <see cref="IdentityCard.IdentityCardFull"/> or <see cref="ActivityMonitorSimpleSenderExtension.IdentityCard.IdentityCardUpdate"/>.
         /// </summary>
         IdentityCard? IdentityCard { get; }
 

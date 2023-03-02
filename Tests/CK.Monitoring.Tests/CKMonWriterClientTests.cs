@@ -2,6 +2,7 @@ using NUnit.Framework;
 using CK.Core;
 using FluentAssertions;
 using System.IO;
+using System.Diagnostics;
 
 namespace CK.Monitoring.Tests
 {
@@ -24,6 +25,7 @@ namespace CK.Monitoring.Tests
         [Test]
         public void testing_CKMonWriterClient_output()
         {
+            Debug.Assert( LogFile.RootLogPath != null );
             var path = Path.Combine( LogFile.RootLogPath, "CKMonWriterClient" );
             if( Directory.Exists( path ) ) Directory.Delete( path, true );
             var m = new ActivityMonitor( false );

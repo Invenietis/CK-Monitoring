@@ -40,7 +40,7 @@ namespace CK.Monitoring.Tests
 
         static Exception ThrowLoaderException()
         {
-            Exception e = null;
+            Exception e = null!;
             try { Type.GetType( "A.Type, An.Unexisting.Assembly", true ); }
             catch( Exception ex ) { e = ex; }
             return e;

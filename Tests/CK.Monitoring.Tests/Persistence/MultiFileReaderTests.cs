@@ -107,6 +107,8 @@ namespace CK.Monitoring.Tests.Persistence
                 Thread.Sleep( 100 );
                 m.Output.UnregisterClient( direct );
             }
+            InputLogEntry.AliveCount.Should().Be( 0 );
+
             var files = TestHelper.WaitForCkmonFilesInDirectory( folder, 3 );
             for( int pageReadLength = 1; pageReadLength < 10; ++pageReadLength )
             {

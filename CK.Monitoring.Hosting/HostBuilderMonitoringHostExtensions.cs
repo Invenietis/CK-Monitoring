@@ -45,19 +45,27 @@ namespace Microsoft.Extensions.Hosting
         /// is executed during <see cref="IHostBuilder.Build()"/>.  
         /// </para>
         /// </summary>
-        /// <param name="builder">This builder context.</param>
+        /// <param name="ctx">This builder context.</param>
         /// <returns>A monitor for the host and application builder.</returns>
         public static IActivityMonitor GetBuilderMonitor( this HostBuilderContext ctx ) => GetBuilderMonitor( ctx.Properties );
 
         /// <summary>
         /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration to the configuration section "CK-Monitoring".
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
+        /// <para>
+        /// This can safely be called multiple times.
+        /// </para>
         /// </summary>
         /// <param name="builder">Host builder</param>
         /// <returns>The builder.</returns>
         public static IHostBuilder UseCKMonitoring( this IHostBuilder builder )
         {
-            return DoUseMonitoring( builder, null, c => c.GetSection( "CK-Monitoring" ) );
+            if( !builder.Properties.ContainsKey( typeof( GrandOutputConfigurationInitializer ) ) )
+            {
+                builder.Properties.Add( typeof( GrandOutputConfigurationInitializer ), null );
+                DoUseMonitoring( builder, null, c => c.GetSection( "CK-Monitoring" ) );
+            }
+            return builder;
         }
 
         /// <summary>
@@ -71,24 +79,9 @@ namespace Microsoft.Extensions.Hosting
         /// <returns>The builder.</returns>
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, GrandOutput grandOutput, string configurationPath )
         {
-            if( grandOutput == null ) throw new ArgumentNullException( nameof( grandOutput ) );
-            if( grandOutput == GrandOutput.Default ) throw new ArgumentException( "The GrandOutput must not be the default one.", nameof( grandOutput ) );
+            Throw.CheckNotNullArgument( grandOutput );
+            Throw.CheckArgument( grandOutput != GrandOutput.Default );
             return DoUseMonitoring( builder, grandOutput, c => c.GetSection( configurationPath ) );
-        }
-
-        /// <summary>
-        /// The configuration for the default <see cref="GrandOutput.Default"/> section must now always be "CK-Monitoring".
-        /// Application settings and other configuration sources MUST be updated accordingly.
-        /// <see cref="UseCKMonitoring(IHostBuilder)"/> must now be called.
-        /// </summary>
-        /// <param name="builder">This host builder</param>
-        /// <param name="section">The configuration section. Must not be null.</param>
-        /// <returns>The builder.</returns>
-        [Obsolete( "Call UseCKMonitoring and updates the configuration section to be \"CK-Monitoring\".", true )]
-        public static IHostBuilder UseMonitoring( this IHostBuilder builder, IConfigurationSection section )
-        {
-            if( section == null ) throw new ArgumentNullException( nameof( section ) );
-            return DoUseMonitoring( builder, null, c => section );
         }
 
         /// <summary>
@@ -102,9 +95,9 @@ namespace Microsoft.Extensions.Hosting
         /// <returns>The builder.</returns>
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, GrandOutput grandOutput, IConfigurationSection section )
         {
-            if( grandOutput == null ) throw new ArgumentNullException( nameof( grandOutput ) );
-            if( grandOutput == GrandOutput.Default ) throw new ArgumentException( "The GrandOutput must not be the default one.", nameof( grandOutput ) );
-            if( section == null ) throw new ArgumentNullException( nameof( section ) );
+            Throw.CheckNotNullArgument( grandOutput );
+            Throw.CheckArgument( grandOutput != GrandOutput.Default );
+            Throw.CheckNotNullArgument( section );
             return DoUseMonitoring( builder, grandOutput, c => section );
         }
 

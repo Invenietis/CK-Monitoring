@@ -7,6 +7,7 @@ using NUnit.Framework;
 using FluentAssertions;
 using System.Threading;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 
 namespace CK.Monitoring.Tests
 {
@@ -129,6 +130,7 @@ namespace CK.Monitoring.Tests
                 bool foundStaticLog = false;
                 while( r.MoveNext() )
                 {
+                    Debug.Assert( r.CurrentMulticast != null );
                     if( r.CurrentMulticast.MonitorId == ActivityMonitor.ExternalLogMonitorUniqueId )
                     {
                         r.CurrentMulticast.FileName.Should().EndWith( "GrandOutputTests.cs" );
@@ -228,21 +230,25 @@ namespace CK.Monitoring.Tests
 
                     using( var fR = monitorR.Files[0].CreateFilteredReaderAndMoveTo( firstOffset ) )
                     {
+                        Debug.Assert( fR.CurrentMulticast != null );
                         fR.CurrentMulticast.MonitorId.Should().Be( monitorId );
                         fR.MoveNext().Should().BeTrue();
                     }
                     using( var lR = monitorR.Files[0].CreateFilteredReaderAndMoveTo( lastOffset ) )
                     {
+                        Debug.Assert( lR.CurrentMulticast != null );
                         lR.CurrentMulticast.MonitorId.Should().Be( monitorId );
                         FluentActions.Invoking( () => lR.MoveNext() ).Should().NotThrow();
                     }
                     using( var fG = monitorG.Files[0].CreateFilteredReaderAndMoveTo( firstOffset ) )
                     {
+                        Debug.Assert( fG.CurrentMulticast != null );
                         fG.CurrentMulticast.MonitorId.Should().Be( monitorId );
                         fG.MoveNext().Should().BeTrue();
                     }
                     using( var lG = monitorG.Files[0].CreateFilteredReaderAndMoveTo( lastOffset ) )
                     {
+                        Debug.Assert( lG.CurrentMulticast != null );
                         lG.CurrentMulticast.MonitorId.Should().Be( monitorId );
                         FluentActions.Invoking( () => lG.MoveNext() ).Should().NotThrow();
                     }

@@ -100,11 +100,11 @@ namespace CK.Monitoring.Tests
                 _reader.Dispose();
             }
 
-            void Run( object unused )
+            void Run( object? unused )
             {
                 try
                 {
-                    string hello = _reader.ReadLine();
+                    string? hello = _reader.ReadLine();
                     Assert.That( hello == "HELLO" );
                     int iLine = 0;
                     for( ; ; )
