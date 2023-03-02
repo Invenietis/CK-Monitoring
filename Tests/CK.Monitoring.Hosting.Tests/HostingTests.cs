@@ -1,7 +1,6 @@
 using CK.AspNet.Tester;
 using CK.Core;
 using FluentAssertions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -13,6 +12,7 @@ using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting.Tests
 {
+
     [TestFixture]
     public partial class HostingTests
     {
@@ -186,7 +186,7 @@ namespace CK.Monitoring.Hosting.Tests
             m.Trace( Machine | Sql, "Yes again!" );
             m.Trace( "DONE!" );
 
-            await Task.Delay( 200 );
+            await host.StopAsync();
 
             var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
             texts.Should()
@@ -194,8 +194,6 @@ namespace CK.Monitoring.Hosting.Tests
                    .And.Contain( "Yes again!" )
                    .And.NotContain( "NOP! This is in Debug!" )
                    .And.Contain( "DONE!" );
-
-            await host.StopAsync();
 
             static void RunWithTagFilters( CKTrait Sql, CKTrait Machine, ActivityMonitor m )
             {
@@ -215,6 +213,9 @@ namespace CK.Monitoring.Hosting.Tests
 
                 DemoSinkHandler.Reset();
             }
+
+            DemoSinkHandler.Reset();
+            InputLogEntry.AliveCount.Should().Be( 0 );
         }
 
 

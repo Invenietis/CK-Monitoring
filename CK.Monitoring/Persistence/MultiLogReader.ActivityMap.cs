@@ -126,7 +126,7 @@ namespace CK.Monitoring
             /// </summary>
             public IReadOnlyList<KeyValuePair<CKTrait, int>> AllTags => _tags;
 
-            internal class MultiFileReader : IDisposable
+            internal sealed class MultiFileReader : IDisposable
             {
                 readonly DateTimeStamp _firstLogTime;
                 readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
@@ -147,7 +147,7 @@ namespace CK.Monitoring
                     }
                 }
 
-                class OneLogReader : IDisposable
+                sealed class OneLogReader : IDisposable
                 {
                     public MulticastLogEntryWithOffset Head;
                     LogReader? _reader;
@@ -562,7 +562,7 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Gets the <see cref="ActivityMap"/> from this reader.
+        /// Creates an <see cref="ActivityMap"/> snapshot from this reader.
         /// </summary>
         /// <returns>An immutable snapshot of this reader's content.</returns>
         public ActivityMap GetActivityMap()

@@ -5,6 +5,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\CK.Monitoring.Tests\StupidStringClient.cs" Link="StupidStringClient.cs" />
+    <Compile Include="..\CK.Monitoring.Tests\TestHelper.cs" Link="TestHelper.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="CK.AspNet.Tester" Version="4.0.2" />
     <PackageReference Include="FluentAssertions" Version="6.10.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />

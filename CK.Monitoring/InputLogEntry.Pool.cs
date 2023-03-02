@@ -10,7 +10,7 @@ namespace CK.Monitoring
     public sealed partial class InputLogEntry
     {
         /// <summary>
-        /// Gets the current pool capacity. It starts at 200 and increases (with a warning) until <see cref="MaximalPoolCapacity"/>
+        /// Gets the current pool capacity. It starts at 500 and increases (with a warning) until <see cref="MaximalPoolCapacity"/>
         /// is reached (where errors are emitted). Warnings and errors are tagged with <see cref="GrandOutput.InputLogPoolAlertTag"/>.
         /// </summary>
         public static int CurrentPoolCapacity => _currentCapacity;
@@ -18,7 +18,7 @@ namespace CK.Monitoring
         /// <summary>
         /// The current pool capacity increment until <see cref="CurrentPoolCapacity"/> reaches <see cref="MaximalPoolCapacity"/>.
         /// </summary>
-        public const int PoolCapacityIncrement = 10;
+        public const int PoolCapacityIncrement = 100;
 
         /// <summary>
         /// Gets the maximal capacity. Once reached, newly acquired <see cref="InputLogEntry"/> are garbage
@@ -35,7 +35,7 @@ namespace CK.Monitoring
         readonly static ConcurrentQueue<InputLogEntry> _items = new();
         static InputLogEntry? _fastItem;
         static int _numItems;
-        static int _currentCapacity = 200;
+        static int _currentCapacity = 500;
         static int _maximalCapacity = 2000;
         static int _aliveItems;
         static DateTime _nextPoolError;
@@ -127,7 +127,7 @@ namespace CK.Monitoring
                     if( _nextPoolError < now )
                     {
                         _nextPoolError = now.AddSeconds( 1 );
-                        ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Error,
+                        ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Error | LogLevel.IsFiltered,
                                                                     GrandOutput.InputLogPoolAlertTag,
                                                                     $"The log data pool reached its maximal capacity of {MaximalPoolCapacity}. This may indicate a peak of activity " +
                                                                     $"or a leak (missing ActivityMonitorExternalLogData.Release() calls) if this error persists.", null );
@@ -136,7 +136,7 @@ namespace CK.Monitoring
                 else
                 {
                     int newCapacity = Interlocked.Add( ref _currentCapacity, PoolCapacityIncrement );
-                    ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn, GrandOutput.InputLogPoolAlertTag, $"The log data pool has been increased to {newCapacity}.", null );
+                    ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, GrandOutput.InputLogPoolAlertTag, $"The log data pool has been increased to {newCapacity}.", null );
                 }
             }
         }

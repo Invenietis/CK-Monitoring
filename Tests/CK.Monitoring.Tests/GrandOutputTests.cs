@@ -101,6 +101,46 @@ namespace CK.Monitoring.Tests
         }
 
         [Test]
+        public void reading_static_logger_entries()
+        {
+            string folder = TestHelper.PrepareLogFolder( "StaticLogger" );
+
+            var c = new GrandOutputConfiguration()
+            {
+                Handlers = {
+                    new Handlers.BinaryFileConfiguration { Path = folder + "/Raw" },
+                    new Handlers.BinaryFileConfiguration { Path = folder + "/GZip", UseGzipCompression = true } }
+            };
+
+            using( GrandOutput g = new GrandOutput( c ) )
+            {
+                ActivityMonitor.StaticLogger.Info( "This is a static log." );
+            }
+            string ckmon = TestHelper.WaitForCkmonFilesInDirectory( folder + "/Raw", 1 ).Single();
+            ReadLog( ckmon );
+            string gzip = TestHelper.WaitForCkmonFilesInDirectory( folder + "/GZip", 1 ).Single();
+            ReadLog( gzip );
+
+            static void ReadLog( string ckmon )
+            {
+                using var r = LogReader.Open( ckmon );
+                r.BadEndOfFileMarker.Should().BeFalse();
+                r.ReadException.Should().BeNull();
+                bool foundStaticLog = false;
+                while( r.MoveNext() )
+                {
+                    if( r.CurrentMulticast.MonitorId == ActivityMonitor.ExternalLogMonitorUniqueId )
+                    {
+                        r.CurrentMulticast.FileName.Should().EndWith( "GrandOutputTests.cs" );
+                        r.CurrentMulticast.Text.Should().Be( "This is a static log." );
+                        foundStaticLog = true;
+                    }
+                }
+                foundStaticLog.Should().BeTrue();
+            }
+        }
+
+        [Test]
         public async Task CKMon_binary_files_can_be_GZip_compressed_Async()
         {
             string folder = TestHelper.PrepareLogFolder( "Gzip" );
@@ -124,41 +164,120 @@ namespace CK.Monitoring.Tests
                 var taskC = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
 
                 await Task.WhenAll( taskA, taskB, taskC );
+                await Task.Delay( 1000 );
             }
 
-            string[] gzipCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputGzip", 1 );
-            string[] rawCkmons = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputRaw", 1 );
+            string gzipCkmon = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputGzip", 1 ).Single();
+            string rawCkmon = TestHelper.WaitForCkmonFilesInDirectory( folder + @"\OutputRaw", 1 ).Single();
 
-            gzipCkmons.Should().HaveCount( 1 );
-            rawCkmons.Should().HaveCount( 1 );
-
-            FileInfo gzipCkmonFile = new FileInfo( gzipCkmons.Single() );
-            FileInfo rawCkmonFile = new FileInfo( rawCkmons.Single() );
-
-            gzipCkmonFile.Exists.Should().BeTrue();
-            rawCkmonFile.Exists.Should().BeTrue();
+            FileInfo gzipCkmonFile = new FileInfo( gzipCkmon );
+            FileInfo rawCkmonFile = new FileInfo( rawCkmon );
 
             // Test file size
+            gzipCkmonFile.Exists.Should().BeTrue();
+            rawCkmonFile.Exists.Should().BeTrue();
             gzipCkmonFile.Length.Should().BeLessThan( rawCkmonFile.Length );
 
+            // Check that the gzip file is the same as the raw file re-compressed.
+            FileUtil.CompressFileToGzipFile( rawCkmon, rawCkmon + ".gz", false );
+            File.ReadAllBytes( gzipCkmon ).SequenceEqual( File.ReadAllBytes( rawCkmon + ".gz" ) )
+                .Should().BeTrue( $"File '{gzipCkmon}' must be the same as raw '{rawCkmon}' re-compressed." );
+
+
+            // Check that all entries can be read from the gzip file.
+            using( var r = LogReader.Open( gzipCkmon ) )
+            {
+                int count = 0;
+                while( r.MoveNext() )
+                {
+                    ++count;
+                }
+                Console.WriteLine( $"{count} entries successfully read from '{gzipCkmon}'." );
+            }
+            //
+            using( var rG = new MultiLogReader() )
+            using( var rR = new MultiLogReader() )
+            {
+                rG.Add( gzipCkmon, out var newFileIndexG );
+                newFileIndexG.Should().BeTrue();
+                rR.Add( rawCkmon, out var newFileIndexR );
+                newFileIndexR.Should().BeTrue();
+                var mapG = rG.GetActivityMap();
+                var mapR = rR.GetActivityMap();
+
+                mapG.Monitors.Count.Should().Be( mapR.Monitors.Count );
+                mapG.FirstEntryDate.Should().Be( mapR.FirstEntryDate );
+                mapG.LastEntryDate.Should().Be( mapR.LastEntryDate );
+                for( var i = 1; i < mapG.Monitors.Count; ++i )
+                {
+                    var monitorG = mapG.Monitors[i];
+                    var monitorR = mapR.Monitors[i];
+                    var monitorId = monitorR.MonitorId;
+                    monitorG.MonitorId.Should().Be( monitorId );
+                    monitorG.FirstEntryTime.Should().Be( monitorR.FirstEntryTime );
+                    monitorG.LastEntryTime.Should().Be( monitorR.LastEntryTime );
+                    monitorG.FirstDepth.Should().Be( monitorR.FirstDepth );
+                    monitorG.LastDepth.Should().Be( monitorR.LastDepth );
+                    monitorG.AllTags.Should().BeEquivalentTo( monitorR.AllTags );
+                    monitorG.Files.Should().HaveCount( 1 );
+                    monitorR.Files.Should().HaveCount( 1 );
+                    var firstOffset = monitorR.Files[0].FirstOffset;
+                    var lastOffset = monitorR.Files[0].LastOffset;
+                    monitorG.Files[0].FirstOffset.Should().Be( firstOffset );
+                    monitorG.Files[0].LastOffset.Should().Be( lastOffset );
+
+                    using( var fR = monitorR.Files[0].CreateFilteredReaderAndMoveTo( firstOffset ) )
+                    {
+                        fR.CurrentMulticast.MonitorId.Should().Be( monitorId );
+                        fR.MoveNext().Should().BeTrue();
+                    }
+                    using( var lR = monitorR.Files[0].CreateFilteredReaderAndMoveTo( lastOffset ) )
+                    {
+                        lR.CurrentMulticast.MonitorId.Should().Be( monitorId );
+                        FluentActions.Invoking( () => lR.MoveNext() ).Should().NotThrow();
+                    }
+                    using( var fG = monitorG.Files[0].CreateFilteredReaderAndMoveTo( firstOffset ) )
+                    {
+                        fG.CurrentMulticast.MonitorId.Should().Be( monitorId );
+                        fG.MoveNext().Should().BeTrue();
+                    }
+                    using( var lG = monitorG.Files[0].CreateFilteredReaderAndMoveTo( lastOffset ) )
+                    {
+                        lG.CurrentMulticast.MonitorId.Should().Be( monitorId );
+                        FluentActions.Invoking( () => lG.MoveNext() ).Should().NotThrow();
+                    }
+                }
+            }
             // Test de-duplication between Gzip and non-Gzip
-            using MultiLogReader mlr = new MultiLogReader();
-            var fileList = mlr.Add( new string[] { gzipCkmonFile.FullName, rawCkmonFile.FullName } );
-            fileList.Should().HaveCount( 2 );
+            using( var mlr = new MultiLogReader() )
+            {
+                var fileList = mlr.Add( new string[] { gzipCkmonFile.FullName, rawCkmonFile.FullName } );
+                fileList.Should().HaveCount( 2 );
 
-            var map = mlr.GetActivityMap();
+                var map = mlr.GetActivityMap();
 
-            map.Monitors.Should().HaveCount( 4 );
-            // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
-            // Others do not have any topic.
-            var notDispatcherSinkMonitors = map.Monitors.Where( m => !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) ).ToList();
-            notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
-            notDispatcherSinkMonitors.ElementAt( 1 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
-            // 2022-11-07: this fails on AppVeyor...
-            // Invalid data: 'level < (1 << (int)LogLevel.NumberOfBits)'
-            // Waiting here fixed the issue... once. Tried 500ms, 1000ms: too short.
-            // await Task.Delay( 2000 );
-            // notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ).Entries.Should().HaveCount( 5415 );
+                map.Monitors.Count.Should().BeInRange( 4, 5 );
+                if( map.Monitors.Count == 5 )
+                {
+                    map.Monitors.Any( m => m.MonitorId == ActivityMonitor.ExternalLogMonitorUniqueId ).Should().BeTrue( "The 5th monitor is the §ext monitor." );
+                }
+                // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
+                // Others do not have any topic.
+                var notDispatcherSinkMonitors = map.Monitors.Where( m => m.MonitorId != ActivityMonitor.ExternalLogMonitorUniqueId
+                                                                         && !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) ).ToList();
+                using( var p = notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ) )
+                {
+                    p.Entries.Should().HaveCount( 5415 );
+                }
+                using( var p = notDispatcherSinkMonitors.ElementAt( 1 ).ReadFirstPage( 6000 ) )
+                {
+                    p.Entries.Should().HaveCount( 5415 );
+                }
+                using( var p = notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ) )
+                {
+                    p.Entries.Should().HaveCount( 5415 );
+                }
+            }
         }
 
         [Test]
@@ -337,7 +456,7 @@ namespace CK.Monitoring.Tests
                 g.EnsureGrandOutputClient( m );
                 DumpMonitor1082Entries( m, loop );
             }
-            // All tempoary files have been closed.
+            // All temporary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
             // The {loop} "~~~~~FINAL TRACE~~~~~" appear in text logs.

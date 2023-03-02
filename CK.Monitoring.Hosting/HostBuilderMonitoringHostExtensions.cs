@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Collections.Generic;
 
 namespace Microsoft.Extensions.Hosting
 {
@@ -14,6 +15,40 @@ namespace Microsoft.Extensions.Hosting
     /// </summary>
     public static class HostBuilderMonitoringHostExtensions
     {
+        /// <summary>
+        /// Gets an activity monitor for this builder.
+        /// <para>
+        /// This can always be called: logs in this monitor are retained and emitted once the code injected by <see cref="UseCKMonitoring(IHostBuilder)"/>
+        /// is executed during <see cref="IHostBuilder.Build()"/>.  
+        /// </para>
+        /// </summary>
+        /// <param name="builder">This builder.</param>
+        /// <returns>A monitor for the host and application builder.</returns>
+        public static IActivityMonitor GetBuilderMonitor( this IHostBuilder builder ) => GetBuilderMonitor( builder.Properties );
+
+        static IActivityMonitor GetBuilderMonitor( IDictionary<object, object> props )
+        {
+            var monitor = (IActivityMonitor?)props.GetValueOrDefault( typeof( IActivityMonitor ) );
+            if( monitor == null )
+            {
+                monitor = new ActivityMonitor( false, nameof( IHostBuilder ) );
+                monitor.Output.RegisterClient( new BuilderMonitorReplayClient() );
+                props[typeof( IActivityMonitor )] = monitor;
+            }
+            return monitor;
+        }
+
+        /// <summary>
+        /// Gets an activity monitor for this builder context.
+        /// <para>
+        /// This can always be called: logs in this monitor are retained and emitted once the code injected by <see cref="UseCKMonitoring(IHostBuilder)"/>
+        /// is executed during <see cref="IHostBuilder.Build()"/>.  
+        /// </para>
+        /// </summary>
+        /// <param name="builder">This builder context.</param>
+        /// <returns>A monitor for the host and application builder.</returns>
+        public static IActivityMonitor GetBuilderMonitor( this HostBuilderContext ctx ) => GetBuilderMonitor( ctx.Properties );
+
         /// <summary>
         /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration to the configuration section "CK-Monitoring".
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
