@@ -8,8 +8,12 @@ branches:
 environment:
   CODECAKEBUILDER_SECRET_KEY:
     secure: 8VAzdXgUQaJyFoU3WLf2iPFV/8zPDm9qV4TfOpx8/rg=
+  APPVEYOR_RDP_PASSWORD: XrQ98$%Ma28
+init:
+  - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 test: off
 on_finish:
+- ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 - ps: "'Get-ChildItem -Recurse *.log | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName ''Log files'' }'"
 - ps: "'Get-ChildItem -Recurse **\\Tests\\**\\TestResult*.xml | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName ''NUnit tests result files'' }'"
 - ps: "'Get-ChildItem -Recurse **\\Tests\\**\\*.trx | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName ''NUnit tests result files'' }'"
