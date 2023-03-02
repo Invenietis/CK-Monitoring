@@ -1,5 +1,6 @@
 using FluentAssertions;
 using NUnit.Framework;
+using System.Diagnostics;
 
 namespace CK.Monitoring.Tests
 {
@@ -11,7 +12,7 @@ namespace CK.Monitoring.Tests
         {
             TestHelper.InitalizePaths();
             GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
-            GrandOutput.Default.Should().NotBeNull();
+            Debug.Assert( GrandOutput.Default != null );
             GrandOutput.Default.Dispose();
             GrandOutput.Default.Should().BeNull();
         }

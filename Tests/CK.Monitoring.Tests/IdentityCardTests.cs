@@ -3,6 +3,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -28,7 +29,7 @@ namespace CK.Monitoring.Tests
             id.OnChanged += ev => ++callCount;
 
             var e = id.Add( "a", "b" );
-            e.Should().NotBeNull();
+            Debug.Assert( e != null );
             e.AddedInfo.Count.Should().Be( 1 );
             e.Identities["a"].Should().BeEquivalentTo( new[] { "b" } );
 
@@ -50,15 +51,18 @@ namespace CK.Monitoring.Tests
 
             id.Add( "a", "c" ).Should().NotBeNull();
             var c = id.Add( ("a", "d"), ("A", "b"), ("A", "c") );
+            Debug.Assert( c != null );
             c.AddedInfo.Should().BeEquivalentTo( new[] { ("a", "d"), ("A", "b"), ("A", "c") } );
 
             callCount.Should().Be( 3 );
 
             c = id.Add( ("a", "d"), ("B", "1"), ("B", "2"), ("A", "c"), ("B", "3") );
+            Debug.Assert( c != null );
             c.AddedInfo.Should().BeEquivalentTo( new[] { ("B", "1"), ("B", "2"), ("B", "3") } );
             callCount.Should().Be( 4 );
 
             c = id.Add( ("C", "0"), ("B", "1"), ("B", "2"), ("A", "c"), ("B", "3") );
+            Debug.Assert( c != null );
             c.AddedInfo.Should().BeEquivalentTo( new[] { ("C", "0") } );
             callCount.Should().Be( 5 );
 
@@ -70,7 +74,7 @@ namespace CK.Monitoring.Tests
         public void key_and_value_cannot_contain_the_9_first_chracters_and_keys_cannot_contain_newlines()
         {
             var id = new IdentityCard();
-            FluentActions.Invoking( () => id.Add( null, "valid" ) ).Should().Throw<ArgumentNullException>();
+            FluentActions.Invoking( () => id.Add( null!, "valid" ) ).Should().Throw<ArgumentNullException>();
             FluentActions.Invoking( () => id.Add( "", "valid" ) ).Should().Throw<ArgumentException>();
             FluentActions.Invoking( () => id.Add( "A\u0000A", "valid" ) ).Should().Throw<ArgumentException>();
             FluentActions.Invoking( () => id.Add( "A\u0001A", "valid" ) ).Should().Throw<ArgumentException>();
@@ -83,7 +87,7 @@ namespace CK.Monitoring.Tests
             FluentActions.Invoking( () => id.Add( "A\u0008A", "valid" ) ).Should().Throw<ArgumentException>();
             id.Add( "A\u0009A", "valid" );
 
-            FluentActions.Invoking( () => id.Add( "valid", null ) ).Should().Throw<ArgumentNullException>();
+            FluentActions.Invoking( () => id.Add( "valid", null! ) ).Should().Throw<ArgumentNullException>();
             FluentActions.Invoking( () => id.Add( "valid", "" ) ).Should().Throw<ArgumentException>();
             FluentActions.Invoking( () => id.Add( "valid", "A\u0000A" ) ).Should().Throw<ArgumentException>();
             FluentActions.Invoking( () => id.Add( "valid", "A\u0001A" ) ).Should().Throw<ArgumentException>();
@@ -109,7 +113,7 @@ namespace CK.Monitoring.Tests
             static void Check( (string, string)[] a )
             {
                 var s = IdentityCard.Pack( a );
-                var r = (IReadOnlyList<(string, string)>)IdentityCard.TryUnpack( s );
+                var r = (IReadOnlyList<(string, string)>?)IdentityCard.TryUnpack( s );
                 r.Should().BeEquivalentTo( a );
             }
         }
@@ -150,11 +154,12 @@ namespace CK.Monitoring.Tests
             {
                 var s = c.ToString();
                 var r = IdentityCard.TryCreate( s );
+                Debug.Assert( r != null );
                 r.Identities.Should().BeEquivalentTo( c.Identities );
 
                 if( s.Length > 0 )
                 {
-                    var i = (IReadOnlyDictionary<string, IReadOnlyCollection<string>>)IdentityCard.TryUnpack( s );
+                    var i = (IReadOnlyDictionary<string, IReadOnlyCollection<string>>?)IdentityCard.TryUnpack( s );
                     i.Should().BeEquivalentTo( c.Identities );
                 }
             }

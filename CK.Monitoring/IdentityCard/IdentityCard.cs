@@ -19,8 +19,8 @@ namespace CK.Monitoring
     /// </para>
     /// <para>
     /// This identity card has been designed to be used independently of the GrandOuput: each GrandOuput has its own identity card
-    /// but this can be used by log receivers to update the identity from <see cref="Tags.IdentityCardFull"/> and <see cref="Tags.IdentityCardUpdate"/>
-    /// log entries.
+    /// but this can be used by log receivers to update the identity from <see cref="IdentityCardFull"/>
+    /// and <see cref="ActivityMonitorSimpleSenderExtension.IdentityCard.IdentityCardUpdate"/> log entries.
     /// </para>
     /// <para>
     /// Thread safe change tracking can be done "on the outside" thanks to the returned values of the <see cref="Add(ValueTuple{string, string}[])"/>

@@ -13,7 +13,7 @@ namespace CK.Monitoring
             public readonly LogLevel Level;
             public readonly CKTrait Tags;
             public readonly string Text;
-            public readonly Exception Exception;
+            public readonly Exception? Exception;
             public readonly DateTimeStamp LogTime;
 
             public Entry( ref ActivityMonitorLogData d )
