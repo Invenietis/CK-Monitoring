@@ -39,7 +39,7 @@ namespace CK.Monitoring.Tests.Persistence
                 f.Error.Should().BeNull();
                 f.FileVersion.Should().Be( version );
             }
-            var allEntries = reader.CreateActivityMap().Monitors.SelectMany( m => m.ReadAllEntries().Select( e => e.Entry ) ).ToList();
+            var allEntries = reader.GetActivityMap().Monitors.SelectMany( m => m.ReadAllEntries().Select( e => e.Entry ) ).ToList();
             // v5 and v6 did not have the Debug level.
             if( version <= 6 )
             {

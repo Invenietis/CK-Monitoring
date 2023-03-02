@@ -213,6 +213,9 @@ namespace CK.Monitoring.Hosting.Tests
 
                 DemoSinkHandler.Reset();
             }
+
+            DemoSinkHandler.Reset();
+            InputLogEntry.AliveCount.Should().Be( 0 );
         }
 
 

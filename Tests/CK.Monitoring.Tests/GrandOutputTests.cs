@@ -202,8 +202,8 @@ namespace CK.Monitoring.Tests
                 newFileIndexG.Should().BeTrue();
                 rR.Add( rawCkmon, out var newFileIndexR );
                 newFileIndexR.Should().BeTrue();
-                var mapG = rG.CreateActivityMap();
-                var mapR = rR.CreateActivityMap();
+                var mapG = rG.GetActivityMap();
+                var mapR = rR.GetActivityMap();
 
                 mapG.Monitors.Count.Should().Be( mapR.Monitors.Count );
                 mapG.FirstEntryDate.Should().Be( mapR.FirstEntryDate );
@@ -254,7 +254,7 @@ namespace CK.Monitoring.Tests
                 var fileList = mlr.Add( new string[] { gzipCkmonFile.FullName, rawCkmonFile.FullName } );
                 fileList.Should().HaveCount( 2 );
 
-                var map = mlr.CreateActivityMap();
+                var map = mlr.GetActivityMap();
 
                 map.Monitors.Count.Should().BeInRange( 4, 5 );
                 if( map.Monitors.Count == 5 )

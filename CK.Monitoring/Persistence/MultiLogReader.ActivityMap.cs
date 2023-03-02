@@ -565,7 +565,7 @@ namespace CK.Monitoring
         /// Creates an <see cref="ActivityMap"/> snapshot from this reader.
         /// </summary>
         /// <returns>An immutable snapshot of this reader's content.</returns>
-        public ActivityMap CreateActivityMap()
+        public ActivityMap GetActivityMap()
         {
             _lockWriteRead.EnterWriteLock();
             try

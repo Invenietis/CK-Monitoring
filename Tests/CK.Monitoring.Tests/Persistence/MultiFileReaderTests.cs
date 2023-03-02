@@ -112,7 +112,7 @@ namespace CK.Monitoring.Tests.Persistence
             {
                 using MultiLogReader reader = new MultiLogReader();
                 reader.Add( files );
-                var map = reader.CreateActivityMap();
+                var map = reader.GetActivityMap();
                 map.ValidFiles.All( rawFile => rawFile.IsValidFile ).Should().BeTrue( "All files are correctly closed with the final 0 byte and no exception occurred while reading them." );
                 map.Monitors.Should().HaveCount( 2 );
 

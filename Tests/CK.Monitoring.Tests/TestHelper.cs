@@ -112,7 +112,7 @@ namespace CK.Monitoring
                 }
                 else
                 {
-                    var monitors = reader.CreateActivityMap().Monitors;
+                    var monitors = reader.GetActivityMap().Monitors;
                     if( m != null )
                     {
                         m.Trace( String.Join( Environment.NewLine, files ) );
