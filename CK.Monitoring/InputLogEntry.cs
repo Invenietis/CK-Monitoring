@@ -47,7 +47,6 @@ namespace CK.Monitoring
                          ref ActivityMonitorLogData data,
                          int groupDepth,
                          LogEntryType logType,
-                         string monitorId,
                          LogEntryType previousEntryType,
                          DateTimeStamp previousLogTime )
         {
@@ -61,7 +60,7 @@ namespace CK.Monitoring
             _text = data.Text;
             _exception = data.ExceptionData;
             _logType = logType;
-            _monitorId = monitorId;
+            _monitorId = data.MonitorId;
             _previousEntryType = previousEntryType;
             _previousLogTime = previousLogTime;
             _logTime = data.LogTime;

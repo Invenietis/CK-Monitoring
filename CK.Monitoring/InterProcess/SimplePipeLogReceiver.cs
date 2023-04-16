@@ -101,7 +101,7 @@ namespace CK.Monitoring.InterProcess
                             {
                                 if( _monitor.ShouldLogLine( e.LogLevel, e.Tags, out var finalTags ) )
                                 {
-                                    var d = new ActivityMonitorLogData( e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
+                                    var d = new ActivityMonitorLogData( _monitor.UniqueId, e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
                                     d.SetExplicitLogTime( e.LogTime );
                                     _monitor.UnfilteredLog( ref d );
                                 }
@@ -112,7 +112,7 @@ namespace CK.Monitoring.InterProcess
                                 ActivityMonitorLogData d;
                                 if( _monitor.ShouldLogLine( e.LogLevel, e.Tags, out var finalTags ) )
                                 {
-                                    d = new ActivityMonitorLogData( e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
+                                    d = new ActivityMonitorLogData( _monitor.UniqueId, e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
                                     d.SetExplicitLogTime( e.LogTime );
                                 }
                                 else d = default;
