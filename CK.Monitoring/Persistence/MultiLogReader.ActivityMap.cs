@@ -540,12 +540,12 @@ namespace CK.Monitoring
                             switch( e.Entry.LogType )
                             {
                                 case LogEntryType.Line:
-                                    var d = new ActivityMonitorLogData( level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    var d = new ActivityMonitorLogData( replay.UniqueId, level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
                                     d.SetExplicitLogTime( e.Entry.LogTime );
                                     replay.UnfilteredLog( ref d );
                                     break;
                                 case LogEntryType.OpenGroup:
-                                    d = new ActivityMonitorLogData( level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
+                                    d = new ActivityMonitorLogData( replay.UniqueId, level, e.Entry.Tags, e.Entry.Text, CKException.CreateFrom( e.Entry.Exception ), e.Entry.FileName, e.Entry.LineNumber );
                                     d.SetExplicitLogTime( e.Entry.LogTime );
                                     replay.UnfilteredOpenGroup( ref d );
                                     break;

@@ -50,7 +50,7 @@ namespace CK.Monitoring
                                                             DateTimeStamp previousLogTime )
         {
             InputLogEntry item = Aquire();
-            item.Initialize( grandOutputId, ref data, groupDepth, logType, monitorId, previousEntryType, previousLogTime );
+            item.Initialize( grandOutputId, ref data, groupDepth, logType, previousEntryType, previousLogTime );
             return item;
         }
 
