@@ -413,10 +413,9 @@ namespace CK.Monitoring
             var e = InputLogEntry.AcquireInputLogEntry( _sinkMonitorId,
                                                         ref d,
                                                         groupDepth: 0,
-                                                        LogEntryType.Line,
-                                                        GrandOutput.ExternalLogMonitorUniqueId,
-                                                        LogEntryType.Line,
-                                                        prevLogTime );
+                                                        logType: LogEntryType.Line,
+                                                        previousEntryType: LogEntryType.Line,
+                                                        previousLogTime: prevLogTime );
             Handle( e );
         }
 

@@ -69,7 +69,6 @@ namespace CK.Monitoring
                                                                   ref data,
                                                                   _currentGroupDepth,
                                                                   LogEntryType.Line,
-                                                                  _monitorSource.UniqueId,
                                                                   _prevLogType,
                                                                   _prevlogTime );
             _central.Sink.Handle( e );
@@ -85,7 +84,6 @@ namespace CK.Monitoring
                                                                   ref group.Data,
                                                                   _currentGroupDepth,
                                                                   LogEntryType.OpenGroup,
-                                                                  _monitorSource.UniqueId,
                                                                   _prevLogType,
                                                                   _prevlogTime );
             _central.Sink.Handle( e );
