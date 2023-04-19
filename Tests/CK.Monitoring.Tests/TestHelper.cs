@@ -55,18 +55,6 @@ namespace CK.Monitoring
             }
         }
 
-        public static List<StupidStringClient> ReadAllLogs( DirectoryInfo folder, bool recurse )
-        {
-            List<StupidStringClient> logs = new List<StupidStringClient>();
-            ReplayLogs( folder, recurse, mon =>
-            {
-                var m = new ActivityMonitor( false );
-                logs.Add( m.Output.RegisterClient( new StupidStringClient() ) );
-                return m;
-            }, TestHelper.ConsoleMonitor );
-            return logs;
-        }
-
         /// <summary>
         /// Uses FileShare.ReadWrite: this cannot be replaced by the simple File.ReadAllText method.
         /// </summary>

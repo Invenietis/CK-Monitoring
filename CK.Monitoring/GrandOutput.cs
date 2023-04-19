@@ -37,14 +37,9 @@ namespace CK.Monitoring
         public static readonly CKTrait UnhandledException = ActivityMonitor.Tags.Register( "UnhandledException" );
 
         /// <summary>
-        /// The name of the fake monitor for external logs.
+        /// The unknown grand output identifier.
         /// </summary>
-        public const string ExternalLogMonitorUniqueId = "§ext";
-
-        /// <summary>
-        /// The default grand output identifier.
-        /// </summary>
-        public const string UnknownGrandOutputId = "§none";
+        public static readonly string UnknownGrandOutputId = "§none";
 
         /// <summary>
         /// Gets the default <see cref="GrandOutput"/> for the current Application Domain.
@@ -217,7 +212,7 @@ namespace CK.Monitoring
                 }
                 return c;
             }
-            return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, Register );
+            return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, Register, replayInitialLogs: true );
         }
 
         /// <summary>

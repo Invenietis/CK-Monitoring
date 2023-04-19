@@ -23,7 +23,7 @@ namespace CK.Monitoring.Tests
             };
             var c = new GrandOutputConfiguration().AddHandler( h );
 
-            var m = new ActivityMonitor( applyAutoConfigurations: false );
+            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             using( GrandOutput g = new GrandOutput( c ) )
             {
                 g.EnsureGrandOutputClient( m );

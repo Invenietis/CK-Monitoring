@@ -28,7 +28,7 @@ namespace CK.Monitoring.Tests
             Debug.Assert( LogFile.RootLogPath != null );
             var path = Path.Combine( LogFile.RootLogPath, "CKMonWriterClient" );
             if( Directory.Exists( path ) ) Directory.Delete( path, true );
-            var m = new ActivityMonitor( false );
+            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             // This test works only because CKMonWriterClient does not talk to
             // the InternalMonitor: there is exactly 3 traces, so only one file
             // is created and closed (on the theirs log).

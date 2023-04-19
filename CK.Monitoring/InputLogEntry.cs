@@ -45,7 +45,6 @@ namespace CK.Monitoring
         // For Log, OpenGroup and StaticLogger.
         void Initialize( string grandOutputId,
                          ref ActivityMonitorLogData data,
-                         int groupDepth,
                          LogEntryType logType,
                          LogEntryType previousEntryType,
                          DateTimeStamp previousLogTime )
@@ -53,7 +52,7 @@ namespace CK.Monitoring
             Debug.Assert( logType == LogEntryType.OpenGroup || logType == LogEntryType.Line );
             Debug.Assert( _refCount == 1 && _exception == null && _conclusions == null && _tags == ActivityMonitor.Tags.Empty && _text == null && _monitorId == null,
                           "Fields have been reset." );
-            _groupDepth = groupDepth;
+            _groupDepth = data.Depth;
             _grandOutputId = grandOutputId;
             _tags = data.Tags;
             // We should not do this once Text may be obtained from pooled buffers.

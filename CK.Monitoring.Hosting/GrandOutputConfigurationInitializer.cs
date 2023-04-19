@@ -66,16 +66,8 @@ namespace CK.Monitoring.Hosting
                     // Instead of relying only on the GrandOuput.Defaut, simply calls the AutoConfiguration action:
                     // if more than one GrandOuput currently exists, they will receive the logs of the new Host initialization.
                     ActivityMonitor.AutoConfiguration?.Invoke( builderMonitor );
-                    // Removes the client and replays its logs.
-                    var replayer = builderMonitor.Output.UnregisterClient<BuilderMonitorReplayClient>( _ => true );
-                    if( replayer == null )
-                    {
-                        builderMonitor.Warn( "The BuilderMonitorReplayClient has been removed from the builderMonitor output. This is weird..." );
-                    }
-                    else
-                    {
-                        replayer.Replay( builderMonitor );
-                    }
+                    // Stops the replay.
+                    builderMonitor.Output.MaxInitialReplayCount = null;
                 }
             } );
             builder.ConfigureServices( (ctx, services) =>

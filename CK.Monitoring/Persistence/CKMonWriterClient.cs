@@ -18,7 +18,7 @@ namespace CK.Monitoring
         readonly string _grandOutputId;
         IActivityMonitorImpl? _source;
         MonitorBinaryFileOutput? _file;
-        int _currentGroupDepth;
+        int _entryDepth;
         DateTimeStamp _prevlogTime;
         LogEntryType _prevLogType;
         readonly bool _useGzipCompression;
@@ -83,11 +83,9 @@ namespace CK.Monitoring
                     // If initialization failed, we let the file null: this monitor will not
                     // work (the error will appear in the Critical errors) but this avoids
                     // an exception to be thrown here.
-                    var f = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
+                    var f = new MonitorBinaryFileOutput( _path, _source.InternalMonitor.UniqueId, _maxCountPerFile, _useGzipCompression );
                     if( f.Initialize( _source.InternalMonitor ) )
                     {
-                        var g = _source.CurrentGroup;
-                        _currentGroupDepth = g != null ? g.Depth : 0;
                         _file = f;
                     }
                 }
@@ -100,20 +98,12 @@ namespace CK.Monitoring
         /// <returns>True on success, false otherwise.</returns>
         public bool Open()
         {
-           if( _source == null ) throw new InvalidOperationException( "CKMonWriterClient must be registered in an ActivityMonitor." );
-           using( _source.ReentrancyAndConcurrencyLock() )
-            {
-                if( _file != null ) return true;
-                _file = new MonitorBinaryFileOutput( _path, _source.UniqueId, _maxCountPerFile, _useGzipCompression );
-                _prevLogType = LogEntryType.None;
-                _prevlogTime = DateTimeStamp.Unknown;
-                if( _file.Initialize( _source.InternalMonitor ) )
-                {
-                    var g = _source.CurrentGroup;
-                    _currentGroupDepth = g != null ? g.Depth : 0;
-                }
-                else _file = null;
-            }
+            Throw.CheckState( "CKMonWriterClient must be registered in an ActivityMonitor.", _source != null );
+            if( _file != null ) return true;
+            _file = new MonitorBinaryFileOutput( _path, _source.InternalMonitor.UniqueId, _maxCountPerFile, _useGzipCompression );
+            _prevLogType = LogEntryType.None;
+            _prevlogTime = DateTimeStamp.Unknown;
+            if( !_file.Initialize( _source.InternalMonitor ) ) _file = null;
             return _file != null;
         }
 
@@ -123,11 +113,8 @@ namespace CK.Monitoring
         /// </summary>
         public void Close()
         {
-            using( _source != null ? _source.ReentrancyAndConcurrencyLock() : null )
-            {
-                if( _file != null ) _file.Close();
-                _file = null;
-            }
+            if( _file != null ) _file.Close();
+            _file = null;
         }
 
         /// <summary>
@@ -144,7 +131,7 @@ namespace CK.Monitoring
             get
             {
                 Debug.Assert( _source != null && _file != null );
-                return _source.UniqueId;
+                return _source.InternalMonitor.UniqueId;
             }
         }
         int IMulticastLogInfo.GroupDepth
@@ -152,7 +139,7 @@ namespace CK.Monitoring
             get
             {
                 Debug.Assert( _source != null && _file != null );
-                return _currentGroupDepth;
+                return _entryDepth;
             }
         }
         LogEntryType IMulticastLogInfo.PreviousEntryType
@@ -186,8 +173,8 @@ namespace CK.Monitoring
         {
             if( _file != null )
             {
+                _entryDepth = group.Data.Depth;
                 _file.UnicastWriteOpenGroup( group, this );
-                ++_currentGroupDepth;
                 _prevlogTime = group.Data.LogTime;
                 _prevLogType = LogEntryType.OpenGroup;
             }
@@ -196,8 +183,8 @@ namespace CK.Monitoring
         {
             if( _file != null )
             {
+                _entryDepth = group.Data.Depth;
                 _file.UnicastWriteCloseGroup( group, conclusions, this );
-                --_currentGroupDepth;
                 _prevlogTime = group.CloseLogTime;
                 _prevLogType = LogEntryType.CloseGroup;
             }

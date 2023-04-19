@@ -13,7 +13,7 @@ namespace CK.Monitoring
             public readonly LogLevel Level;
             public readonly CKTrait Tags;
             public readonly string Text;
-            public readonly Exception? Exception;
+            public readonly object? Exception;
             public readonly DateTimeStamp LogTime;
 
             public Entry( ref ActivityMonitorLogData d )
@@ -21,7 +21,7 @@ namespace CK.Monitoring
                 Level = d.Level;
                 Tags = d.Tags;
                 Text = d.Text;
-                Exception = d.Exception;
+                Exception = (object?)d.Exception ?? d.ExceptionData;
                 LogTime = d.LogTime;
             }
 
@@ -55,6 +55,7 @@ namespace CK.Monitoring
             Writer.Write( data.MaskedLevel.ToString() + ": " + data.Text );
             if( WriteTags ) Writer.Write( "-[{0}]", data.Tags.ToString() );
             if( data.Exception != null ) Writer.Write( "Exception: " + data.Exception.Message );
+            else if( data.ExceptionData != null ) Writer.Write( "Exception: " + data.ExceptionData.Message );
         }
 
         protected override void OnContinueOnSameLevel( ref ActivityMonitorLogData data )
@@ -63,6 +64,7 @@ namespace CK.Monitoring
             Writer.Write( data.Text );
             if( WriteTags ) Writer.Write( "-[{0}]", data.Tags.ToString() );
             if( data.Exception != null ) Writer.Write( "Exception: " + data.Exception.Message );
+            else if( data.ExceptionData != null ) Writer.Write( "Exception: " + data.ExceptionData.Message );
         }
 
         protected override void OnLeaveLevel( LogLevel level )
@@ -74,16 +76,17 @@ namespace CK.Monitoring
         {
             Entries.Add( new Entry( g ) );
             Writer.WriteLine();
-            Writer.Write( new String( '+', g.Depth ) );
+            Writer.Write( new String( '+', g.Data.Depth + 1 ) );
             Writer.Write( "{1} ({0})", g.Data.MaskedLevel, g.Data.Text );
             if( g.Data.Exception != null ) Writer.Write( "Exception: " + g.Data.Exception.Message );
+            else if( g.Data.ExceptionData != null ) Writer.Write( "Exception: " + g.Data.ExceptionData.Message );
             if( WriteTags ) Writer.Write( "-[{0}]", g.Data.Tags.ToString() );
         }
 
         protected override void OnGroupClose( IActivityLogGroup g, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
         {
             Writer.WriteLine();
-            Writer.Write( new String( '-', g.Depth ) );
+            Writer.Write( new String( '-', g.Data.Depth + 1 ) );
             if( WriteConclusionTraits )
             {
                 Writer.Write( String.Join( ", ", conclusions.Select( c => c.Text + "-/[/" + c.Tag.ToString() + "/]/" ) ) );

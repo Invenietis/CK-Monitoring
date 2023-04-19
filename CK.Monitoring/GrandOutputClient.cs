@@ -15,7 +15,6 @@ namespace CK.Monitoring
         readonly GrandOutput _central;
         IActivityMonitorImpl? _monitorSource;
 
-        int _currentGroupDepth;
         LogEntryType _prevLogType;
         DateTimeStamp _prevlogTime;
 
@@ -36,11 +35,7 @@ namespace CK.Monitoring
                 _prevLogType = LogEntryType.None;
                 _prevlogTime = DateTimeStamp.Unknown;
                 Debug.Assert( (source == null) != (_monitorSource == null) );
-                if( (_monitorSource = source) != null )
-                {
-                    var g = _monitorSource.CurrentGroup;
-                    _currentGroupDepth = g != null ? g.Depth : 0;
-                }
+                _monitorSource = source;
             }
         }
 
@@ -67,7 +62,6 @@ namespace CK.Monitoring
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
             InputLogEntry e = InputLogEntry.AcquireInputLogEntry( _central.GrandOutpuId,
                                                                   ref data,
-                                                                  _currentGroupDepth,
                                                                   LogEntryType.Line,
                                                                   _prevLogType,
                                                                   _prevlogTime );
@@ -82,12 +76,10 @@ namespace CK.Monitoring
             Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
             InputLogEntry e = InputLogEntry.AcquireInputLogEntry( _central.GrandOutpuId,
                                                                   ref group.Data,
-                                                                  _currentGroupDepth,
                                                                   LogEntryType.OpenGroup,
                                                                   _prevLogType,
                                                                   _prevlogTime );
             _central.Sink.Handle( e );
-            ++_currentGroupDepth;
             _prevlogTime = group.Data.LogTime;
             _prevLogType = LogEntryType.OpenGroup;
         }
@@ -104,12 +96,11 @@ namespace CK.Monitoring
                                                                   group.CloseLogTime,
                                                                   conclusions,
                                                                   group.Data.Level,
-                                                                  _currentGroupDepth,
-                                                                  _monitorSource.UniqueId,
+                                                                  group.Data.Depth,
+                                                                  _monitorSource.InternalMonitor.UniqueId,
                                                                   _prevLogType,
                                                                   _prevlogTime );
             _central.Sink.Handle( e );
-            --_currentGroupDepth;
             _prevlogTime = group.CloseLogTime;
             _prevLogType = LogEntryType.CloseGroup;
         }

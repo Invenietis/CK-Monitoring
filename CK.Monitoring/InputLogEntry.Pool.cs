@@ -43,13 +43,12 @@ namespace CK.Monitoring
         // For Log, OpenGroup and StaticLogger.
         internal static InputLogEntry AcquireInputLogEntry( string grandOutputId,
                                                             ref ActivityMonitorLogData data,
-                                                            int groupDepth,
                                                             LogEntryType logType,
                                                             LogEntryType previousEntryType,
                                                             DateTimeStamp previousLogTime )
         {
             InputLogEntry item = Aquire();
-            item.Initialize( grandOutputId, ref data, groupDepth, logType, previousEntryType, previousLogTime );
+            item.Initialize( grandOutputId, ref data, logType, previousEntryType, previousLogTime );
             return item;
         }
 

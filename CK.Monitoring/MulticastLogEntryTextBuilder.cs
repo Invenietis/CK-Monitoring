@@ -60,7 +60,8 @@ namespace CK.Monitoring
             _builder = new StringBuilder();
             _monitorNames = new Dictionary<string, string>
             {
-                { GrandOutput.ExternalLogMonitorUniqueId, "###" }
+                { ActivityMonitor.ExternalLogMonitorUniqueId, "###" },
+                { ActivityMonitor.StaticLogMonitorUniqueId, "§§§" }
             };
             _timeFormat = timeFormat;
             _timeFormatLength = DateTime.UtcNow.ToString( timeFormat ).Length;
@@ -192,14 +193,23 @@ namespace CK.Monitoring
             string formattedDate = GetFormattedDate( logEntry );
 
             char logLevel = logEntry.LogLevel.ToChar();
-            string indentationPrefix = ActivityMonitorTextHelperClient.GetMultilinePrefixWithDepth( logEntry.Text != null ? logEntry.GroupDepth : logEntry.GroupDepth - 1 );
+            string indentationPrefix = ActivityMonitorTextHelperClient.GetMultilinePrefixWithDepth( logEntry.GroupDepth );
 
-            if( !_monitorNames.TryGetValue( logEntry.MonitorId, out string? monitorId ) )
+            string? monitorId;
+            if( logEntry.MonitorId == ActivityMonitor.ExternalLogMonitorUniqueId )
+            {
+                monitorId = "###";
+            }
+            else if( logEntry.MonitorId == ActivityMonitor.StaticLogMonitorUniqueId )
+            {
+                monitorId = "§§§";
+            }
+            else if( !_monitorNames.TryGetValue( logEntry.MonitorId, out monitorId ) )
             {
                 string _monitorResetLog = "";
                 if( _monitorNames.Count - 1 == _maxMonitorCount )
                 {
-                    ClearMonitorNames();
+                    _monitorNames.Clear();
                     _monitorResetLog = $" Monitor reset count {_maxMonitorCount}.";
                 }
                 monitorId = B64ConvertInt( _monitorNames.Count );
@@ -262,18 +272,12 @@ namespace CK.Monitoring
                                                  outputLine ));
         }
 
-        void ClearMonitorNames()
-        {
-            _monitorNames.Clear();
-            _monitorNames.Add( GrandOutput.ExternalLogMonitorUniqueId, "###" );
-        }
-
         /// <summary>
         /// Resets internal states (like monitor's numbering).
         /// </summary>
         public void Reset()
         {
-            ClearMonitorNames();
+            _monitorNames.Clear();
             _lastLogTime = DateTime.MinValue;
         }
     }

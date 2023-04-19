@@ -25,41 +25,7 @@ namespace CK.Monitoring.Tests.Persistence
             TestHelper.WaitForNoMoreAliveInputLogEntry();
         }
 
-        [Test]
-        public void artificially_generated_missing_log_entries_are_detected()
-        {
-            var folder = TestHelper.PrepareLogFolder( "MissingEntries" );
-            var emptyConfig = new GrandOutputConfiguration();
-            var binaryConfig = new GrandOutputConfiguration().AddHandler( new Handlers.BinaryFileConfiguration() { Path = "MissingEntries" } );
-
-            using( var g = new GrandOutput( emptyConfig ) )
-            {
-                var m = new ActivityMonitor( false );
-                g.EnsureGrandOutputClient( m );
-                m.Trace( "NoShow-1" );
-                g.ApplyConfiguration( emptyConfig, true );
-                m.Trace( "NoShow-2" );
-                // We must let the trace to be handled by the previous configuration:
-                // entries are not processed before a change of the configuration since
-                // we want to apply the new configuration as soon as possible.
-                Thread.Sleep( 200 );
-                g.ApplyConfiguration( binaryConfig, true );
-                m.Trace( "Show-1" );
-                Thread.Sleep( 200 );
-                g.ApplyConfiguration( emptyConfig, true );
-                m.Trace( "NoShow-3" );
-            }
-            var replayed = new ActivityMonitor( false );
-            var c = replayed.Output.RegisterClient( new StupidStringClient() );
-            TestHelper.ReplayLogs( new DirectoryInfo( folder ), true, mon => replayed, TestHelper.ConsoleMonitor );
-            var entries = c.Entries.Select( e => e.Text ).Concatenate( "|" );
-            // We may have "<Missing log data>|Initializing..." followed by "<Missing log data>|Show-1" or the opposite.
-
-            entries.Should().Contain( "<Missing log data>|Initializing BinaryFile handler (MaxCountPerFile = 20000)." )
-                            .And.Contain( "<Missing log data>|Show-1" );
-        }
-
-
+        [Explicit( "Missing handling must be removed (PreviousEntryType and PreviousLogTime)." )]
         [TestCase( false )]
         [TestCase( true )]
         public void duplicates_are_automatically_removed( bool useGzipFormat )

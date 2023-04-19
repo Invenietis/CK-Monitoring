@@ -187,7 +187,7 @@ namespace CK.Monitoring.Tests
             var textConf = new Handlers.TextFileConfiguration() { Path = "AddIdentityInformation", AutoFlushRate = 1 };
 
             using var g = new GrandOutput( new GrandOutputConfiguration() { TimerDuration = TimeSpan.FromMilliseconds( 15 ), Handlers = { textConf } } );
-            var m = new ActivityMonitor( false );
+            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
             m.AddIdentityInformation( "Hello", "World!" );
             m.AddIdentityInformation( "Hello", "World2" );

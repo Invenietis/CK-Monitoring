@@ -31,8 +31,7 @@ namespace Microsoft.Extensions.Hosting
             var monitor = (IActivityMonitor?)props.GetValueOrDefault( typeof( IActivityMonitor ) );
             if( monitor == null )
             {
-                monitor = new ActivityMonitor( false, nameof( IHostBuilder ) );
-                monitor.Output.RegisterClient( new BuilderMonitorReplayClient() );
+                monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay|ActivityMonitorOptions.SkipAutoConfiguration, nameof( IHostBuilder ) );
                 props[typeof( IActivityMonitor )] = monitor;
             }
             return monitor;

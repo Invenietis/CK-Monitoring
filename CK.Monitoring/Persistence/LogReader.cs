@@ -312,7 +312,7 @@ namespace CK.Monitoring
                 _stream = null;
                 _binaryReader = null;
             }
-            if( throwError ) throw new InvalidOperationException( "Invalid log data." );
+            if( throwError ) Throw.InvalidOperationException( "Invalid log data." );
         }
 
         object IEnumerator.Current => Current; 
