@@ -63,13 +63,13 @@ namespace CK.Monitoring.Hosting.Tests
             System.Threading.Thread.Sleep( 200 );
             m.ActualFilter.Should().Be( LogFilter.Debug, "First Debug applied." );
 
-            config["CK-Monitoring:GrandOutput:MinimalFilter"] = "{Off,Debug}";
+            config["CK-Monitoring:GrandOutput:MinimalFilter"] = "{Fatal,Debug}";
             System.Threading.Thread.Sleep( 200 );
-            m.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Off, LogLevelFilter.Debug ), "Explicit {Off,Debug} filter." );
+            m.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Explicit {Off,Debug} filter." );
 
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = null;
             System.Threading.Thread.Sleep( 200 );
-            m.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Off, LogLevelFilter.Debug ), "Null doesn't change anything." );
+            m.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Null doesn't change anything." );
 
             // Restores the Debug level (we are on the GrandOutput.Default).
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
