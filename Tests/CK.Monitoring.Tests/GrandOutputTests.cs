@@ -271,7 +271,7 @@ namespace CK.Monitoring.Tests
                 // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
                 // Others do not have any topic.
                 var notDispatcherSinkMonitors = map.Monitors.Where( m => m.MonitorId != ActivityMonitor.ExternalLogMonitorUniqueId
-                                                                         && !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) ).ToList();
+                                                                         && !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.TopicChanged ) ).ToList();
                 using( var p = notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ) )
                 {
                     p.Entries.Should().HaveCount( 5425 );
