@@ -18,15 +18,16 @@ namespace CK.Monitoring.Hosting.Tests
     {
 
         [Test]
-        public void IActivityMonitor_and_ActivityMonitor_resolve_to_the_same_object()
+        public void IParallelLogger_is_the_IActivityMonitor_one_and_ActivityMonitor_is_not_exposed_by_the_DI()
         {
             var host = new HostBuilder()
                         .UseCKMonitoring()
                         .Build();
 
+            host.Services.GetService<ActivityMonitor>().Should().BeNull();
             var ia = host.Services.GetRequiredService<IActivityMonitor>();
-            var a = host.Services.GetRequiredService<ActivityMonitor>();
-            ia.Should().BeSameAs( a );
+            var ip = host.Services.GetRequiredService<IParallelLogger>();
+            ip.Should().BeSameAs( ia.ParallelLogger );
         }
 
         [Test]
