@@ -108,7 +108,8 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Adds a single identity information.
+        /// Adds a single identity information. If the key/value are invalid, null is returned and an
+        /// error log is emitted in the <see cref="ActivityMonitor.StaticLogger"/>.
         /// <para>
         /// The characters 0 to 8 (NUl, SOH, STX, ETX, EOT, ENQ, ACK, BEL, BSP) are invalid in a key and in a value.
         /// </para> 
