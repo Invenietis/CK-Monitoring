@@ -219,7 +219,7 @@ namespace CK.Monitoring
         AddOneResult DoAdd( string key, string value )
         {
             Debug.Assert( Monitor.IsEntered( _card ) );
-            ActivityMonitorSimpleSenderExtension.IdentityCard.CkeckIdentityInformation( key, value );
+            ActivityMonitorSimpleSenderExtension.IdentityCard.CkeckIdentityInformation( key, value, ActivityMonitor.StaticLogger );
             return DoAddWithoutChecks( _card, key, value );
         }
 
