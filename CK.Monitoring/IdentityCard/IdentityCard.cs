@@ -219,8 +219,11 @@ namespace CK.Monitoring
         AddOneResult DoAdd( string key, string value )
         {
             Debug.Assert( Monitor.IsEntered( _card ) );
-            ActivityMonitorSimpleSenderExtension.IdentityCard.CkeckIdentityInformation( key, value, ActivityMonitor.StaticLogger );
-            return DoAddWithoutChecks( _card, key, value );
+            if( ActivityMonitorSimpleSenderExtension.IdentityCard.CheckIdentityInformation( key, value, ActivityMonitor.StaticLogger ) )
+            {
+                return DoAddWithoutChecks( _card, key, value );
+            }
+            return AddOneResult.None;
         }
 
         static AddOneResult DoAddWithoutChecks( Dictionary<string, string[]> card, string key, string value )
