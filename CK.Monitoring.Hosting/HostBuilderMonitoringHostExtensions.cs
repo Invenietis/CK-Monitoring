@@ -31,8 +31,7 @@ namespace Microsoft.Extensions.Hosting
             var monitor = (IActivityMonitor?)props.GetValueOrDefault( typeof( IActivityMonitor ) );
             if( monitor == null )
             {
-                monitor = new ActivityMonitor( false, nameof( IHostBuilder ) );
-                monitor.Output.RegisterClient( new BuilderMonitorReplayClient() );
+                monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay|ActivityMonitorOptions.SkipAutoConfiguration, nameof( IHostBuilder ) );
                 props[typeof( IActivityMonitor )] = monitor;
             }
             return monitor;
@@ -54,6 +53,18 @@ namespace Microsoft.Extensions.Hosting
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// <para>
         /// This can safely be called multiple times.
+        /// </para>
+        /// <para>
+        /// This should not be used on a new WebApplication (.Net 6 minimal API) or other new host created inside an already running
+        /// application (this would reconfigure the GrandOutput.Default).
+        /// 
+        /// Instead, simply configure the application services with the IActivityMonitor registrations:
+        /// <code>
+        ///   // The ActivityMonitor is not mapped, only the IActivityMonitor must 
+        ///   // be exposed and the ParallelLogger is the one of the monitor.
+        ///   services.AddScoped&lt;IActivityMonitor, ActivityMonitor&gt;();
+        ///   services.AddScoped(sp => sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
+        /// </code>
         /// </para>
         /// </summary>
         /// <param name="builder">Host builder</param>

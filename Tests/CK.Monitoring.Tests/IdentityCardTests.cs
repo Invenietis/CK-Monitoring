@@ -74,34 +74,36 @@ namespace CK.Monitoring.Tests
         public void key_and_value_cannot_contain_the_9_first_chracters_and_keys_cannot_contain_newlines()
         {
             var id = new IdentityCard();
-            FluentActions.Invoking( () => id.Add( null!, "valid" ) ).Should().Throw<ArgumentNullException>();
-            FluentActions.Invoking( () => id.Add( "", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0000A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0001A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0002A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0003A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0004A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0005A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0006A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0007A", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\u0008A", "valid" ) ).Should().Throw<ArgumentException>();
-            id.Add( "A\u0009A", "valid" );
+            id.Add( null!, "valid" ).Should().BeNull();
+            id.Add( "", "valid" ).Should().BeNull();
+            id.Add( "A\u0000A", "valid" ).Should().BeNull();
+            id.Add( "A\u0001A", "valid" ).Should().BeNull();
+            id.Add( "A\u0002A", "valid" ).Should().BeNull();
+            id.Add( "A\u0003A", "valid" ).Should().BeNull();
+            id.Add( "A\u0004A", "valid" ).Should().BeNull();
+            id.Add( "A\u0005A", "valid" ).Should().BeNull();
+            id.Add( "A\u0006A", "valid" ).Should().BeNull();
+            id.Add( "A\u0007A", "valid" ).Should().BeNull();
+            id.Add( "A\u0008A", "valid" ).Should().BeNull();
 
-            FluentActions.Invoking( () => id.Add( "valid", null! ) ).Should().Throw<ArgumentNullException>();
-            FluentActions.Invoking( () => id.Add( "valid", "" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0000A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0001A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0002A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0003A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0004A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0005A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0006A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0007A" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "valid", "A\u0008A" ) ).Should().Throw<ArgumentException>();
-            id.Add( "valid", "A\u0009A" );
+            id.Add( "A\u0009A", "valid" ).Should().NotBeNull(); 
 
-            FluentActions.Invoking( () => id.Add( "A\rA", "valid" ) ).Should().Throw<ArgumentException>();
-            FluentActions.Invoking( () => id.Add( "A\nA", "valid" ) ).Should().Throw<ArgumentException>();
+            id.Add( "valid", null! ).Should().BeNull();
+            id.Add( "valid", "" ).Should().BeNull();
+            id.Add( "valid", "A\u0000A" ).Should().BeNull();
+            id.Add( "valid", "A\u0001A" ).Should().BeNull();
+            id.Add( "valid", "A\u0002A" ).Should().BeNull();
+            id.Add( "valid", "A\u0003A" ).Should().BeNull();
+            id.Add( "valid", "A\u0004A" ).Should().BeNull();
+            id.Add( "valid", "A\u0005A" ).Should().BeNull();
+            id.Add( "valid", "A\u0006A" ).Should().BeNull();
+            id.Add( "valid", "A\u0007A" ).Should().BeNull();
+            id.Add( "valid", "A\u0008A" ).Should().BeNull();
+
+            id.Add( "valid", "A\u0009A" ).Should().NotBeNull(); 
+
+            id.Add( "A\rA", "valid" ).Should().BeNull();
+            id.Add( "A\nA", "valid" ).Should().BeNull();
         }
 
         [Test]
@@ -187,7 +189,7 @@ namespace CK.Monitoring.Tests
             var textConf = new Handlers.TextFileConfiguration() { Path = "AddIdentityInformation", AutoFlushRate = 1 };
 
             using var g = new GrandOutput( new GrandOutputConfiguration() { TimerDuration = TimeSpan.FromMilliseconds( 15 ), Handlers = { textConf } } );
-            var m = new ActivityMonitor( false );
+            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
             m.AddIdentityInformation( "Hello", "World!" );
             m.AddIdentityInformation( "Hello", "World2" );

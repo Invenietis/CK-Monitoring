@@ -1,6 +1,7 @@
 using CK.Core;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
@@ -27,8 +28,10 @@ namespace CK.Monitoring
             bool appIdentityInitialized = CoreApplicationIdentity.IsInitialized;
             try
             {
-                var infos = new List<(string, string)>( 128 );
-                infos.Add( ("IdentityCardVersion", CurrentVersion.ToString()) );
+                var infos = new List<(string, string)>( 128 )
+                {
+                    ("IdentityCardVersion", CurrentVersion.ToString( CultureInfo.InvariantCulture ))
+                };
                 // If the Core identity is ready, do it now.
                 if( appIdentityInitialized )
                 {
@@ -67,7 +70,6 @@ namespace CK.Monitoring
 
         static void AddEnvironment( List<(string Key, string Value)> infos )
         {
-            infos.Add( ("IdentityCardVersion", CurrentVersion.ToString()) );
             infos.Add( ("MachineName", Environment.MachineName) );
             infos.Add( ("UserName", Environment.UserName) );
             infos.Add( ("OSVersion", Environment.OSVersion.ToString()) );
@@ -152,7 +154,8 @@ namespace CK.Monitoring
                            ?? name.Version?.ToString()
                            ?? "(null)";
             string metaPrefix = prefix + "/Meta/";
-            return metas.Cast<AssemblyMetadataAttribute>().Select( m => (metaPrefix + m.Key, m.Value ?? "(null)") )
+            return metas.Cast<AssemblyMetadataAttribute>().Where( m => !string.IsNullOrWhiteSpace( m.Value ) )
+                                                          .Select( m => (metaPrefix + m.Key, m.Value!) )
                                                           .Prepend( (prefix, vInfo) );
         }
 

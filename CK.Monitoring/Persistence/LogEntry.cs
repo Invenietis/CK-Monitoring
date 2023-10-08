@@ -417,7 +417,7 @@ namespace CK.Monitoring
                 gId = r.ReadString();
                 mId = r.ReadString();
                 depth = r.ReadNonNegativeSmallInt32();
-                Throw.CheckData( mId == GrandOutput.ExternalLogMonitorUniqueId || Base64UrlHelper.IsBase64UrlCharacters( mId ) );
+                Throw.CheckData( mId == ActivityMonitor.ExternalLogMonitorUniqueId || mId == ActivityMonitor.StaticLogMonitorUniqueId || Base64UrlHelper.IsBase64UrlCharacters( mId ) );
             }
             else
             {
@@ -427,7 +427,7 @@ namespace CK.Monitoring
                 depth = streamVersion < 6 ? r.ReadInt32() : r.ReadNonNegativeSmallInt32();
                 if( streamVersion >= 8 )
                 {
-                    Throw.CheckData( mId == GrandOutput.ExternalLogMonitorUniqueId || Base64UrlHelper.IsBase64UrlCharacters( mId ) );
+                    Throw.CheckData( mId == ActivityMonitor.ExternalLogMonitorUniqueId || Base64UrlHelper.IsBase64UrlCharacters( mId ) );
                 }
             }
             Throw.CheckData( gId == GrandOutput.UnknownGrandOutputId || Base64UrlHelper.IsBase64UrlCharacters( gId ) );

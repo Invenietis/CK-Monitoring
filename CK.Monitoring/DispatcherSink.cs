@@ -60,7 +60,7 @@ namespace CK.Monitoring
             _externalLogLastTime = DateTimeStamp.MinValue;
             _isDefaultGrandOutput = isDefaultGrandOutput;
             _newConf = Array.Empty<GrandOutputConfiguration>();
-            var monitor = new ActivityMonitor( applyAutoConfigurations: false );
+            var monitor = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             // We emit the identity card changed from this monitor (so we need its id).
             // But more importantly, this monitor identifier is the one of the GrandOutput: each log entry
             // references this identifier.
@@ -381,7 +381,7 @@ namespace CK.Monitoring
             }
         }
 
-        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex = null, string monitorId = GrandOutput.ExternalLogMonitorUniqueId )
+        public void ExternalLog( LogLevel level, CKTrait? tags, string message, Exception? ex = null, string monitorId = ActivityMonitor.ExternalLogMonitorUniqueId )
         {
             DateTimeStamp prevLogTime;
             DateTimeStamp logTime;
@@ -403,20 +403,11 @@ namespace CK.Monitoring
 
         public void OnStaticLog( ref ActivityMonitorLogData d )
         {
-            DateTimeStamp prevLogTime;
-            DateTimeStamp logTime;
-            lock( _externalLogLock )
-            {
-                prevLogTime = _externalLogLastTime;
-                _externalLogLastTime = logTime = new DateTimeStamp( _externalLogLastTime, DateTime.UtcNow );
-            }
             var e = InputLogEntry.AcquireInputLogEntry( _sinkMonitorId,
                                                         ref d,
-                                                        groupDepth: 0,
-                                                        LogEntryType.Line,
-                                                        GrandOutput.ExternalLogMonitorUniqueId,
-                                                        LogEntryType.Line,
-                                                        prevLogTime );
+                                                        logType: LogEntryType.Line,
+                                                        previousEntryType: LogEntryType.Line,
+                                                        previousLogTime: DateTimeStamp.MinValue );
             Handle( e );
         }
 

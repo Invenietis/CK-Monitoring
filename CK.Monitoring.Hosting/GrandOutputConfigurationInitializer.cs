@@ -66,16 +66,8 @@ namespace CK.Monitoring.Hosting
                     // Instead of relying only on the GrandOuput.Defaut, simply calls the AutoConfiguration action:
                     // if more than one GrandOuput currently exists, they will receive the logs of the new Host initialization.
                     ActivityMonitor.AutoConfiguration?.Invoke( builderMonitor );
-                    // Removes the client and replays its logs.
-                    var replayer = builderMonitor.Output.UnregisterClient<BuilderMonitorReplayClient>( _ => true );
-                    if( replayer == null )
-                    {
-                        builderMonitor.Warn( "The BuilderMonitorReplayClient has been removed from the builderMonitor output. This is weird..." );
-                    }
-                    else
-                    {
-                        replayer.Replay( builderMonitor );
-                    }
+                    // Stops the replay.
+                    builderMonitor.Output.MaxInitialReplayCount = null;
                 }
             } );
             builder.ConfigureServices( (ctx, services) =>
@@ -83,8 +75,17 @@ namespace CK.Monitoring.Hosting
                 Debug.Assert( ReferenceEquals( ctx.Properties, builder.Properties ) );
                 Debug.Assert( _target != null );
                 services.AddHostedService( sp => new HostedService( _target ) );
-                services.TryAddScoped( _ => new ActivityMonitor() );
-                services.TryAddScoped<IActivityMonitor>( sp => sp.GetRequiredService<ActivityMonitor>() );
+                // Without fully analyzing the existing descriptors (foreach) we cannot know if: 
+                //  - The ActivityMonitor type has been registered and how (Type,Type) or (Type, Factory).
+                //  - The IActivityMonitor has been correctly registered: it should be a (Type, sp => GetService<ActivityMonitor>())
+                //    if the ActivityMonitor has been registered or a (IActivityMonitor,ActivityMonitor) otherwise.
+                //  - Same for the IParallelLogger.
+                // This is not really our job here to check that kind of stuff. So we take for granted that we are the first
+                // to register these and provide the right registration for a monitor:
+                //  - The ActivityMonitor implementation doesn't need to be exposed.
+                //  - The IParallelLogger is the one of the monitor.
+                services.AddScoped<IActivityMonitor, ActivityMonitor>();
+                services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
             } );
         }
 

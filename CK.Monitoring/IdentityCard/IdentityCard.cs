@@ -108,7 +108,8 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Adds a single identity information.
+        /// Adds a single identity information. If the key/value are invalid, null is returned and an
+        /// error log is emitted in the <see cref="ActivityMonitor.StaticLogger"/>.
         /// <para>
         /// The characters 0 to 8 (NUl, SOH, STX, ETX, EOT, ENQ, ACK, BEL, BSP) are invalid in a key and in a value.
         /// </para> 
@@ -219,8 +220,11 @@ namespace CK.Monitoring
         AddOneResult DoAdd( string key, string value )
         {
             Debug.Assert( Monitor.IsEntered( _card ) );
-            ActivityMonitorSimpleSenderExtension.IdentityCard.CkeckIdentityInformation( key, value );
-            return DoAddWithoutChecks( _card, key, value );
+            if( ActivityMonitorSimpleSenderExtension.IdentityCard.CheckIdentityInformation( key, value, ActivityMonitor.StaticLogger ) )
+            {
+                return DoAddWithoutChecks( _card, key, value );
+            }
+            return AddOneResult.None;
         }
 
         static AddOneResult DoAddWithoutChecks( Dictionary<string, string[]> card, string key, string value )

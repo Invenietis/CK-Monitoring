@@ -99,29 +99,17 @@ namespace CK.Monitoring.InterProcess
                     {
                         case LogEntryType.Line:
                             {
-                                if( _monitor.ShouldLogLine( e.LogLevel, e.Tags, out var finalTags ) )
-                                {
-                                    var d = new ActivityMonitorLogData( e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
-                                    d.SetExplicitLogTime( e.LogTime );
-                                    _monitor.UnfilteredLog( ref d );
-                                }
+                                _monitor.Log( e.LogLevel, e.Tags, e.Text, e.Exception, e.LineNumber, e.FileName );
                                 break;
                             }
                         case LogEntryType.OpenGroup:
                             {
-                                ActivityMonitorLogData d;
-                                if( _monitor.ShouldLogLine( e.LogLevel, e.Tags, out var finalTags ) )
-                                {
-                                    d = new ActivityMonitorLogData( e.LogLevel | LogLevel.IsFiltered, finalTags, e.Text, CKException.CreateFrom( e.Exception ), e.FileName, e.LineNumber );
-                                    d.SetExplicitLogTime( e.LogTime );
-                                }
-                                else d = default;
-                                _monitor.UnfilteredOpenGroup( ref d );
+                                _monitor.OpenGroup( e.LogLevel, e.Tags, e.Text, e.Exception, e.LineNumber, e.FileName );
                             }
 
                             break;
                         case LogEntryType.CloseGroup:
-                            _monitor.CloseGroup( e.Conclusions, e.LogTime );
+                            _monitor.CloseGroup( e.Conclusions );
                             break;
                     }
                 }

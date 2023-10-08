@@ -43,14 +43,12 @@ namespace CK.Monitoring
         // For Log, OpenGroup and StaticLogger.
         internal static InputLogEntry AcquireInputLogEntry( string grandOutputId,
                                                             ref ActivityMonitorLogData data,
-                                                            int groupDepth,
                                                             LogEntryType logType,
-                                                            string monitorId,
                                                             LogEntryType previousEntryType,
                                                             DateTimeStamp previousLogTime )
         {
             InputLogEntry item = Aquire();
-            item.Initialize( grandOutputId, ref data, groupDepth, logType, monitorId, previousEntryType, previousLogTime );
+            item.Initialize( grandOutputId, ref data, logType, previousEntryType, previousLogTime );
             return item;
         }
 
@@ -71,13 +69,13 @@ namespace CK.Monitoring
 
         // For SinkLog.
         internal static InputLogEntry AcquireInputLogEntry( string grandOutputId,
-                                                             string monitorId,
-                                                             DateTimeStamp prevLogTime,
-                                                             string text,
-                                                             DateTimeStamp logTime,
-                                                             LogLevel level,
-                                                             CKTrait tags,
-                                                             CKExceptionData? ex )
+                                                            string monitorId,
+                                                            DateTimeStamp prevLogTime,
+                                                            string text,
+                                                            DateTimeStamp logTime,
+                                                            LogLevel level,
+                                                            CKTrait tags,
+                                                            CKExceptionData? ex )
         {
             InputLogEntry item = Aquire();
             item.Initialize( grandOutputId, monitorId, prevLogTime, text, logTime, level, tags, ex );

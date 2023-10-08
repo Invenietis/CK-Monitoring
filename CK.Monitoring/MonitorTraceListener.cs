@@ -93,15 +93,18 @@ namespace CK.Monitoring
         /// <param name="message">The text to log.</param>
         public override void Fail( string? message )
         {
-            message ??= "Fail called with no message.";
-            GrandOutput.ExternalLog( LogLevel.Fatal, TraceListener, message );
             if( FailFast )
             {
+                if( string.IsNullOrWhiteSpace( message ) ) message = "Fail called with no message.";
+                message += " FailFast is true: calling Environment.FailFast. Adios!";
+                GrandOutput.ExternalLog( LogLevel.Fatal, TraceListener, message );
                 GrandOutput.Dispose();
                 Environment.FailFast( message );
             }
             else
             {
+                if( string.IsNullOrWhiteSpace( message ) ) message = "Fail called with no message.";
+                GrandOutput.ExternalLog( LogLevel.Fatal, TraceListener, message + " FailFast is false: throwing a MonitoringFailFastException." );
                 throw new MonitoringFailFastException( message );
             }
         }
@@ -114,7 +117,7 @@ namespace CK.Monitoring
         /// <param name="detailMessage">A detail message that will be appended to the text.</param>
         public override void Fail( string? message, string? detailMessage )
         {
-            string msg = message ?? "Fail called with no message.";
+            string msg = string.IsNullOrWhiteSpace( message ) ? "Fail called with no message." : message;
             if( !string.IsNullOrEmpty( detailMessage ) )
             {
                 msg += " " + detailMessage;

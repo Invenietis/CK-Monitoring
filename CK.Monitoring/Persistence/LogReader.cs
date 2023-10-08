@@ -169,7 +169,7 @@ namespace CK.Monitoring
             }
 
             /// <summary>
-            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IActivityMonitor.UniqueId"/> that
+            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IActivityLogger.UniqueId"/> that
             /// is explicitly implemented. (This is a mainly for tests.)
             /// </summary>
             /// <param name="m">Activity Monitor to filter.</param>
@@ -312,7 +312,7 @@ namespace CK.Monitoring
                 _stream = null;
                 _binaryReader = null;
             }
-            if( throwError ) throw new InvalidOperationException( "Invalid log data." );
+            if( throwError ) Throw.InvalidOperationException( "Invalid log data." );
         }
 
         object IEnumerator.Current => Current; 

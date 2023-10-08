@@ -5,7 +5,6 @@ using System.IO;
 
 namespace CK.Monitoring
 {
-
     /// <summary>
     /// Unified interface for log entries whatever their <see cref="LogType"/> is.
     /// All log entries can be exposed through this "rich" interface.

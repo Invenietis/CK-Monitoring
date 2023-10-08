@@ -74,7 +74,7 @@ namespace CK.Monitoring.Tests
 
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                var m = new ActivityMonitor( false );
+                var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
                 Thread.Sleep( 5 );
                 m.Info( "Must wait 3 seconds..." );
@@ -110,7 +110,7 @@ namespace CK.Monitoring.Tests
                     ActivityMonitor.StaticLogger.Info( $"Async started from ActivityMonitor.StaticLogger." );
                     g.ExternalLog( LogLevel.Info, message: "Async started." );
                 } );
-                var m = new ActivityMonitor( false );
+                var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
                 m.Info( "Normal monitor starts." );
                 Task t = Task.Run( () =>
@@ -311,7 +311,7 @@ namespace CK.Monitoring.Tests
 
             using( GrandOutput g = new GrandOutput( config ) )
             {
-                var m = new ActivityMonitor( false );
+                var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
                 Thread.Sleep( 5 );
                 m.Info( "Hello world" );
@@ -359,7 +359,7 @@ namespace CK.Monitoring.Tests
             {
                 using( GrandOutput g = new GrandOutput( config ) )
                 {
-                    var m = new ActivityMonitor( false );
+                    var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                     g.EnsureGrandOutputClient( m );
                     m.Info( new string( 'X', lineLengthToLogToGet1000bytes ) );
                 }
@@ -386,7 +386,7 @@ namespace CK.Monitoring.Tests
 
         static void DumpSampleLogs1( Random r, GrandOutput g )
         {
-            var m = new ActivityMonitor( false );
+            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
             m.SetTopic( "First Activity..." );
             if( r.Next( 3 ) == 0 ) System.Threading.Thread.Sleep( 100 + r.Next( 2500 ) );
@@ -409,7 +409,7 @@ namespace CK.Monitoring.Tests
 
         static void DumpSampleLogs2( Random r, GrandOutput g )
         {
-            var m = new ActivityMonitor( false );
+            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
 
             m.Fatal( "An error occured", _exceptionWithInner );

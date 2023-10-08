@@ -127,18 +127,19 @@ namespace CK.Monitoring.Tests
                 using var r = LogReader.Open( ckmon );
                 r.BadEndOfFileMarker.Should().BeFalse();
                 r.ReadException.Should().BeNull();
-                bool foundStaticLog = false;
+                bool d = false;
                 while( r.MoveNext() )
                 {
                     Debug.Assert( r.CurrentMulticast != null );
-                    if( r.CurrentMulticast.MonitorId == ActivityMonitor.ExternalLogMonitorUniqueId )
+                    if( r.CurrentMulticast.MonitorId == ActivityMonitor.StaticLogMonitorUniqueId )
                     {
                         r.CurrentMulticast.FileName.Should().EndWith( "GrandOutputTests.cs" );
                         r.CurrentMulticast.Text.Should().Be( "This is a static log." );
-                        foundStaticLog = true;
+                        d = true;
                     }
                 }
-                foundStaticLog.Should().BeTrue();
+                r.ReadException.Should().BeNull();
+                d.Should().BeTrue();
             }
         }
 
@@ -265,23 +266,23 @@ namespace CK.Monitoring.Tests
                 map.Monitors.Count.Should().BeInRange( 4, 5 );
                 if( map.Monitors.Count == 5 )
                 {
-                    map.Monitors.Any( m => m.MonitorId == ActivityMonitor.ExternalLogMonitorUniqueId ).Should().BeTrue( "The 5th monitor is the §ext monitor." );
+                    map.Monitors.Any( m => m.MonitorId == ActivityMonitor.StaticLogMonitorUniqueId ).Should().BeTrue( "The 5th monitor is the §§§§ (static) monitor." );
                 }
                 // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
                 // Others do not have any topic.
                 var notDispatcherSinkMonitors = map.Monitors.Where( m => m.MonitorId != ActivityMonitor.ExternalLogMonitorUniqueId
-                                                                         && !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.MonitorTopicChanged ) ).ToList();
+                                                                         && !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.TopicChanged ) ).ToList();
                 using( var p = notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ) )
                 {
-                    p.Entries.Should().HaveCount( 5415 );
+                    p.Entries.Should().HaveCount( 5425 );
                 }
                 using( var p = notDispatcherSinkMonitors.ElementAt( 1 ).ReadFirstPage( 6000 ) )
                 {
-                    p.Entries.Should().HaveCount( 5415 );
+                    p.Entries.Should().HaveCount( 5425 );
                 }
                 using( var p = notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ) )
                 {
-                    p.Entries.Should().HaveCount( 5415 );
+                    p.Entries.Should().HaveCount( 5425 );
                 }
             }
         }
@@ -312,7 +313,7 @@ namespace CK.Monitoring.Tests
 
         static IActivityMonitor CreateMonitorAndRegisterGrandOutput( string topic, GrandOutput go )
         {
-            var m = new ActivityMonitor( applyAutoConfigurations: false, topic: topic );
+            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration, topic: topic );
             go.EnsureGrandOutputClient( m );
             return m;
         }
@@ -458,7 +459,7 @@ namespace CK.Monitoring.Tests
                             .AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } );
             using( var g = new GrandOutput( c ) )
             {
-                var m = new ActivityMonitor( applyAutoConfigurations: false );
+                var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
                 DumpMonitor1082Entries( m, loop );
             }
@@ -483,7 +484,7 @@ namespace CK.Monitoring.Tests
                            .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } );
             using( var g = new GrandOutput( c ) )
             {
-                var m = new ActivityMonitor( applyAutoConfigurations: false );
+                var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
                 DumpMonitor1082Entries( m, loop );
                 g.Dispose( 0 );
