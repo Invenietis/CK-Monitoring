@@ -10,15 +10,15 @@ namespace CK.Monitoring
     public sealed partial class InputLogEntry
     {
         /// <summary>
-        /// Gets the current pool capacity. It starts at 500 and increases (with a warning) until <see cref="MaximalPoolCapacity"/>
-        /// is reached (where errors are emitted). Warnings and errors are tagged with <see cref="GrandOutput.InputLogPoolAlertTag"/>.
+        /// Gets the current pool capacity. It starts at 600 and increases (with a warning) until <see cref="MaximalPoolCapacity"/>
+        /// is reached (where errors are emitted).
         /// </summary>
         public static int CurrentPoolCapacity => _currentCapacity;
 
         /// <summary>
         /// The current pool capacity increment until <see cref="CurrentPoolCapacity"/> reaches <see cref="MaximalPoolCapacity"/>.
         /// </summary>
-        public const int PoolCapacityIncrement = 100;
+        public const int PoolCapacityIncrement = 200;
 
         /// <summary>
         /// Gets the maximal capacity. Once reached, newly acquired <see cref="InputLogEntry"/> are garbage
@@ -32,13 +32,19 @@ namespace CK.Monitoring
         /// </summary>
         public static int AliveCount => _aliveItems;
 
+        /// <summary>
+        /// Gets the current number of cached entries.
+        /// This is an approximate value because of concurency.
+        /// </summary>
+        public static int PooledEntryCount => _numItems + (_fastItem != null ? 1 : 0);
+
         readonly static ConcurrentQueue<InputLogEntry> _items = new();
         static InputLogEntry? _fastItem;
         static int _numItems;
-        static int _currentCapacity = 500;
+        static int _currentCapacity = 600;
         static int _maximalCapacity = 2000;
         static int _aliveItems;
-        static DateTime _nextPoolError;
+        static long _nextPoolError;
 
         // For Log, OpenGroup and StaticLogger.
         internal static InputLogEntry AcquireInputLogEntry( string grandOutputId,
@@ -96,6 +102,7 @@ namespace CK.Monitoring
                 {
                     item = new InputLogEntry();
                 }
+                Throw.DebugAssert( "In the pool and new entry have RefCount = 1.", item._refCount == 1 );
             }
             return item;
         }
@@ -120,21 +127,22 @@ namespace CK.Monitoring
                 {
                     // Adjust the pool count.
                     Interlocked.Decrement( ref _numItems );
-                    // Signals the error continuously once per second.
-                    var now = DateTime.UtcNow;
-                    if( _nextPoolError < now )
+                    // Signals the error but no more than once per second.
+                    var next = _nextPoolError;
+                    var nextNext = Environment.TickCount64;
+                    if( next < nextNext && Interlocked.CompareExchange( ref _nextPoolError, nextNext + 1000, next ) == next )
                     {
-                        _nextPoolError = now.AddSeconds( 1 );
                         ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Error | LogLevel.IsFiltered,
-                                                                    GrandOutput.InputLogPoolAlertTag,
-                                                                    $"The log data pool reached its maximal capacity of {MaximalPoolCapacity}. This may indicate a peak of activity " +
-                                                                    $"or a leak (missing ActivityMonitorExternalLogData.Release() calls) if this error persists.", null );
+                                                                    ActivityMonitor.Tags.ToBeInvestigated,
+                                                                    $"The CK.Monitoring.GrandOutput log data pool reached its maximal capacity of {MaximalPoolCapacity}. This may indicate a peak of activity " +
+                                                                    $"or a leak (missing InputLogEntry.Release() calls) if this error persists.", null );
                     }
                 }
                 else
                 {
                     int newCapacity = Interlocked.Add( ref _currentCapacity, PoolCapacityIncrement );
-                    ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, GrandOutput.InputLogPoolAlertTag, $"The log data pool has been increased to {newCapacity}.", null );
+                    ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, null, $"The CK.Monitoring.GrandOutput log data pool has been increased to {newCapacity}.", null );
+                    _items.Enqueue( c );
                 }
             }
         }
