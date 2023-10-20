@@ -16,11 +16,6 @@ namespace CK.Monitoring
     /// </summary>
     public sealed partial class GrandOutput : IDisposable
     {
-        /// <summary>
-        /// Tags for warning and errors related to <see cref="InputLogEntry"/> pool.
-        /// </summary>
-        public static CKTrait InputLogPoolAlertTag = ActivityMonitor.Tags.Register( "GrandOutputInputLogPoolAlert" );
-
         readonly List<WeakReference<GrandOutputClient>> _clients;
         readonly DispatcherSink _sink;
         readonly IdentityCard _identityCard;
