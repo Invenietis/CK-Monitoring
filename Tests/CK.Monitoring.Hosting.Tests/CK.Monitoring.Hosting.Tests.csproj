@@ -9,7 +9,7 @@
     <Compile Include="..\CK.Monitoring.Tests\TestHelper.cs" Link="TestHelper.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AspNet.Tester" Version="4.0.4--0000-develop" />
+    <PackageReference Include="CK.AspNet.Tester" Version="4.0.4--0001-develop" />
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
