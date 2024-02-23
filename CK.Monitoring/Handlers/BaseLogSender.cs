@@ -36,7 +36,7 @@ namespace CK.Monitoring.Handlers
             /// <param name="monitor">The monitor to use.</param>
             /// <param name="logEvent">The log entry to send.</param>
             /// <returns>True on success, false on failure.</returns>
-            ValueTask<bool> TrySendAsync( IActivityMonitor monitor, IMulticastLogEntry logEvent );
+            ValueTask<bool> TrySendAsync( IActivityMonitor monitor, IFullLogEntry logEvent );
         }
 
         /// <summary>

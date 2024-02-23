@@ -317,15 +317,25 @@ namespace CK.Monitoring
         }
 
         /// <summary>
+        /// Creates a new in-memory collector of <see cref="ILogEntry"/>. This collector must be disposed
+        /// once done with it.
+        /// <para>
+        /// This is intended to be used in tests: there is little to no interest to use this collector elsewhere.
+        /// </para>
+        /// </summary>
+        /// <param name="maxCapacity">The maximal number of collected entries: oldest entries are automatocally discarded.</param>
+        /// <param name="ignoreCloseGroup">False to also collect <see cref="LogEntryType.CloseGroup"/>.</param>
+        /// <returns>A collector that must be disposed.</returns>
+        public GrandOutputMemoryCollector CreateMemoryCollector( int maxCapacity, bool ignoreCloseGroup = true )
+        {
+            return new GrandOutputMemoryCollector( _sink, maxCapacity, ignoreCloseGroup );
+        }
+
+        /// <summary>
         /// Gets a cancellation token that is cancelled at the start
         /// of <see cref="Dispose()"/>.
         /// </summary>
         public CancellationToken DisposingToken => _sink.StoppingToken;
-
-        /// <summary>
-        /// Gets the sink.
-        /// </summary>
-        public IGrandOutputSink Sink => _sink;
 
         void DoGarbageDeadClients()
         {
@@ -340,6 +350,11 @@ namespace CK.Monitoring
                 }
             }
         }
+
+        /// <summary>
+        /// Gets the log event dispatcher.
+        /// </summary>
+        public DispatcherSink Sink => _sink;
 
         /// <summary>
         /// Gets whether this GrandOutput has been disposed.

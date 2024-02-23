@@ -8,14 +8,14 @@ using CK.Monitoring.Impl;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// Encapsulates <see cref="ILogEntry"/> concrete objects manipulation.
+    /// Encapsulates <see cref="IBaseLogEntry"/> concrete objects manipulation.
     /// </summary>
     public static class LogEntry
     {
         #region Unicast
 
         /// <summary>
-        /// Creates a <see cref="ILogEntry"/> for a line.
+        /// Creates a <see cref="IBaseLogEntry"/> for a line.
         /// </summary>
         /// <param name="text">Text of the log entry.</param>
         /// <param name="t">Time stamp of the log entry.</param>
@@ -25,13 +25,13 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static ILogEntry CreateLog( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
+        public static IBaseLogEntry CreateLog( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
         {
-            return new LELog( text, t, fileName, lineNumber, level, tags, ex );
+            return new BaseLineEntry( text, t, fileName, lineNumber, level, tags, ex );
         }
 
         /// <summary>
-        /// Creates a <see cref="ILogEntry"/> for an opened group.
+        /// Creates a <see cref="IBaseLogEntry"/> for an opened group.
         /// </summary>
         /// <param name="text">Text of the log entry.</param>
         /// <param name="t">Time stamp of the log entry.</param>
@@ -41,21 +41,21 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static ILogEntry CreateOpenGroup( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
+        public static IBaseLogEntry CreateOpenGroup( string text, DateTimeStamp t, LogLevel level, string fileName, int lineNumber, CKTrait tags, CKExceptionData ex )
         {
-            return new LEOpenGroup( text, t, fileName, lineNumber, level, tags, ex );
+            return new BaseOpenGroupEntry( text, t, fileName, lineNumber, level, tags, ex );
         }
 
         /// <summary>
-        /// Creates a <see cref="ILogEntry"/> for the closing of a group.
+        /// Creates a <see cref="IBaseLogEntry"/> for the closing of a group.
         /// </summary>
         /// <param name="t">Time stamp of the log entry.</param>
         /// <param name="level">Log level of the log entry.</param>
         /// <param name="c">Group conclusions.</param>
         /// <returns>A log entry object.</returns>
-        public static ILogEntry CreateCloseGroup( DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion> c )
+        public static IBaseLogEntry CreateCloseGroup( DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion> c )
         {
-            return new LECloseGroup( t, level, c );
+            return new BaseCloseGroupEntry( t, level, c );
         }
 
         #endregion
@@ -63,7 +63,7 @@ namespace CK.Monitoring
         #region Multi-cast
 
         /// <summary>
-        /// Creates a <see cref="ILogEntry"/> for a line.
+        /// Creates a <see cref="IBaseLogEntry"/> for a line.
         /// </summary>
         /// <param name="grandOutputId">Identifier of the GrandOutput.</param>
         /// <param name="monitorId">Identifier of the monitor.</param>
@@ -78,7 +78,7 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static IMulticastLogEntry CreateMulticastLog( string grandOutputId,
+        public static IFullLogEntry CreateMulticastLog( string grandOutputId,
                                                              string monitorId,
                                                              LogEntryType previousEntryType,
                                                              DateTimeStamp previousLogTime,
@@ -91,11 +91,11 @@ namespace CK.Monitoring
                                                              CKTrait tags,
                                                              CKExceptionData? ex )
         {
-            return new LEMCLog( grandOutputId, monitorId, depth, previousLogTime, previousEntryType, text, t, fileName, lineNumber, level, tags, ex );
+            return new FullLineEntry( grandOutputId, monitorId, depth, previousLogTime, previousEntryType, text, t, fileName, lineNumber, level, tags, ex );
         }
 
         /// <summary>
-        /// Creates a <see cref="ILogEntry"/> for an opened group.
+        /// Creates a <see cref="IBaseLogEntry"/> for an opened group.
         /// </summary>
         /// <param name="grandOutputId">Identifier of the GrandOutput.</param>
         /// <param name="monitorId">Identifier of the monitor.</param>
@@ -110,7 +110,7 @@ namespace CK.Monitoring
         /// <param name="tags">Tags of the log entry</param>
         /// <param name="ex">Exception of the log entry.</param>
         /// <returns>A log entry object.</returns>
-        public static IMulticastLogEntry CreateMulticastOpenGroup( string grandOutputId,
+        public static IFullLogEntry CreateMulticastOpenGroup( string grandOutputId,
                                                                    string monitorId,
                                                                    LogEntryType previousEntryType,
                                                                    DateTimeStamp previousLogTime,
@@ -123,11 +123,11 @@ namespace CK.Monitoring
                                                                    CKTrait tags,
                                                                    CKExceptionData? ex )
         {
-            return new LEMCOpenGroup( grandOutputId, monitorId, depth, previousLogTime, previousEntryType, text, t, fileName, lineNumber, level, tags, ex );
+            return new FullOpenGroupEntry( grandOutputId, monitorId, depth, previousLogTime, previousEntryType, text, t, fileName, lineNumber, level, tags, ex );
         }
 
         /// <summary>
-        /// Creates a <see cref="ILogEntry"/> for the closing of a group.
+        /// Creates a <see cref="IBaseLogEntry"/> for the closing of a group.
         /// </summary>
         /// <param name="grandOutputId">Identifier of the GrandOutput.</param>
         /// <param name="monitorId">Identifier of the monitor.</param>
@@ -138,7 +138,7 @@ namespace CK.Monitoring
         /// <param name="level">Log level of the log entry.</param>
         /// <param name="c">Group conclusions.</param>
         /// <returns>A log entry object.</returns>
-        public static IMulticastLogEntry CreateMulticastCloseGroup( string grandOutputId,
+        public static IFullLogEntry CreateMulticastCloseGroup( string grandOutputId,
                                                                     string monitorId,
                                                                     LogEntryType previousEntryType,
                                                                     DateTimeStamp previousLogTime,
@@ -147,13 +147,45 @@ namespace CK.Monitoring
                                                                     LogLevel level,
                                                                     IReadOnlyList<ActivityLogGroupConclusion>? c )
         {
-            return new LEMCCloseGroup( grandOutputId, monitorId, depth, previousLogTime, previousEntryType, t, level, c );
+            return new FullCloseGroupEntry( grandOutputId, monitorId, depth, previousLogTime, previousEntryType, t, level, c );
         }
 
         #endregion
 
         /// <summary>
-        /// Binary writes a multicast log entry.
+        /// Binary writes a <see cref="ILogEntry"/> Line or OpenGroup entry.
+        /// </summary>
+        /// <param name="w">Binary writer to use.</param>
+        /// <param name="monitorId">Identifier of the monitor.</param>
+        /// <param name="depth">Depth of the line (number of opened groups above).</param>
+        /// <param name="isOpenGroup">True if this the opening of a group. False for a line.</param>
+        /// <param name="text">Text of the log entry.</param>
+        /// <param name="level">Log level of the log entry.</param>
+        /// <param name="logTime">Time stamp of the log entry.</param>
+        /// <param name="tags">Tags of the log entry</param>
+        /// <param name="ex">Exception of the log entry.</param>
+        /// <param name="fileName">Source file name of the log entry</param>
+        /// <param name="lineNumber">Source line number of the log entry</param>
+        static public void WriteLog( CKBinaryWriter w,
+                                     string monitorId,
+                                     int depth,
+                                     bool isOpenGroup,
+                                     LogLevel level,
+                                     DateTimeStamp logTime,
+                                     string text,
+                                     CKTrait tags,
+                                     CKExceptionData? ex,
+                                     string? fileName,
+                                     int lineNumber )
+        {
+            Throw.CheckNotNullArgument( w );
+            StreamLogType type = StreamLogType.IsSimpleLogEntry | (isOpenGroup ? StreamLogType.TypeOpenGroup : StreamLogType.TypeLine);
+            DoWriteLog( w, type, level, logTime, text, tags, ex, fileName, lineNumber );
+            WriteMonitorEntryFooter( w, monitorId, depth );
+        }
+
+        /// <summary>
+        /// Binary writes a <see cref="IFullLogEntry"/> line or OpenGroup entry.
         /// </summary>
         /// <param name="w">Binary writer to use.</param>
         /// <param name="grandOutputId">Identifier of the GrandOutput.</param>
@@ -185,7 +217,7 @@ namespace CK.Monitoring
                                      int lineNumber )
         {
             Throw.CheckNotNullArgument( w );
-            StreamLogType type = StreamLogType.IsMultiCast | (isOpenGroup ? StreamLogType.TypeOpenGroup : StreamLogType.TypeLine);
+            StreamLogType type = StreamLogType.IsFullEntry | (isOpenGroup ? StreamLogType.TypeOpenGroup : StreamLogType.TypeLine);
             type = UpdateTypeWithPrevious( type, previousEntryType, ref previousLogTime );
             DoWriteLog( w, type, level, logTime, text, tags, ex, fileName, lineNumber );
             WriteMulticastFooter( w, grandOutputId, monitorId, previousEntryType, previousLogTime, depth );
@@ -243,7 +275,7 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Binary writes a closing unicast entry.
+        /// Binary writes a closing <see cref="IBaseLogEntry"/> entry.
         /// </summary>
         /// <param name="w">Binary writer to use.</param>
         /// <param name="level">Log level of the log entry.</param>
@@ -254,12 +286,35 @@ namespace CK.Monitoring
                                             DateTimeStamp closeTime,
                                             IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
-            if( w == null ) throw new ArgumentNullException( "w" );
+            Throw.CheckNotNullArgument( w );
             DoWriteCloseGroup( w, StreamLogType.TypeGroupClosed, level, closeTime, conclusions );
         }
 
         /// <summary>
-        /// Binary writes a multicast closing entry.
+        /// Binary writes a <see cref="ILogEntry"/> closing entry.
+        /// </summary>
+        /// <param name="w">Binary writer to use.</param>
+        /// <param name="monitorId">Identifier of the monitor.</param>
+        /// <param name="depth">Depth of the group (number of opened groups above).</param>
+        /// <param name="level">Log level of the log entry.</param>
+        /// <param name="closeTime">Time stamp of the group closing.</param>
+        /// <param name="conclusions">Group conclusions.</param>
+        static public void WriteCloseGroup( CKBinaryWriter w,
+                                            string monitorId,
+                                            int depth,
+                                            LogLevel level,
+                                            DateTimeStamp closeTime,
+                                            IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
+        {
+            Throw.CheckNotNullArgument( w );
+            StreamLogType type = StreamLogType.TypeGroupClosed | StreamLogType.IsSimpleLogEntry;
+            DoWriteCloseGroup( w, type, level, closeTime, conclusions );
+            WriteMonitorEntryFooter( w, monitorId, depth );
+        }
+
+
+        /// <summary>
+        /// Binary writes a <see cref="IFullLogEntry"/> closing entry.
         /// </summary>
         /// <param name="w">Binary writer to use.</param>
         /// <param name="grandOutputId">Identifier of the GrandOutput.</param>
@@ -281,7 +336,7 @@ namespace CK.Monitoring
                                             IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             Throw.CheckNotNullArgument( w );
-            StreamLogType type = StreamLogType.TypeGroupClosed | StreamLogType.IsMultiCast;
+            StreamLogType type = StreamLogType.TypeGroupClosed | StreamLogType.IsFullEntry;
             type = UpdateTypeWithPrevious( type, previousEntryType, ref previousLogTime );
             DoWriteCloseGroup( w, type, level, closeTime, conclusions );
             WriteMulticastFooter( w, grandOutputId, monitorId, previousEntryType, previousLogTime, depth );
@@ -311,6 +366,12 @@ namespace CK.Monitoring
             }
         }
 
+        static void WriteMonitorEntryFooter( CKBinaryWriter w, string monitorId, int depth )
+        {
+            w.Write( monitorId );
+            w.WriteNonNegativeSmallInt32( depth );
+        }
+
         static void DoWriteCloseGroup( CKBinaryWriter w, StreamLogType t, LogLevel level, DateTimeStamp closeTime, IReadOnlyList<ActivityLogGroupConclusion>? conclusions )
         {
             if( conclusions != null && conclusions.Count > 0 ) t |= StreamLogType.HasConclusions;
@@ -331,7 +392,7 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Reads a <see cref="ILogEntry"/> from the binary reader that can be a <see cref="IMulticastLogEntry"/>.
+        /// Reads a <see cref="IBaseLogEntry"/> from the binary reader that can be a <see cref="IFullLogEntry"/>.
         /// If the first read byte is 0, read stops and null is returned.
         /// The 0 byte is the "end marker" that <see cref="CKMonWriterClient.Close()"/> write, but this
         /// method can read non zero-terminated streams (it catches an EndOfStreamException when reading the first byte and handles it silently).
@@ -342,7 +403,7 @@ namespace CK.Monitoring
         /// <param name="streamVersion">The version of the stream.</param>
         /// <param name="badEndOfFile">True whenever the end of file is the result of an <see cref="EndOfStreamException"/>.</param>
         /// <returns>The log entry or null if a zero byte (end marker) has been found.</returns>
-        static public ILogEntry? Read( CKBinaryReader r, int streamVersion, out bool badEndOfFile )
+        static public IBaseLogEntry? Read( CKBinaryReader r, int streamVersion, out bool badEndOfFile )
         {
             Throw.CheckNotNullArgument( r );
             badEndOfFile = false;
@@ -394,25 +455,33 @@ namespace CK.Monitoring
 
             if( (t & StreamLogType.TypeMask) == StreamLogType.TypeLine )
             {
-                if( (t & StreamLogType.IsMultiCast) == 0 )
+                if( (t & StreamLogType.IsFullEntry) == 0 )
                 {
-                    return new LELog( text, time, fileName, lineNumber, logLevel, tags, ex );
+                    return new BaseLineEntry( text, time, fileName, lineNumber, logLevel, tags, ex );
                 }
                 ReadMulticastFooter( streamVersion, r, t, out gId, out mId, out depth, out prevType, out prevTime );
-                return new LEMCLog( gId, mId, depth, prevTime, prevType, text, time, fileName, lineNumber, logLevel, tags, ex );
+                return new FullLineEntry( gId, mId, depth, prevTime, prevType, text, time, fileName, lineNumber, logLevel, tags, ex );
             }
             if( (t & StreamLogType.TypeMask) != StreamLogType.TypeOpenGroup ) throw new InvalidDataException();
-            if( (t & StreamLogType.IsMultiCast) == 0 )
+            if( (t & StreamLogType.IsFullEntry) == 0 )
             {
-                return new LEOpenGroup( text, time, fileName, lineNumber, logLevel, tags, ex );
+                return new BaseOpenGroupEntry( text, time, fileName, lineNumber, logLevel, tags, ex );
             }
             ReadMulticastFooter( streamVersion, r, t, out gId, out mId, out depth, out prevType, out prevTime );
-            return new LEMCOpenGroup( gId, mId, depth, prevTime, prevType, text, time, fileName, lineNumber, logLevel, tags, ex );
+            return new FullOpenGroupEntry( gId, mId, depth, prevTime, prevType, text, time, fileName, lineNumber, logLevel, tags, ex );
+        }
+
+        static void ReadMonitorEntryFooter( int streamVersion, CKBinaryReader r, StreamLogType t, out string mId, out int depth )
+        {
+            mId = r.ReadString();
+            Throw.CheckData( mId == ActivityMonitor.ExternalLogMonitorUniqueId || mId == ActivityMonitor.StaticLogMonitorUniqueId || Base64UrlHelper.IsBase64UrlCharacters( mId ) );
+            depth = r.ReadNonNegativeSmallInt32();
+            Throw.CheckData( depth >= 0 );
         }
 
         static void ReadMulticastFooter( int streamVersion, CKBinaryReader r, StreamLogType t, out string gId, out string mId, out int depth, out LogEntryType prevType, out DateTimeStamp prevTime )
         {
-            if( streamVersion == 9 )
+            if( streamVersion >= 9 )
             {
                 gId = r.ReadString();
                 mId = r.ReadString();
@@ -441,7 +510,7 @@ namespace CK.Monitoring
             }
         }
 
-        static ILogEntry ReadGroupClosed( int streamVersion, CKBinaryReader r, StreamLogType t, LogLevel logLevel )
+        static IBaseLogEntry ReadGroupClosed( int streamVersion, CKBinaryReader r, StreamLogType t, LogLevel logLevel )
         {
             DateTimeStamp time = new DateTimeStamp( DateTime.FromBinary( r.ReadInt64() ), (t & StreamLogType.HasUniquifier) != 0 ? r.ReadByte() : (Byte)0 );
             ActivityLogGroupConclusion[] conclusions = Array.Empty<ActivityLogGroupConclusion>();
@@ -456,13 +525,19 @@ namespace CK.Monitoring
                     conclusions[i] = new ActivityLogGroupConclusion( cText, cTags );
                 }
             }
-            if( (t & StreamLogType.IsMultiCast) == 0 )
+            if( (t & (StreamLogType.IsFullEntry|StreamLogType.IsSimpleLogEntry)) == 0 )
             {
-                return new LECloseGroup( time, logLevel, conclusions );
+                return new BaseCloseGroupEntry( time, logLevel, conclusions );
             }
-            ReadMulticastFooter( streamVersion, r, t, out var gId, out var mId, out int depth, out LogEntryType prevType, out DateTimeStamp prevTime );
-
-            return new LEMCCloseGroup( gId, mId, depth, prevTime, prevType, time, logLevel, conclusions );
+            string mId;
+            int depth;
+            if( (t & StreamLogType.IsSimpleLogEntry) != 0 )
+            {
+                ReadMonitorEntryFooter( streamVersion, r, t, out mId, out depth );
+                return new StdCloseGroupEntry( mId, depth, time, logLevel, conclusions );
+            }
+            ReadMulticastFooter( streamVersion, r, t, out var gId, out mId, out depth, out LogEntryType prevType, out DateTimeStamp prevTime );
+            return new FullCloseGroupEntry( gId, mId, depth, prevTime, prevType, time, logLevel, conclusions );
         }
 
         static void WriteLogTypeAndLevel( BinaryWriter w, StreamLogType t, LogLevel level )
@@ -500,25 +575,25 @@ namespace CK.Monitoring
         static readonly string _missingGroupText = "<Missing group>";
         static readonly IReadOnlyList<ActivityLogGroupConclusion> _missingConclusions = Array.Empty<ActivityLogGroupConclusion>();
 
-        static internal ILogEntry CreateMissingLine( DateTimeStamp knownTime )
+        static internal IBaseLogEntry CreateMissingLine( DateTimeStamp knownTime )
         {
             Debug.Assert( !knownTime.IsInvalid );
-            return new LELog( _missingLineText, knownTime, null, 0, LogLevel.None, ActivityMonitor.Tags.Empty, null );
+            return new BaseLineEntry( _missingLineText, knownTime, null, 0, LogLevel.None, ActivityMonitor.Tags.Empty, null );
         }
 
-        static internal ILogEntry CreateMissingOpenGroup( DateTimeStamp knownTime )
+        static internal IBaseLogEntry CreateMissingOpenGroup( DateTimeStamp knownTime )
         {
             Debug.Assert( !knownTime.IsInvalid );
-            return new LEOpenGroup( _missingGroupText, knownTime, null, 0, LogLevel.None, ActivityMonitor.Tags.Empty, null );
+            return new BaseOpenGroupEntry( _missingGroupText, knownTime, null, 0, LogLevel.None, ActivityMonitor.Tags.Empty, null );
         }
 
-        static internal ILogEntry CreateMissingCloseGroup( DateTimeStamp knownTime )
+        static internal IBaseLogEntry CreateMissingCloseGroup( DateTimeStamp knownTime )
         {
             Debug.Assert( !knownTime.IsInvalid );
-            return new LECloseGroup( knownTime, LogLevel.None, _missingConclusions );
+            return new BaseCloseGroupEntry( knownTime, LogLevel.None, _missingConclusions );
         }
 
-        internal static bool IsMissingLogEntry( ILogEntry entry )
+        internal static bool IsMissingLogEntry( IBaseLogEntry entry )
         {
             Debug.Assert( entry != null );
             return ReferenceEquals( entry.Text, _missingGroupText ) || ReferenceEquals( entry.Text, _missingLineText ) || entry.Conclusions == _missingConclusions;

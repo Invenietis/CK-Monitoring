@@ -62,7 +62,7 @@ namespace CK.Monitoring.Tests
             fileNamesSecond.Should().BeInAscendingOrder().And.HaveCount( 2 ).And.NotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
             File.ReadAllText( fileNamesSecond[0] ).Should().NotContain( "With Compression (in second folder).", "The fist file is compressed..." );
             // We restrict the log entries to the one of our monitor: this filters out the logs from the DispatcherSink.
-            using( var reader = LogReader.Open( fileNamesSecond[0], filter: new LogReader.MulticastFilter( m ) ) )
+            using( var reader = LogReader.Open( fileNamesSecond[0], filter: new LogReader.BaseEntryFilter( m.UniqueId ) ) )
             {
                 reader.MoveNext().Should().BeTrue();
                 reader.Current.Text.Should().Be( "With Compression (in second folder)." );

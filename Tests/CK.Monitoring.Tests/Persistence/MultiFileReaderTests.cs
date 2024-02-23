@@ -25,7 +25,6 @@ namespace CK.Monitoring.Tests.Persistence
             TestHelper.WaitForNoMoreAliveInputLogEntry();
         }
 
-        [Explicit( "Missing handling must be removed (PreviousEntryType and PreviousLogTime)." )]
         [TestCase( false )]
         [TestCase( true )]
         public void duplicates_are_automatically_removed( bool useGzipFormat )
@@ -92,8 +91,14 @@ namespace CK.Monitoring.Tests.Persistence
                                     : allEntries1;
 
                 allEntries.Select( e => e.Entry.Text )
-                          .SequenceEqual( new[] { "Trace 1", "OpenTrace 1", "Trace 1.1", "Trace 1.2", null, "Trace 2" } )
-                          .Should().BeTrue();
+                          .Should().Equal( "Trace 1",
+                                           "OpenTrace 1",
+                                           "Trace 1.1",
+                                           "Trace 1.2",
+                                           null, // CloseGroup
+                                           "<Missing log data>",
+                                           "<Missing log data>",
+                                           "Trace 2" );
             }
         }
 

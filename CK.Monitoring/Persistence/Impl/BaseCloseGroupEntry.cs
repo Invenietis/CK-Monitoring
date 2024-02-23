@@ -4,20 +4,20 @@ using System.Collections.Generic;
 
 namespace CK.Monitoring.Impl
 {
-    class LECloseGroup: ILogEntry
+    class BaseCloseGroupEntry : IBaseLogEntry
     {
         readonly LogLevel _level;
         readonly IReadOnlyList<ActivityLogGroupConclusion> _conclusions;
         readonly DateTimeStamp _time;
 
-        public LECloseGroup( DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion>? c ) 
+        public BaseCloseGroupEntry( DateTimeStamp t, LogLevel level, IReadOnlyList<ActivityLogGroupConclusion>? c ) 
         {
             _time = t;
             _conclusions = c ?? Array.Empty<ActivityLogGroupConclusion>();
             _level = level;
         }
 
-        public LECloseGroup( LEMCCloseGroup e ) 
+        public BaseCloseGroupEntry( StdCloseGroupEntry e ) 
         {
             _time = e.LogTime;
             _conclusions = e.Conclusions;

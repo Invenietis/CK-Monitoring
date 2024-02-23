@@ -162,9 +162,9 @@ namespace CK.Monitoring.Tests
 
             using( GrandOutput g = new GrandOutput( c ) )
             {
-                var taskA = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task A", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
-                var taskB = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
-                var taskC = Task.Factory.StartNew( () => DumpMonitor1082Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
+                var taskA = Task.Factory.StartNew( () => DumpMonitor1083Entries( CreateMonitorAndRegisterGrandOutput( "Task A", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
+                var taskB = Task.Factory.StartNew( () => DumpMonitor1083Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
+                var taskC = Task.Factory.StartNew( () => DumpMonitor1083Entries( CreateMonitorAndRegisterGrandOutput( "Task C", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
 
                 await Task.WhenAll( taskA, taskB, taskC );
                 await Task.Delay( 1000 );
@@ -407,12 +407,18 @@ namespace CK.Monitoring.Tests
                             .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 1 } )
                             .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } )
                             .AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } );
+            GrandOutputMemoryCollector inMemory;
             using( var g = new GrandOutput( c ) )
             {
+                inMemory = g.CreateMemoryCollector( 2000 * loop, ignoreCloseGroup: false );
                 var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
-                DumpMonitor1082Entries( m, loop );
+                DumpMonitor1083Entries( m, loop );
+                inMemory.IsDisposed.Should().BeFalse();
             }
+            inMemory.IsDisposed.Should().BeTrue();
+            // Some entries can be the identitycard.
+            inMemory.Count.Should().BeGreaterThanOrEqualTo( 1083 * loop );
             // All temporary files have been closed.
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
             fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
@@ -436,7 +442,7 @@ namespace CK.Monitoring.Tests
             {
                 var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
-                DumpMonitor1082Entries( m, loop );
+                DumpMonitor1083Entries( m, loop );
                 g.Dispose( 0 );
             }
             var fileNames = Directory.EnumerateFiles( logPath ).ToList();
@@ -449,13 +455,13 @@ namespace CK.Monitoring.Tests
                 .Should().BeLessThan( loop, $"There is less that the normal {loop} \"~~~~~FINAL TRACE~~~~~\" in text logs." );
         }
 
-        static void DumpMonitor1082Entries( IActivityMonitor monitor, int count )
+        // Caution: In the first run one entry is the IdentityCard!
+        static void DumpMonitor1083Entries( IActivityMonitor monitor, int count )
         {
             const int nbLoop = 180;
-            // Entry count per count = 3 + 180 * 6 = 1083
+            // Entry count per count = 2 + 1 + 180 * 6 = 1083
             // Entry count (for count parameter = 5): 5415
-            //      Since there is 3 parallel activities this fits into the 
-            //      default per file count of 20000.
+            //      this fits into the default per file count of 20000.
             for( int i = 0; i < count; i++ )
             {
                 using( monitor.OpenTrace( $"Dump output loop {i}" ) )
@@ -464,11 +470,12 @@ namespace CK.Monitoring.Tests
                     {
                         // Debug is not sent.
                         monitor.Debug( $"Debug log! {j}" );
+                        // These ar sent.
                         monitor.Trace( $"Trace log! {j}" );
                         monitor.Info( $"Info log! {j}" );
                         monitor.Warn( $"Warn log! {j}" );
                         monitor.Error( $"Error log! {j}" );
-                        monitor.Error( $"Fatal log! {j}" );
+                        monitor.Fatal( $"Fatal log! {j}" );
                         monitor.Error( "Exception log! {j}", _exception2 );
                     }
                 }

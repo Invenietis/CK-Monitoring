@@ -109,7 +109,7 @@ namespace CK.Monitoring
 
         static void Release( InputLogEntry c )
         {
-            Debug.Assert( c != CloseSentinel );
+            Throw.DebugAssert( c != CloseSentinel );
             Interlocked.Decrement( ref _aliveItems );
             if( _fastItem != null || Interlocked.CompareExchange( ref _fastItem, c, null ) != null )
             {
