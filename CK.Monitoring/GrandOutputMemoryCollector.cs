@@ -1,5 +1,10 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Data;
+using System.Data.Common;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CK.Core;
@@ -23,6 +28,9 @@ namespace CK.Monitoring
         // are called.
         // Instead of a ConcurrentQueue, we use a simple locked FIFOBuffer.
         readonly FIFOBuffer<ILogEntry> _buffer;
+        readonly List<ILogEntry> _cachedEntries;
+        readonly IReadOnlyList<string> _cachedText;
+        List<string>? _cachedListText;
         int _disposed;
 
         internal GrandOutputMemoryCollector( DispatcherSink sink, int maxCapacity, bool ignoreCloseGroup )
@@ -30,6 +38,13 @@ namespace CK.Monitoring
             _sink = sink;
             _handler = new Handler( this, ignoreCloseGroup );
             _buffer = new FIFOBuffer<ILogEntry>( Math.Max( 1 + maxCapacity/4, 512 ), maxCapacity );
+            _cachedEntries = new List<ILogEntry>();
+            if( ignoreCloseGroup ) _cachedText = new TextAdapter( _cachedEntries );
+            else
+            {
+                _cachedListText = new List<string>();
+                _cachedText = _cachedListText;
+            }
             _sink.AddDynamicHandler( _handler );
         }
 
@@ -45,10 +60,58 @@ namespace CK.Monitoring
         public int MaxCapacity => _buffer.MaxDynamicCapacity;
 
         /// <summary>
+        /// Gets a cache of entries.
+        /// Use <see cref="UpdateCachedEntries"/> to transfer current entries into this cache.
+        /// </summary>
+        public IReadOnlyList<ILogEntry> CachedEntries => _cachedEntries;
+
+        /// <summary>
+        /// Gets the <see cref="IBaseLogEntry.Text"/> of <see cref="CachedEntries"/>
+        /// excluding <see cref="LogEntryType.CloseGroup"/> (for which Text is null).
+        /// <para>
+        /// <see cref="UpdateCachedEntries"/> also updates this cache.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<string> CachedTexts => _cachedText;
+
+        /// <summary>
+        /// Clears <see cref="CachedEntries"/> and <see cref="CachedTexts"/>.
+        /// </summary>
+        public void ClearCache()
+        {
+            _cachedEntries.Clear();
+            _cachedListText?.Clear();
+        }
+
+        /// <summary>
+        /// Transfers the current <see cref="ILogEntry"/> to the <see cref="CachedEntries"/>
+        /// and updates <see cref="CachedTexts"/> accordingly.
+        /// Current entries are cleared.
+        /// </summary>
+        /// <returns>The cached entries.</returns>
+        public IReadOnlyList<ILogEntry> UpdateCachedEntries()
+        {
+            lock( _buffer )
+            {
+                while( _buffer.Count > 0 )
+                {
+                    ILogEntry e = _buffer.Pop();
+                    _cachedEntries.Add( e );
+                    Throw.DebugAssert( "No cached text => Text is nerver null.", _cachedListText != null || e.Text != null );
+                    if( _cachedListText != null && e.Text != null )
+                    {
+                        _cachedListText.Add( e.Text );
+                    }
+                }
+            }
+            return _cachedEntries;
+        }
+
+        /// <summary>
         /// Collects all the current <see cref="ILogEntry"/> and clears them.
         /// </summary>
         /// <returns>The current entries.</returns>
-        public ILogEntry[] ExtractAllEntries()
+        public ILogEntry[] ExtractCurrentEntries()
         {
             lock( _buffer )
             {
@@ -62,9 +125,9 @@ namespace CK.Monitoring
         /// Collects the current texts and clears the current entries.
         /// </summary>
         /// <returns>The current log texts.</returns>
-        public ImmutableArray<string> ExtractAllTexts()
+        public ImmutableArray<string> ExtractCurrentTexts()
         {
-            var a = ExtractAllEntries();
+            var a = ExtractCurrentEntries();
             var b = ImmutableArray.CreateBuilder<string>( a.Length );
             bool hasCloseGroup = false;
             foreach( var e in a )
@@ -103,8 +166,9 @@ namespace CK.Monitoring
         IGrandOutputHandler Handlers.IDynamicGrandOutputHandler.Handler => _handler;
 
         /// <summary>
-        /// Dispose this handler. No more entries will be collected but the
-        /// recevied entries are kept.
+        /// Dispose this handler.
+        /// No more entries will be collected but the recevied entries, the <see cref="CachedEntries"/>
+        /// and <see cref="CachedTexts"/> are kept.
         /// </summary>
         public void Dispose()
         {
@@ -154,6 +218,20 @@ namespace CK.Monitoring
             public ValueTask OnTimerAsync( IActivityMonitor monitor, TimeSpan timerSpan ) => default;
         }
 
+        sealed class TextAdapter : IReadOnlyList<string>
+        {
+            readonly List<ILogEntry> _e;
+
+            public TextAdapter( List<ILogEntry> e ) => _e = e;
+
+            public string this[int index] => _e[index].Text!;
+
+            public int Count => _e.Count;
+
+            public IEnumerator<string> GetEnumerator() => _e.Select( e => e.Text! ).GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
     }
 
 }
