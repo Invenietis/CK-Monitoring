@@ -153,7 +153,7 @@ namespace CK.Monitoring.Hosting
                     {
                         ActivityMonitor.DefaultFilter = defaultFilter;
                     }
-                    // If the filter is invalid (a None appears}, keep the default Trace. 
+                    // If the filter is invalid (a None appears), keep the default Trace. 
                 }
                 else
                 {

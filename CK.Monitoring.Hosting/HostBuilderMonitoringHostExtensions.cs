@@ -40,7 +40,7 @@ namespace Microsoft.Extensions.Hosting
         /// <summary>
         /// Gets an activity monitor for this builder context.
         /// <para>
-        /// This can always be called: logs in this monitor are retained and emitted once the code injected by <see cref="UseCKMonitoring(IHostBuilder)"/>
+        /// This can always be called: logs in this monitor are retained and emitted once the code injected by <see cref="UseCKMonitoring(IHostBuilder, string)"/>
         /// is executed during <see cref="IHostBuilder.Build()"/>.  
         /// </para>
         /// </summary>
@@ -49,15 +49,13 @@ namespace Microsoft.Extensions.Hosting
         public static IActivityMonitor GetBuilderMonitor( this HostBuilderContext ctx ) => GetBuilderMonitor( ctx.Properties );
 
         /// <summary>
-        /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration to the configuration section "CK-Monitoring".
+        /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration to the provided configuration section.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// <para>
         /// This can safely be called multiple times.
         /// </para>
         /// <para>
-        /// This should not be used on a new WebApplication (.Net 6 minimal API) or other new host created inside an already running
-        /// application (this would reconfigure the GrandOutput.Default).
-        /// 
+        /// This should not be used on a host created inside an already running application (this would reconfigure the GrandOutput.Default).
         /// Instead, simply configure the application services with the IActivityMonitor registrations:
         /// <code>
         ///   // The ActivityMonitor is not mapped, only the IActivityMonitor must 
