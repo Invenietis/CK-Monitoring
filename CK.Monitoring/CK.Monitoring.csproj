@@ -3,7 +3,6 @@
     <TargetFrameworks>net6.0</TargetFrameworks>
     <Description>Extends CK.ActivityMonitor with outputs and events serialization.
     Main type is GrandOutput that collects centralized logs and dispatch them in configurable handlers.</Description>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="20.0.1--0012-develop" />
