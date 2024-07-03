@@ -51,7 +51,7 @@ namespace CK.Monitoring.Hosting.Tests
                 return ValueTask.CompletedTask;
             }
 
-            public ValueTask<bool> TrySendAsync( IActivityMonitor monitor, IMulticastLogEntry e )
+            public ValueTask<bool> TrySendAsync( IActivityMonitor monitor, IFullLogEntry e )
             {
                 if( FakeSenderImplTrySendSuccess )
                 {

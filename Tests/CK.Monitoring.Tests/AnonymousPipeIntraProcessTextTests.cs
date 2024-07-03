@@ -19,7 +19,7 @@ namespace CK.Monitoring.Tests
             using( var r = LogReceiver.Start() )
             {
                 RunClient( r.PipeName );
-                Assert.AreEqual( r.WaitEnd(), LogReceiverEndStatus.Normal );
+                Assert.That( r.WaitEnd() == LogReceiverEndStatus.Normal );
             }
         }
 
@@ -120,14 +120,14 @@ namespace CK.Monitoring.Tests
                             _endFlag = LogReceiverEndStatus.Normal;
                             break;
                         }
-                        Assert.AreEqual( line, $"Line n°{iLine++}" );
+                        Assert.That( line == $"Line n°{iLine++}" );
                     }
-                    Assert.AreEqual( iLine, 20 );
+                    Assert.That( iLine == 20 );
                 }
                 catch( Exception ex )
                 {
                     _endFlag = LogReceiverEndStatus.Error;
-                    Assert.IsNull( ex, "There should not be any error here." );
+                    Assert.That( ex == null, "There should not be any error here." );
                 }
             }
 

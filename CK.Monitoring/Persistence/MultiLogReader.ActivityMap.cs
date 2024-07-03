@@ -138,7 +138,7 @@ namespace CK.Monitoring
                     _files = files;
                 }
 
-                public IMulticastLogEntry Current
+                public IFullLogEntry Current
                 {
                     get
                     {
@@ -327,11 +327,11 @@ namespace CK.Monitoring
 
                     internal void FillPage( MultiFileReader r, List<ParentedLogEntry> path )
                     {
-                        ILogEntry? lastPrevEntry = Count > 0 ? Entries[Count - 1].Entry : null;
+                        IBaseLogEntry? lastPrevEntry = Count > 0 ? Entries[Count - 1].Entry : null;
                         Count = DoFillPage( r, path, lastPrevEntry );
                     }
 
-                    int DoFillPage( MultiFileReader r, List<ParentedLogEntry> path, ILogEntry? lastPrevEntry )
+                    int DoFillPage( MultiFileReader r, List<ParentedLogEntry> path, IBaseLogEntry? lastPrevEntry )
                     {
                         ParentedLogEntry? parent = path.Count > 0 ? path[path.Count - 1] : null;
                         int i = 0;
@@ -371,20 +371,20 @@ namespace CK.Monitoring
                             // we ignore this pathological case.
                             if( entry.PreviousEntryType != LogEntryType.None )
                             {
-                                ILogEntry? prevEntry = i > 0 ? Entries[i - 1].Entry : lastPrevEntry;
+                                IBaseLogEntry? prevEntry = i > 0 ? Entries[i - 1].Entry : lastPrevEntry;
                                 if( prevEntry == null || prevEntry.LogTime != entry.PreviousLogTime )
                                 {
                                     if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingLine( entry.PreviousLogTime ) ) ) return i;
                                 }
                             }
                             // Now that missing data has been handled, appends the line itself.
-                            if( AppendEntry( path, ref parent, ref i, entry.CreateUnicastLogEntry() ) ) return i;
+                            if( AppendEntry( path, ref parent, ref i, entry.CreateLightLogEntry() ) ) return i;
                         }
                         while( r.MoveNext() );
                         return i;
                     }
 
-                    bool AppendEntry( List<ParentedLogEntry> path, ref ParentedLogEntry? parent, ref int i, ILogEntry e )
+                    bool AppendEntry( List<ParentedLogEntry> path, ref ParentedLogEntry? parent, ref int i, IBaseLogEntry e )
                     {
                         Debug.Assert( e.LogType != LogEntryType.None );
                         if( e.LogType == LogEntryType.CloseGroup )

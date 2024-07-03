@@ -10,7 +10,7 @@ namespace CK.Monitoring
     /// This client writes .ckmon files for one monitor.
     /// To close output file, simply <see cref="IActivityMonitorOutput.UnregisterClient">unregister</see> this client.
     /// </summary>
-    public sealed class CKMonWriterClient : IActivityMonitorBoundClient, IMulticastLogInfo
+    public sealed class CKMonWriterClient : IActivityMonitorBoundClient, IFullLogInfo
     {
         readonly string _path;
         readonly int _maxCountPerFile;
@@ -120,29 +120,13 @@ namespace CK.Monitoring
         /// <summary>
         /// Gets whether this writer is opened.
         /// </summary>
-        public bool IsOpened => _file != null; 
+        public bool IsOpened => _file != null;
 
-        #region Auto implementation of IMulticastLogInfo to call UnicastWrite on file.
+        #region Auto implementation of IFullLogInfo to call Write on file.
 
-        string IMulticastLogInfo.GrandOutputId =>  _grandOutputId;
+        string IFullLogInfo.GrandOutputId =>  _grandOutputId;
 
-        string IMulticastLogInfo.MonitorId
-        {
-            get
-            {
-                Debug.Assert( _source != null && _file != null );
-                return _source.InternalMonitor.UniqueId;
-            }
-        }
-        int IMulticastLogInfo.GroupDepth
-        {
-            get
-            {
-                Debug.Assert( _source != null && _file != null );
-                return _entryDepth;
-            }
-        }
-        LogEntryType IMulticastLogInfo.PreviousEntryType
+        LogEntryType IFullLogInfo.PreviousEntryType
         {
             get
             {
@@ -150,7 +134,7 @@ namespace CK.Monitoring
                 return _prevLogType;
             }
         }
-        DateTimeStamp IMulticastLogInfo.PreviousLogTime
+        DateTimeStamp IFullLogInfo.PreviousLogTime
         {
             get
             {
@@ -164,7 +148,7 @@ namespace CK.Monitoring
         {
             if( _file != null )
             {
-                _file.UnicastWrite( data, this );
+                _file.WriteLineEntry( data, this );
                 _prevlogTime = data.LogTime;
                 _prevLogType = LogEntryType.Line;
             }
@@ -174,7 +158,7 @@ namespace CK.Monitoring
             if( _file != null )
             {
                 _entryDepth = group.Data.Depth;
-                _file.UnicastWriteOpenGroup( group, this );
+                _file.WriteOpenGroupEntry( group, this );
                 _prevlogTime = group.Data.LogTime;
                 _prevLogType = LogEntryType.OpenGroup;
             }
@@ -184,7 +168,7 @@ namespace CK.Monitoring
             if( _file != null )
             {
                 _entryDepth = group.Data.Depth;
-                _file.UnicastWriteCloseGroup( group, conclusions, this );
+                _file.WriteCloseGroupEntry( group, conclusions, this );
                 _prevlogTime = group.CloseLogTime;
                 _prevLogType = LogEntryType.CloseGroup;
             }

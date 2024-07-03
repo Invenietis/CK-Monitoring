@@ -3,48 +3,24 @@
   <Class Name="CK.Monitoring.Impl.LECloseGroup" Collapsed="true">
     <Position X="7.25" Y="3" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>CAIAAAAAAAAgAAACAAAIAQAAAAAAAEIAAABACEBAABA=</HashCode>
-      <FileName>Persistence\Impl\LECloseGroup.cs</FileName>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Persistence\Impl\LightCloseGroupEntry.cs</FileName>
     </TypeIdentifier>
     <Lollipop Position="0.2" />
   </Class>
-  <Class Name="CK.Monitoring.Impl.LELog" Collapsed="true">
+  <Class Name="CK.Monitoring.Impl.LiLog" Collapsed="true">
     <Position X="7.25" Y="0.5" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>CAIAAAAAAABgAAQCAAAIIQAAAACAAEIIAABACABAABA=</HashCode>
-      <FileName>Persistence\Impl\LELog.cs</FileName>
-    </TypeIdentifier>
-    <Lollipop Position="0.2" />
-  </Class>
-  <Class Name="CK.Monitoring.Impl.LEMCCloseGroup" Collapsed="true">
-    <Position X="7.25" Y="4.25" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>CAAIQAAAAAAAAgAAAAAAAAAAAAAAAAAAQCAIAIgAAAA=</HashCode>
-      <FileName>Persistence\Impl\LEMCCloseGroup.cs</FileName>
-    </TypeIdentifier>
-    <Lollipop Position="0.2" />
-  </Class>
-  <Class Name="CK.Monitoring.Impl.LEMCLog" Collapsed="true">
-    <Position X="7.25" Y="1.75" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>CAAIQAAAAAAAAgAAAAAAAAAAAAAAAAAAQCAIAIgAAAA=</HashCode>
-      <FileName>Persistence\Impl\LEMCLog.cs</FileName>
-    </TypeIdentifier>
-    <Lollipop Position="0.2" />
-  </Class>
-  <Class Name="CK.Monitoring.Impl.LEMCOpenGroup" Collapsed="true">
-    <Position X="4.75" Y="1.75" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>CAAIQAAAAAAAAgAAAAAAAAAAAAAAAAAAQCAIAIgAAAA=</HashCode>
-      <FileName>Persistence\Impl\LEMCOpenGroup.cs</FileName>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Persistence\Impl\LightLineEntry.cs</FileName>
     </TypeIdentifier>
     <Lollipop Position="0.2" />
   </Class>
   <Class Name="CK.Monitoring.Impl.LEOpenGroup" Collapsed="true">
     <Position X="4.75" Y="0.5" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>CAIAAAAAAABgAAQCAAAIIQAAAACAAEIIAABACABAABA=</HashCode>
-      <FileName>Persistence\Impl\LEOpenGroup.cs</FileName>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Persistence\Impl\LightOpenGroupEntry.cs</FileName>
     </TypeIdentifier>
     <Lollipop Position="0.2" />
   </Class>
@@ -59,7 +35,7 @@
       <Method Name="IsMissingLogEntry" Hidden="true" />
       <Method Name="ReadGroupClosed" Hidden="true" />
       <Method Name="ReadLogTypeAndLevel" Hidden="true" />
-      <Method Name="ReadMulticastFooter" Hidden="true" />
+      <Method Name="ReadMonitorEntryFooter" Hidden="true" />
       <Method Name="UpdateTypeWithPrevious" Hidden="true" />
       <Method Name="WriteMulticastFooter" Hidden="true" />
     </Members>
@@ -67,7 +43,7 @@
       <Compartment Name="Fields" Collapsed="true" />
     </Compartments>
     <TypeIdentifier>
-      <HashCode>BAAAIoQCAAICAAAEAkAEABAgAAQBQAAAAEAAQAAgYAE=</HashCode>
+      <HashCode>DAAAIoQCAAICAQAEAkAEABAgAAQBQAAAAEAAQAAgYAE=</HashCode>
       <FileName>Persistence\LogEntry.cs</FileName>
     </TypeIdentifier>
   </Class>
@@ -78,18 +54,18 @@
       <FileName>ILogEntry.cs</FileName>
     </TypeIdentifier>
   </Interface>
-  <Interface Name="CK.Monitoring.IMulticastLogEntry">
-    <Position X="1.5" Y="4.5" Width="1.75" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAACAAAAAAAAA=</HashCode>
-      <FileName>IMulticastLogEntry.cs</FileName>
-    </TypeIdentifier>
-  </Interface>
-  <Interface Name="CK.Monitoring.IMulticastLogInfo">
+  <Interface Name="CK.Monitoring.IFullLogInfo">
     <Position X="2.75" Y="2.25" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQCAIAIAAAAA=</HashCode>
-      <FileName>IMulticastLogInfo.cs</FileName>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAIAAAAI=</HashCode>
+      <FileName>IFullLogInfo.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="CK.Monitoring.IMonitorLogEntry">
+    <Position X="1.5" Y="4.5" Width="1.75" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAQCAAAAAAAAA=</HashCode>
+      <FileName>IMonitorLogEntry.cs</FileName>
     </TypeIdentifier>
   </Interface>
   <Enum Name="CK.Monitoring.LogEntryType">

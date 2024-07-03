@@ -19,7 +19,7 @@ namespace CK.Monitoring.Impl
         IsTextTheExceptionMessage = 32,
         HasConclusions = 64,
 
-        IsMultiCast = 128,
+        IsFullEntry = 128,
 
         HasUniquifier = 256,
 
@@ -27,6 +27,8 @@ namespace CK.Monitoring.Impl
         IsPreviousKnownHasUniquifier = 1024,
         IsLFOnly = 2048,
 
-        MaxFlag = 2048
+        IsSimpleLogEntry = 4096,
+
+        MaxFlag = 4096
     }
 }

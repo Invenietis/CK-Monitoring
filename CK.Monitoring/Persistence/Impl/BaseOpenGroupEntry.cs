@@ -1,10 +1,10 @@
+using CK.Core;
 using System.Collections.Generic;
 using System.Diagnostics;
-using CK.Core;
 
 namespace CK.Monitoring.Impl
 {
-    class LELog : ILogEntry
+    class BaseOpenGroupEntry : IBaseLogEntry
     {
         readonly string _text;
         readonly CKTrait _tags;
@@ -14,7 +14,7 @@ namespace CK.Monitoring.Impl
         readonly CKExceptionData? _ex;
         readonly DateTimeStamp _time;
 
-        public LELog( string text, DateTimeStamp t, string? fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData? ex )
+        public BaseOpenGroupEntry( string text, DateTimeStamp t, string? fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData? ex )
         {
             _text = text;
             _time = t;
@@ -25,7 +25,7 @@ namespace CK.Monitoring.Impl
             _ex = ex;
         }
 
-        public LELog( LEMCLog e )
+        public BaseOpenGroupEntry( StdOpenGroupEntry e )
         {
             Debug.Assert( e.Text != null );
             _text = e.Text;
@@ -37,27 +37,27 @@ namespace CK.Monitoring.Impl
             _ex = e.Exception;
         }
 
-        public LogEntryType LogType => LogEntryType.Line;
+        public LogEntryType LogType => LogEntryType.OpenGroup;
 
         public LogLevel LogLevel => _level;
 
-        public string? Text => _text; 
+        public string? Text => _text;
 
         public CKTrait Tags => _tags; 
 
-        public DateTimeStamp LogTime => _time;
+        public DateTimeStamp LogTime => _time; 
 
-        public string? FileName => _fileName; 
+        public CKExceptionData? Exception => _ex;
+
+        public string? FileName => _fileName;
 
         public int LineNumber => _lineNumber; 
-
-        public CKExceptionData? Exception => _ex; 
 
         public IReadOnlyList<ActivityLogGroupConclusion>? Conclusions => null; 
 
         public virtual void WriteLogEntry( CKBinaryWriter w )
         {
-            LogEntry.WriteLog( w, false, _level, _time, _text, _tags, _ex, _fileName, _lineNumber );
+            LogEntry.WriteLog( w, true, _level, _time, _text, _tags, _ex, _fileName, _lineNumber );
         }
     }
 }

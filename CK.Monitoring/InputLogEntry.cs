@@ -13,7 +13,7 @@ namespace CK.Monitoring
     /// <summary>
     /// Input entries are cached and reused and can be retained if needed.
     /// </summary>
-    public sealed partial class InputLogEntry : IMulticastLogEntry
+    public sealed partial class InputLogEntry : IFullLogEntry
     {
         internal static readonly InputLogEntry CloseSentinel = new InputLogEntry();
 
@@ -159,13 +159,25 @@ namespace CK.Monitoring
         public DateTimeStamp PreviousLogTime => _previousLogTime;
 
         /// <inheritdoc />
-        public ILogEntry CreateUnicastLogEntry()
+        public IBaseLogEntry CreateLightLogEntry()
         {
             return LogType switch
             {
-                LogEntryType.Line => new LELog( _text!, _logTime, _fileName, _lineNumber, _logLevel, _tags, _exception ),
-                LogEntryType.OpenGroup => new LEOpenGroup( _text!, _logTime, _fileName, _lineNumber, _logLevel, _tags, _exception ),
-                LogEntryType.CloseGroup => new LECloseGroup( _logTime, _logLevel, _conclusions ),
+                LogEntryType.Line => new BaseLineEntry( _text!, _logTime, _fileName, _lineNumber, _logLevel, _tags, _exception ),
+                LogEntryType.OpenGroup => new BaseOpenGroupEntry( _text!, _logTime, _fileName, _lineNumber, _logLevel, _tags, _exception ),
+                LogEntryType.CloseGroup => new BaseCloseGroupEntry( _logTime, _logLevel, _conclusions ),
+                _ => Throw.InvalidOperationException<IBaseLogEntry>()
+            }; ;
+        }
+
+        /// <inheritdoc />
+        public ILogEntry CreateSimpleLogEntry()
+        {
+            return LogType switch
+            {
+                LogEntryType.Line => new StdLineEntry( _monitorId, _groupDepth, _text!, _logTime, _fileName, _lineNumber, _logLevel, _tags, _exception ),
+                LogEntryType.OpenGroup => new StdOpenGroupEntry( _monitorId, _groupDepth, _text!, _logTime, _fileName, _lineNumber, _logLevel, _tags, _exception ),
+                LogEntryType.CloseGroup => new StdCloseGroupEntry( _monitorId, _groupDepth, _logTime, _logLevel, _conclusions ),
                 _ => Throw.InvalidOperationException<ILogEntry>()
             }; ;
         }

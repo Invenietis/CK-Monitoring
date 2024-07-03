@@ -1,73 +1,35 @@
 using CK.Core;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
 
 namespace CK.Monitoring
 {
     /// <summary>
-    /// Unified interface for log entries whatever their <see cref="LogType"/> is.
-    /// All log entries can be exposed through this "rich" interface.
+    /// Unified interface for log entries with their <see cref="MonitorId"/> and <see cref="GroupDepth"/> whatever
+    /// their <see cref="IBaseLogEntry.LogType"/> is.
     /// </summary>
-    public interface ILogEntry
+    public interface ILogEntry : IBaseLogEntry
     {
         /// <summary>
-        /// Gets the type of the log entry.
+        /// Gets the monitor identifier.
+        /// This string is at least 4 characters long: either the special <see cref="ActivityMonitor.ExternalLogMonitorUniqueId"/>
+        /// or a random base 64 url string.
+        /// <para>
+        /// The random identifier is currently 11 characters long.
+        /// This may change but will never be longer than 64 characters.
+        /// </para>
         /// </summary>
-        LogEntryType LogType { get; }
+        string MonitorId { get; }
 
         /// <summary>
-        /// Get the log level (between LogLevel.Debug and LogLevel.Fatal).
-        /// This is available whatever <see cref="LogType"/> is.
+        /// Gets the depth of the entry in the source <see cref="MonitorId"/>.
+        /// This is always available (whatever the <see cref="IBaseLogEntry.LogType">LogType</see> is <see cref="LogEntryType.OpenGroup"/>, <see cref="LogEntryType.CloseGroup"/>,
+        /// or <see cref="LogEntryType.Line"/>).
         /// </summary>
-        LogLevel LogLevel { get; }
+        int GroupDepth { get; }
 
         /// <summary>
-        /// Gets the log text.
-        /// Null when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
+        /// Creates a base entry from this one.
+        /// The <see cref="MonitorId"/> and <see cref="GroupDepth"/> are lost (but less memory is used).
         /// </summary>
-        string? Text { get; }
-
-        /// <summary>
-        /// Gets the tags for this entry.
-        /// Always equals to <see cref="ActivityMonitor.Tags.Empty"/> when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
-        /// </summary>
-        CKTrait Tags { get; }
-
-        /// <summary>
-        /// Gets the log time.
-        /// This is available whatever <see cref="LogType"/> is.
-        /// </summary>
-        DateTimeStamp LogTime { get; }
-
-        /// <summary>
-        /// Gets the exception data if any (can be not null only when <see cref="LogType"/> is <see cref="LogEntryType.OpenGroup"/>: exceptions are exclusively carried by groups).
-        /// </summary>
-        CKExceptionData? Exception { get; }
-
-        /// <summary>
-        /// Gets the file name of the source code that emitted the log.
-        /// Null when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
-        /// </summary>
-        string? FileName { get; }
-
-        /// <summary>
-        /// Gets the line number in the source code <see cref="FileName"/> that emitted the log.
-        /// 0 when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
-        /// </summary>
-        int LineNumber { get; }
-
-        /// <summary>
-        /// Gets any group conclusion. 
-        /// Always null except of course when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
-        /// </summary>
-        IReadOnlyList<ActivityLogGroupConclusion>? Conclusions { get; }
-
-        /// <summary>
-        /// Writes the entry in a <see cref="BinaryWriter"/>.
-        /// Use <see cref="LogEntry.Read"/> to read it back.
-        /// </summary>
-        /// <param name="w">The binary writer.</param>
-        void WriteLogEntry( CKBinaryWriter w );
+        IBaseLogEntry CreateLightLogEntry();
     }
 }

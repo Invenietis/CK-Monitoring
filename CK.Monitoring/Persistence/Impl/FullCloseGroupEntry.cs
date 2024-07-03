@@ -4,15 +4,13 @@ using System.Collections.Generic;
 
 namespace CK.Monitoring.Impl
 {
-    sealed class LEMCCloseGroup : LECloseGroup, IMulticastLogEntry
+    sealed class FullCloseGroupEntry : StdCloseGroupEntry, IFullLogEntry
     {
-        readonly string _monitorId;
         readonly string _grandOutputId;
-        readonly int _depth;
         readonly DateTimeStamp _previousLogTime;
         readonly LogEntryType _previousEntryType;
 
-        public LEMCCloseGroup( string grandOutputId,
+        public FullCloseGroupEntry( string grandOutputId,
                                string monitorId,
                                int depth,
                                DateTimeStamp previousLogTime,
@@ -20,34 +18,24 @@ namespace CK.Monitoring.Impl
                                DateTimeStamp t,
                                LogLevel level,
                                IReadOnlyList<ActivityLogGroupConclusion>? c )
-            : base( t, level, c )
+            : base( monitorId, depth, t, level, c )
         {
             _grandOutputId = grandOutputId;
-            _monitorId = monitorId;
-            _depth = depth;
             _previousEntryType = previousEntryType;
             _previousLogTime = previousLogTime;
         }
 
         public string GrandOutputId => _grandOutputId;
 
-        public string MonitorId => _monitorId;
-
-        public int GroupDepth => _depth;
-
         public DateTimeStamp PreviousLogTime => _previousLogTime; 
 
-        public LogEntryType PreviousEntryType => _previousEntryType; 
+        public LogEntryType PreviousEntryType => _previousEntryType;
+
+        public ILogEntry CreateSimpleLogEntry() => new StdCloseGroupEntry( this );
 
         public override void WriteLogEntry( CKBinaryWriter w )
         {
-            LogEntry.WriteCloseGroup( w, _grandOutputId, _monitorId, _previousEntryType, _previousLogTime, _depth, LogLevel, LogTime, Conclusions );
+            LogEntry.WriteCloseGroup( w, _grandOutputId, MonitorId, _previousEntryType, _previousLogTime, GroupDepth, LogLevel, LogTime, Conclusions );
         }
-
-        public ILogEntry CreateUnicastLogEntry()
-        {
-            return new LECloseGroup( this );
-        }
-
     }
 }

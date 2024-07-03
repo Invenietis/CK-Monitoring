@@ -10,16 +10,16 @@ using System.Text;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// A log reader acts as an enumerator of <see cref="ILogEntry"/> that are stored in a <see cref="Stream"/>.
+    /// A log reader acts as an enumerator of <see cref="IBaseLogEntry"/> that are stored in a <see cref="Stream"/>.
     /// </summary>
-    public sealed class LogReader : IEnumerator<ILogEntry>, IDisposable
+    public sealed class LogReader : IEnumerator<IBaseLogEntry>, IDisposable
     {
         Stream? _stream;
         CKBinaryReader? _binaryReader;
         readonly int _streamVersion;
         readonly int _headerLength;
-        ILogEntry? _current;
-        IMulticastLogEntry? _currentMulticast;
+        IBaseLogEntry? _current;
+        IFullLogEntry? _currentMulticast;
         long _currentPosition;
         Exception? _readException;
         bool _badEndOfFille;
@@ -29,7 +29,7 @@ namespace CK.Monitoring
         /// The first released version is 5.
         /// Version 7 supports the LogLevel.Debug level.
         /// Version 8 uses a string as the monitor UniqueId instead of a Guid.
-        /// Version 9 introduces the <see cref="IMulticastLogInfo.GrandOutputId"/>.
+        /// Version 9 introduces the <see cref="IFullLogInfo.GrandOutputId"/>.
         /// </summary>
         public const int CurrentStreamVersion = 9;
 
@@ -67,14 +67,14 @@ namespace CK.Monitoring
         /// An optional offset where the stream position must be initially set: this is the position of an entry in the actual (potentially uncompressed stream),
         /// not the offset in the original stream.
         /// </param>
-        /// <param name="filter">An optional <see cref="MulticastFilter"/>.</param>
+        /// <param name="filter">An optional <see cref="BaseEntryFilter"/>.</param>
         /// <returns>A <see cref="LogReader"/> that will close the file when disposed.</returns>
         /// <remarks>
         /// .ckmon files exist in different file versions, depending on headers.
         /// The file can be compressed using GZipStream, in which case the header will be the magic GZIP header: 1F 8B.
         /// New header (applies to version 5), the file will start with 43 4B 4D 4F 4E (CKMON in ASCII), followed by the version number, instead of only the version number.
         /// </remarks>
-        public static LogReader Open( string path, long dataOffset = 0, MulticastFilter? filter = null )
+        public static LogReader Open( string path, long dataOffset = 0, BaseEntryFilter? filter = null )
         {
             Throw.CheckNotNullOrEmptyArgument( path );
             FileStream? fs = null;
@@ -99,14 +99,14 @@ namespace CK.Monitoring
         /// An optional offset where the stream position must be initially set: this is the position of an entry in the actual (potentially uncompressed stream),
         /// not the offset in the original stream.
         /// </param>
-        /// <param name="filter">An optional <see cref="MulticastFilter"/>.</param>
+        /// <param name="filter">An optional <see cref="BaseEntryFilter"/>.</param>
         /// <returns>A <see cref="LogReader"/> that will close the file when disposed.</returns>
         /// <remarks>
         /// .ckmon files exist in different file versions, depending on headers.
         /// The file can be compressed using GZipStream, in which case the header will be the magic GZIP header: 1F 8B.
         /// New header (applies to version 5), the file will start with 43 4B 4D 4F 4E (CKMON in ASCII), followed by the version number, instead of only the version number.
         /// </remarks>
-        public static LogReader Open( Stream seekableStream, long dataOffset = 0, MulticastFilter? filter = null )
+        public static LogReader Open( Stream seekableStream, long dataOffset = 0, BaseEntryFilter? filter = null )
         {
             Throw.CheckNotNullArgument( seekableStream );
             Throw.CheckArgument( seekableStream.CanSeek );
@@ -142,9 +142,10 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Enables filtering of a multi-cast stream: only entries from the specified monitor will be read. 
+        /// Enables filtering of a <see cref="IFullLogEntry"/> stream: only entries from the specified monitor will be read
+        /// and enumerated as minimal <see cref="IBaseLogEntry"/>.
         /// </summary>
-        public class MulticastFilter
+        public class BaseEntryFilter
         {
             /// <summary>
             /// The filtered monitor identifier.
@@ -158,36 +159,26 @@ namespace CK.Monitoring
             public readonly long KnownLastMonitorEntryOffset;
 
             /// <summary>
-            /// Initializes a new <see cref="MulticastFilter"/>.
+            /// Initializes a new <see cref="BaseEntryFilter"/>.
             /// </summary>
             /// <param name="monitorId">Monitor identifier to filter.</param>
             /// <param name="knownLastMonitorEntryOffset">Offset of the last entry in the stream (when known this enables to stop processing as soon as possible).</param>
-            public MulticastFilter( string monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
+            public BaseEntryFilter( string monitorId, long knownLastMonitorEntryOffset = Int64.MaxValue )
             {
                 MonitorId = monitorId;
                 KnownLastMonitorEntryOffset = knownLastMonitorEntryOffset;
             }
-
-            /// <summary>
-            /// Initializes a new <see cref="MulticastFilter"/> for a <see cref="ActivityMonitor"/>: uses its <see cref="IActivityLogger.UniqueId"/> that
-            /// is explicitly implemented. (This is a mainly for tests.)
-            /// </summary>
-            /// <param name="m">Activity Monitor to filter.</param>
-            public MulticastFilter( ActivityMonitor m )
-                : this( m.UniqueId )
-            {
-            }
         }
 
         /// <summary>
-        /// Gets or sets a <see cref="MulticastFilter"/> that will be taken into account during the next <see cref="MoveNext"/>.
-        /// Only entries from this monitor will be extracted when reading a <see cref="IMulticastLogEntry"/> (pure unicast <see cref="ILogEntry"/> will be ignored).
+        /// Gets or sets a <see cref="BaseEntryFilter"/> that will be taken into account during the next <see cref="MoveNext"/>.
+        /// Only entries from this monitor will be extracted when reading a <see cref="IFullLogEntry"/> (pure unicast <see cref="IBaseLogEntry"/> will be ignored).
         /// </summary>
         /// <remarks>
-        /// Note that the <see cref="Current"/> will be <see cref="ILogEntry"/> objects: multi-cast entry properties (<see cref="IMulticastLogInfo.MonitorId"/> 
-        /// and <see cref="IMulticastLogEntry.GroupDepth"/>) are no more available when a filter is set.
+        /// Note that the <see cref="Current"/> will be <see cref="IBaseLogEntry"/> objects: <see cref="IFullLogInfo"/> 
+        /// properties are no more available when a filter is set.
         /// </remarks>
-        public MulticastFilter? CurrentFilter { get; set; }
+        public BaseEntryFilter? CurrentFilter { get; set; }
 
         /// <summary>
         /// Gets the stream version. It is available only after the first call to <see cref="MoveNext"/>.
@@ -195,10 +186,10 @@ namespace CK.Monitoring
         public int StreamVersion => _streamVersion; 
 
         /// <summary>
-        /// Current <see cref="ILogEntry"/> that can be a <see cref="IMulticastLogEntry"/>.
+        /// Current <see cref="IBaseLogEntry"/> that can be a <see cref="IFullLogEntry"/>.
         /// As usual, <see cref="MoveNext"/> must be called before getting the first entry.
         /// </summary>
-        public ILogEntry Current
+        public IBaseLogEntry Current
         {
             get
             {
@@ -208,13 +199,13 @@ namespace CK.Monitoring
         }
 
         /// <summary>
-        /// Gets the <see cref="Current"/> entry if the underlying entry is a <see cref="IMulticastLogEntry"/>, <see langword="null"/> otherwise.
+        /// Gets the <see cref="Current"/> entry if the underlying entry is a <see cref="IFullLogEntry"/>, <see langword="null"/> otherwise.
         /// This captures the actual entry when a <see cref="CurrentFilter"/> is set (Current is then a mere Unicast entry).
         /// <para>
         /// <see cref="MoveNext"/> must be called before getting the first entry.
         /// </para>
         /// </summary>
-        public IMulticastLogEntry? CurrentMulticast
+        public IFullLogEntry? CurrentMulticast
         {
             get
             {
@@ -234,7 +225,7 @@ namespace CK.Monitoring
         public bool BadEndOfFileMarker => _badEndOfFille;
 
         /// <summary>
-        /// Current <see cref="IMulticastLogEntry"/> with its associated position in the stream.
+        /// Current <see cref="IFullLogEntry"/> with its associated position in the stream.
         /// The current entry must be a multi-cast one and, as usual, <see cref="MoveNext"/> must be
         /// called before getting the first entry.
         /// </summary>
@@ -253,7 +244,7 @@ namespace CK.Monitoring
         public long StreamOffset => _currentPosition; 
 
         /// <summary>
-        /// Attempts to read the next <see cref="ILogEntry"/>.
+        /// Attempts to read the next <see cref="IBaseLogEntry"/>.
         /// </summary>
         /// <returns>True on success, false otherwise.</returns>
         public bool MoveNext()
@@ -265,7 +256,7 @@ namespace CK.Monitoring
             }
             _currentPosition = _stream.Position - _headerLength;
             ReadNextEntry();
-            _currentMulticast = _current as IMulticastLogEntry;
+            _currentMulticast = _current as IFullLogEntry;
             var f = CurrentFilter;
             if( f != null )
             {
@@ -277,7 +268,7 @@ namespace CK.Monitoring
                         break;
                     }
                     ReadNextEntry();
-                    _currentMulticast = _current as IMulticastLogEntry;
+                    _currentMulticast = _current as IFullLogEntry;
                 }
             }
             return _current != null;

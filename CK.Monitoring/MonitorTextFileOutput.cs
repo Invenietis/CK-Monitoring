@@ -16,7 +16,7 @@ namespace CK.Monitoring
         bool _canFlush;
 
         /// <summary>
-        /// Initializes a new file for <see cref="IMulticastLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".log" extension.
+        /// Initializes a new file for <see cref="IFullLogEntry"/>: the final file name is based on <see cref="FileUtil.FileNameUniqueTimeUtcFormat"/> with a ".log" extension.
         /// You must call <see cref="MonitorFileOutputBase.Initialize">Initialize</see> before actually using this object.
         /// </summary>
         /// <param name="configuredPath">The path: it can be absolute and when relative, it will be under <see cref="LogFile.RootLogPath"/> (that must be set).</param>
@@ -32,7 +32,7 @@ namespace CK.Monitoring
         /// Writes a log entry.
         /// </summary>
         /// <param name="e">The log entry.</param>
-        public void Write( IMulticastLogEntry e )
+        public void Write( IFullLogEntry e )
         {
             BeforeWriteEntry();
             Debug.Assert( _writer != null );

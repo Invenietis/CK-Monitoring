@@ -8,7 +8,7 @@ using System.Text;
 namespace CK.Monitoring
 {
     /// <summary>
-    /// Writes <see cref="IMulticastLogEntry"/> to a <see cref="StringBuilder"/>.
+    /// Writes <see cref="IFullLogEntry"/> to a <see cref="StringBuilder"/>.
     /// This object is not thread-safe. If it must be used in a concurrent manner, 
     /// a lock should protect it.
     /// </summary>
@@ -75,7 +75,7 @@ namespace CK.Monitoring
             return String.Create( 3, value, (s,v) => { s[0] = _b64e[(value & 258048) >> 12]; s[1] = _b64e[(value & 4032) >> 06]; s[2] = _b64e[(value & 63)]; } );
         }
 
-        string GetFormattedDate( IMulticastLogEntry e )
+        string GetFormattedDate( IFullLogEntry e )
         {
             string output;
             // Log time prefixes the first line only.
@@ -168,7 +168,7 @@ namespace CK.Monitoring
         /// <param name="logEntry">Entry to format.</param>
         /// <param name="entrySeparator">Separate the two entries when needed. Default null resolve to <see cref="Environment.NewLine"/>.</param>
         /// <returns>Formatted log entries.</returns>
-        public string FormatEntryString( IMulticastLogEntry logEntry, string? entrySeparator = null )
+        public string FormatEntryString( IFullLogEntry logEntry, string? entrySeparator = null )
         {
             if( entrySeparator == null ) entrySeparator = Environment.NewLine;
             var (before, entry) = FormatEntry( logEntry );
@@ -187,7 +187,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="logEntry"></param>
         /// <returns>A possible first entry - for monitor numbering - and the entry itself.</returns>
-        public (FormattedEntry Before, FormattedEntry Entry) FormatEntry( IMulticastLogEntry logEntry )
+        public (FormattedEntry Before, FormattedEntry Entry) FormatEntry( IFullLogEntry logEntry )
         {
             FormattedEntry before = default;
             string formattedDate = GetFormattedDate( logEntry );

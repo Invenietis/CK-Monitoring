@@ -1,10 +1,10 @@
-using CK.Core;
 using System.Collections.Generic;
 using System.Diagnostics;
+using CK.Core;
 
 namespace CK.Monitoring.Impl
 {
-    class LEOpenGroup : ILogEntry
+    class BaseLineEntry : IBaseLogEntry
     {
         readonly string _text;
         readonly CKTrait _tags;
@@ -14,7 +14,7 @@ namespace CK.Monitoring.Impl
         readonly CKExceptionData? _ex;
         readonly DateTimeStamp _time;
 
-        public LEOpenGroup( string text, DateTimeStamp t, string? fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData? ex )
+        public BaseLineEntry( string text, DateTimeStamp t, string? fileName, int lineNumber, LogLevel l, CKTrait tags, CKExceptionData? ex )
         {
             _text = text;
             _time = t;
@@ -25,7 +25,7 @@ namespace CK.Monitoring.Impl
             _ex = ex;
         }
 
-        public LEOpenGroup( LEMCOpenGroup e )
+        public BaseLineEntry( StdLineEntry e )
         {
             Debug.Assert( e.Text != null );
             _text = e.Text;
@@ -37,27 +37,27 @@ namespace CK.Monitoring.Impl
             _ex = e.Exception;
         }
 
-        public LogEntryType LogType => LogEntryType.OpenGroup;
+        public LogEntryType LogType => LogEntryType.Line;
 
         public LogLevel LogLevel => _level;
 
-        public string? Text => _text;
+        public string? Text => _text; 
 
         public CKTrait Tags => _tags; 
 
-        public DateTimeStamp LogTime => _time; 
+        public DateTimeStamp LogTime => _time;
 
-        public CKExceptionData? Exception => _ex;
-
-        public string? FileName => _fileName;
+        public string? FileName => _fileName; 
 
         public int LineNumber => _lineNumber; 
+
+        public CKExceptionData? Exception => _ex; 
 
         public IReadOnlyList<ActivityLogGroupConclusion>? Conclusions => null; 
 
         public virtual void WriteLogEntry( CKBinaryWriter w )
         {
-            LogEntry.WriteLog( w, true, _level, _time, _text, _tags, _ex, _fileName, _lineNumber );
+            LogEntry.WriteLog( w, false, _level, _time, _text, _tags, _ex, _fileName, _lineNumber );
         }
     }
 }

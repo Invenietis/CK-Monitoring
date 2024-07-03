@@ -9,7 +9,7 @@ namespace CK.Monitoring
         /// <summary>
         /// The log entry.
         /// </summary>
-        public readonly IMulticastLogEntry Entry;
+        public readonly IFullLogEntry Entry;
         
         /// <summary>
         /// The entry's offset.
@@ -21,7 +21,7 @@ namespace CK.Monitoring
         /// </summary>
         /// <param name="e">The entry.</param>
         /// <param name="o">The offset.</param>
-        public MulticastLogEntryWithOffset( IMulticastLogEntry e, long o )
+        public MulticastLogEntryWithOffset( IFullLogEntry e, long o )
         {
             Entry = e;
             Offset = o;

@@ -20,8 +20,8 @@ namespace CK.Monitoring.Tests.Persistence
             var exAgg = new CKExceptionData( "agg-message", "typeof(agg-exception)", "agg-assemblyQualifiedName", "agg-stackTrace", ex2, "fileName", "fusionLog", null, new[] { ex2, exL } );
 
             var prevLog = DateTimeStamp.UtcNow;
-            ILogEntry e1 = LogEntry.CreateLog( "Text1", new DateTimeStamp( DateTime.UtcNow, 42 ), LogLevel.Info, "c:\\test.cs", 3712, ActivityMonitor.Tags.CreateToken, exAgg );
-            ILogEntry e2 = LogEntry.CreateMulticastLog( "GOId", "3712", LogEntryType.Line, prevLog, 5, "Text2", DateTimeStamp.UtcNow, LogLevel.Fatal, null, 3712, ActivityMonitor.Tags.CreateToken, exAgg ); ;
+            IBaseLogEntry e1 = LogEntry.CreateLog( "Text1", new DateTimeStamp( DateTime.UtcNow, 42 ), LogLevel.Info, "c:\\test.cs", 3712, ActivityMonitor.Tags.CreateToken, exAgg );
+            IBaseLogEntry e2 = LogEntry.CreateMulticastLog( "GOId", "3712", LogEntryType.Line, prevLog, 5, "Text2", DateTimeStamp.UtcNow, LogLevel.Fatal, null, 3712, ActivityMonitor.Tags.CreateToken, exAgg ); ;
 
             Debug.Assert( e1.Exception != null && e2.Exception != null );
 

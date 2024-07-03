@@ -57,7 +57,7 @@ namespace CK.Monitoring
                 _identityCardCreated.Token.UnsafeRegister( _ => action( this ), null );
             }
 
-            internal void Register( RawLogFileMonitorOccurence fileOccurrence, bool newOccurrence, long streamOffset, IMulticastLogEntry log )
+            internal void Register( RawLogFileMonitorOccurence fileOccurrence, bool newOccurrence, long streamOffset, IFullLogEntry log )
             {
                 lock( _files )
                 {
@@ -97,7 +97,7 @@ namespace CK.Monitoring
                 }
             }
 
-            void HandleIdentityCardTag( IMulticastLogEntry log, CKTrait t )
+            void HandleIdentityCardTag( IFullLogEntry log, CKTrait t )
             {
                 if( t == IdentityCard.IdentityCardFull )
                 {
@@ -177,7 +177,7 @@ namespace CK.Monitoring
             public LogReader CreateFilteredReaderAndMoveTo( long streamOffset )
             {
                 if( streamOffset == -1 ) streamOffset = FirstOffset;
-                var r = LogReader.Open( LogFile.FileName, streamOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                var r = LogReader.Open( LogFile.FileName, streamOffset, new LogReader.BaseEntryFilter( MonitorId, LastOffset ) );
                 if( !r.MoveNext() )
                 {
                     r.Dispose();
@@ -194,7 +194,7 @@ namespace CK.Monitoring
             /// <returns>A log reader that will read only entries from this monitor.</returns>
             public LogReader CreateFilteredReaderAndMoveTo( DateTimeStamp logTime )
             {
-                var r = LogReader.Open( LogFile.FileName, FirstOffset, new LogReader.MulticastFilter( MonitorId, LastOffset ) );
+                var r = LogReader.Open( LogFile.FileName, FirstOffset, new LogReader.BaseEntryFilter( MonitorId, LastOffset ) );
                 while( r.MoveNext() && r.Current.LogTime < logTime ) ;
                 if( r.ReadException != null || r.BadEndOfFileMarker )
                 {
@@ -296,7 +296,7 @@ namespace CK.Monitoring
                             _fileVersion = r.StreamVersion;
                             do
                             {
-                                if( r.Current is IMulticastLogEntry log )
+                                if( r.Current is IFullLogEntry log )
                                 {
                                     ++_totalEntryCount;
                                     if( _firstEntryTime > log.LogTime ) _firstEntryTime = log.LogTime;
@@ -317,7 +317,7 @@ namespace CK.Monitoring
                 }
             }
 
-            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<string, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IMulticastLogEntry log )
+            void UpdateMonitor( MultiLogReader reader, long streamOffset, Dictionary<string, RawLogFileMonitorOccurence> monitorOccurrence, List<RawLogFileMonitorOccurence> monitorOccurenceList, IFullLogEntry log )
             {
                 bool newOccurrence = false;
                 if( !monitorOccurrence.TryGetValue( log.MonitorId, out RawLogFileMonitorOccurence? occ ) )
@@ -412,7 +412,7 @@ namespace CK.Monitoring
             return f;
         }
 
-        LiveIndexedMonitor RegisterOneLog( RawLogFileMonitorOccurence fileOccurrence, bool newOccurrence, long streamOffset, IMulticastLogEntry log )
+        LiveIndexedMonitor RegisterOneLog( RawLogFileMonitorOccurence fileOccurrence, bool newOccurrence, long streamOffset, IFullLogEntry log )
         {
             Debug.Assert( fileOccurrence.MonitorId == log.MonitorId );
             Debug.Assert( !newOccurrence || (fileOccurrence.FirstEntryTime == log.LogTime && fileOccurrence.LastEntryTime == log.LogTime ) );
