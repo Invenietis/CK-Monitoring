@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static CK.Core.ActivityMonitor;
 
 namespace CK.Monitoring.Hosting
 {
@@ -92,22 +93,10 @@ namespace CK.Monitoring.Hosting
         void Initialize( IHostEnvironment env, ILoggingBuilder dotNetLogs, IConfiguration globalConfiguration, IConfigurationSection section )
         {
             _section = section;
-            if( _isDefaultGrandOutput )
+            if( LogFile.RootLogPath == null )
             {
-                if( LogFile.RootLogPath == null )
-                {
-                    LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
-                }
-                // Temporary.
-                if( !section.Exists() || !section.GetSection( nameof( GrandOutput ) ).Exists() )
-                {
-                    if( globalConfiguration.GetSection( "Monitoring" ).Exists() )
-                    {
-                        throw new CKException( "The \"Monitoring\" section MUST NOW be renamed \"CK-Monitoring\"." );
-                    }
-                }
+                LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
             }
-
             ApplyDynamicConfiguration( initialConfigMustWaitForApplication: true );
             dotNetLogs.AddProvider( _loggerProvider );
 
@@ -198,30 +187,22 @@ namespace CK.Monitoring.Hosting
             _loggerProvider._running = dotNetLogs;
 
             // Applying Tags.
-            var rawTags = _section.GetSection( "TagFilters" ).Get<string[][]>();
-            if( rawTags != null && rawTags.Length > 0 )
+            List<(CKTrait, LogClamper)>? parsedTags = null;
+            foreach( var entry in _section.GetSection( "TagFilters" ).GetChildren() )
             {
-                var tags = new List<(CKTrait, LogClamper)>();
-                foreach( var bi in rawTags )
+                if( int.TryParse( entry.Key, out var idxEntry ) )
                 {
-                    if( bi != null && bi[0] != null && bi[1] != null )
-                    {
-                        var t = ActivityMonitor.Tags.Register( bi[0] );
-                        if( !t.IsEmpty && LogClamper.TryParse( bi[1], out var c ) )
-                        {
-                            tags.Add( (t, c) );
-                        }
-                        else
-                        {
-                            if( t.IsEmpty )
-                                _target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Tag is empty" );
-                            else _target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters entry '{bi[0]},{bi[1]}'. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
-                        }
-                    }
+                    parsedTags = HandleTag( parsedTags, entry, entry["0"], entry["1"] );
                 }
-                ActivityMonitor.Tags.SetFilters( tags.ToArray() );
+                else
+                {
+                    parsedTags = HandleTag( parsedTags, entry, entry.Key, entry.Value );
+                }
             }
-
+            if( parsedTags != null )
+            {
+                ActivityMonitor.Tags.SetFilters( parsedTags.ToArray() );
+            }
             if( hasGlobalDefaultFilter )
             {
                 // Always log the parse error, but only log and applies if this is the initial configuration.
@@ -233,6 +214,26 @@ namespace CK.Monitoring.Hosting
                 {
                     SetGlobalDefaultFilter( defaultFilter );
                 }
+            }
+
+            List<(CKTrait, LogClamper)>? HandleTag( List<(CKTrait, LogClamper)>? parsedTags, IConfigurationSection entry, string? name, string? filter )
+            {
+                if( name != null && filter != null )
+                {
+                    var t = ActivityMonitor.Tags.Register( name );
+                    if( !t.IsEmpty && LogClamper.TryParse( filter, out var c ) )
+                    {
+                        parsedTags ??= new List<(CKTrait, LogClamper)>();
+                        parsedTags.Add( (t, c) );
+                    }
+                    else
+                    {
+                        if( t.IsEmpty )
+                            _target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters '{entry.Path}': [{name},{filter}]. Tag is empty" );
+                        else _target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters '{entry.Path}': [{name},{filter}]. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                    }
+                }
+                return parsedTags;
             }
         }
 
@@ -265,14 +266,14 @@ namespace CK.Monitoring.Hosting
                     // This is required for handlers that have no configuration properties:
                     // "Handlers": { "Console": true } does the job.
                     // The only case of "falseness" we consider here is "false": we ignore the key in this case.
-                    string value = hConfig.Value;
+                    string? value = hConfig.Value;
                     if( !String.IsNullOrWhiteSpace( value )
                         && String.Equals( value, "false", StringComparison.OrdinalIgnoreCase ) ) continue;
 
                     // Resolve configuration type using one of two available strings:
                     // 1. From "ConfigurationType" property, inside the value object
                     Type? resolved = null;
-                    string configTypeProperty = hConfig.GetValue( "ConfigurationType", string.Empty );
+                    string? configTypeProperty = hConfig["ConfigurationType"];
                     if( string.IsNullOrEmpty( configTypeProperty ) )
                     {
                         // No ConfigurationType property:
@@ -317,61 +318,62 @@ namespace CK.Monitoring.Hosting
                     .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
             }
             return c;
-        }
-
-        static Type? TryResolveType( string name )
-        {
-            Type? resolved;
-            if( name.Contains( ',' ) )
+            static Type? TryResolveType( string name )
             {
-                // It must be an assembly qualified name.
-                // Weaken its name and try to load it.
-                // If it fails and the name does not end with "Configuration" tries with "Configuration" suffix.
-                string fullTypeName, assemblyFullName, assemblyName, versionCultureAndPublicKeyToken;
-                if( SimpleTypeFinder.SplitAssemblyQualifiedName( name, out fullTypeName, out assemblyFullName )
-                    && SimpleTypeFinder.SplitAssemblyFullName( assemblyFullName, out assemblyName, out versionCultureAndPublicKeyToken ) )
+                Type? resolved;
+                if( name.Contains( ',' ) )
                 {
-                    var weakTypeName = fullTypeName + ", " + assemblyName;
-                    resolved = SimpleTypeFinder.RawGetType( weakTypeName, false );
-                    if( IsHandlerConfiguration( resolved ) ) return resolved;
-                    if( !fullTypeName.EndsWith( "Configuration" ) )
+                    // It must be an assembly qualified name.
+                    // Weaken its name and try to load it.
+                    // If it fails and the name does not end with "Configuration" tries with "Configuration" suffix.
+                    string fullTypeName, assemblyFullName, assemblyName, versionCultureAndPublicKeyToken;
+                    if( SimpleTypeFinder.SplitAssemblyQualifiedName( name, out fullTypeName, out assemblyFullName )
+                        && SimpleTypeFinder.SplitAssemblyFullName( assemblyFullName, out assemblyName, out versionCultureAndPublicKeyToken ) )
                     {
-                        weakTypeName = fullTypeName + "Configuration, " + assemblyName;
+                        var weakTypeName = fullTypeName + ", " + assemblyName;
                         resolved = SimpleTypeFinder.RawGetType( weakTypeName, false );
                         if( IsHandlerConfiguration( resolved ) ) return resolved;
+                        if( !fullTypeName.EndsWith( "Configuration" ) )
+                        {
+                            weakTypeName = fullTypeName + "Configuration, " + assemblyName;
+                            resolved = SimpleTypeFinder.RawGetType( weakTypeName, false );
+                            if( IsHandlerConfiguration( resolved ) ) return resolved;
+                        }
+                    }
+                    return null;
+                }
+                // This is a simple type name: try to find the type name in already loaded assemblies.
+                var configTypes = AppDomain.CurrentDomain.GetAssemblies()
+                                    .SelectMany( a => a.GetTypes() )
+                                    .Where( t => typeof( IHandlerConfiguration ).IsAssignableFrom( t ) )
+                                    .ToList();
+                var nameWithC = name.EndsWith( "Configuration" ) ? null : name + "Configuration";
+                if( name.IndexOf( '.' ) > 0 )
+                {
+                    // It is a FullName.
+                    resolved = configTypes.FirstOrDefault( t => t.FullName == name
+                                                                || (nameWithC != null && t.FullName == nameWithC) );
+                }
+                else
+                {
+                    // There is no dot in the name.
+                    resolved = configTypes.FirstOrDefault( t => t.Name == name
+                                                                || (nameWithC != null && t.Name == nameWithC) );
+                    if( resolved == null )
+                    {
+                        // Not found in currently loaded assemblies.
+                        if( nameWithC == null ) name = name.Substring( 0, name.Length - 13 );
+                        var t = SimpleTypeFinder.RawGetType( $"CK.Monitoring.Handlers.{name}Configuration, CK.Monitoring.{name}Handler", false );
+                        if( IsHandlerConfiguration( t ) ) resolved = t;
                     }
                 }
-                return null;
+                return resolved;
+
+                static bool IsHandlerConfiguration( Type? candidate ) => candidate != null && typeof( IHandlerConfiguration ).IsAssignableFrom( candidate );
             }
-            // This is a simple type name: try to find the type name in already loaded assemblies.
-            var configTypes = AppDomain.CurrentDomain.GetAssemblies()
-                                .SelectMany( a => a.GetTypes() )
-                                .Where( t => typeof( IHandlerConfiguration ).IsAssignableFrom( t ) )
-                                .ToList();
-            var nameWithC = name.EndsWith( "Configuration" ) ? null : name + "Configuration";
-            if( name.IndexOf( '.' ) > 0 )
-            {
-                // It is a FullName.
-                resolved = configTypes.FirstOrDefault( t => t.FullName == name
-                                                            || (nameWithC != null && t.FullName == nameWithC) );
-            }
-            else
-            {
-                // There is no dot in the name.
-                resolved = configTypes.FirstOrDefault( t => t.Name == name
-                                                            || (nameWithC != null && t.Name == nameWithC) );
-                if( resolved == null )
-                {
-                    // Not found in currently loaded assemblies.
-                    if( nameWithC == null ) name = name.Substring( 0, name.Length - 13 );
-                    var t = SimpleTypeFinder.RawGetType( $"CK.Monitoring.Handlers.{name}Configuration, CK.Monitoring.{name}Handler", false );
-                    if( IsHandlerConfiguration( t ) ) resolved = t;
-                }
-            }
-            return resolved;
+
         }
 
-        static bool IsHandlerConfiguration( Type? candidate ) => candidate != null && typeof( IHandlerConfiguration ).IsAssignableFrom( candidate );
 
         static void OnConfigurationChanged( object obj )
         {
@@ -391,4 +393,5 @@ namespace CK.Monitoring.Hosting
             _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
         }
     }
+
 }

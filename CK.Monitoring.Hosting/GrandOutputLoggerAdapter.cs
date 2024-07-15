@@ -36,9 +36,9 @@ namespace CK.Monitoring.Hosting
         /// <typeparam name="TState"></typeparam>
         /// <param name="state"></param>
         /// <returns></returns>
-        public IDisposable BeginScope<TState>( TState state )
+        public IDisposable BeginScope<TState>( TState state ) where TState : notnull
         {
-            if( _provider._running ) _output.ExternalLog( Core.LogLevel.Trace, message: state?.ToString()! );
+            if( _provider._running ) _output.ExternalLog( Core.LogLevel.Trace, message: state.ToString()! );
             return Core.Util.EmptyDisposable;
         }
 

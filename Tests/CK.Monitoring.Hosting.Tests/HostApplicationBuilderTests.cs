@@ -1,6 +1,7 @@
 using CK.AspNet.Tester;
 using CK.Core;
 using FluentAssertions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -8,69 +9,46 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting.Tests
 {
 
     [TestFixture]
-    public partial class HostingTests
+    public partial class HostApplicationBuilderTests
     {
-
-        [Test]
-        public void IParallelLogger_is_the_IActivityMonitor_one_and_ActivityMonitor_is_not_exposed_by_the_DI()
-        {
-            var host = new HostBuilder()
-                        .UseCKMonitoring()
-                        .Build();
-
-            host.Services.GetService<ActivityMonitor>().Should().BeNull();
-            var ia = host.Services.GetRequiredService<IActivityMonitor>();
-            var ip = host.Services.GetRequiredService<IParallelLogger>();
-            ip.Should().BeSameAs( ia.ParallelLogger );
-        }
-
-        [Test]
-        public void No_CKMonitoring_section_and_existing_Monitoring_section_throws()
-        {
-            var config = new DynamicConfigurationSource();
-            config["Monitoring"] = "true";
-            FluentActions.Invoking( () =>
-            {
-                var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                        .UseCKMonitoring()
-                        .Build();
-            } ).Should().Throw<CKException>();
-        }
-
-        [Test]
-        public void GrandOutput_MinimalFilter_configuration_works()
+        [TestCase( true )]
+        [TestCase( false )]
+        public void GrandOutput_MinimalFilter_configuration_works( bool builderMonitorBeforeUseCKMonitoring )
         {
             DemoSinkHandler.Reset();
             var config = new DynamicConfigurationSource();
             config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
 
-            var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                        .UseCKMonitoring()
-                        .Build();
+            var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+            builder.Configuration.Sources.Add( config );
 
-            var m = new ActivityMonitor();
-            m.ActualFilter.Should().Be( LogFilter.Undefined, "Initially Undefined." );
+            IActivityMonitor? monitor = null;
+            if( builderMonitorBeforeUseCKMonitoring ) monitor = builder.GetBuilderMonitor();
+            builder.UseCKMonitoring();
+            if( !builderMonitorBeforeUseCKMonitoring ) monitor = builder.GetBuilderMonitor();
+            Throw.DebugAssert( monitor != null );
+
+            monitor.ActualFilter.Should().Be( LogFilter.Undefined, "Initially Undefined." );
 
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
 
             System.Threading.Thread.Sleep( 200 );
-            m.ActualFilter.Should().Be( LogFilter.Debug, "First Debug applied." );
+            monitor.ActualFilter.Should().Be( LogFilter.Debug, "First Debug applied." );
 
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = "{Fatal,Debug}";
             System.Threading.Thread.Sleep( 200 );
-            m.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Explicit {Off,Debug} filter." );
+            monitor.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Explicit {Off,Debug} filter." );
 
-            config["CK-Monitoring:GrandOutput:MinimalFilter"] = null;
+            config["CK-Monitoring:GrandOutput:MinimalFilter"] = null!;
             System.Threading.Thread.Sleep( 200 );
-            m.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Null doesn't change anything." );
+            monitor.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Null doesn't change anything." );
 
             // Restores the Debug level (we are on the GrandOutput.Default).
             config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
@@ -88,11 +66,13 @@ namespace CK.Monitoring.Hosting.Tests
             DemoSinkHandler.Reset();
             var config = new DynamicConfigurationSource();
             config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
-            var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                        .UseCKMonitoring()
-                        .Build();
-            await host.StartAsync();
+
+            var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+            builder.Configuration.Sources.Add( config );
+
+            var app = builder.UseCKMonitoring()
+                             .Build();
+            await app.StartAsync();
 
             var m = new ActivityMonitor( "The topic!" );
 
@@ -100,7 +80,7 @@ namespace CK.Monitoring.Hosting.Tests
             config["CK-Monitoring:GrandOutput:Handlers:Invalid Handler"] = "true";
             m.Info( "AFTER" );
 
-            await host.StopAsync();
+            await app.StopAsync();
 
             DemoSinkHandler.LogEvents.Select( e => e.Text ).Should()
                    .Contain( "Topic: The topic!" )
@@ -116,11 +96,13 @@ namespace CK.Monitoring.Hosting.Tests
             DemoSinkHandler.Reset();
             var config = new DynamicConfigurationSource();
             config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
-            var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                        .UseCKMonitoring()
-                        .Build();
-            await host.StartAsync();
+
+            var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+            builder.Configuration.Sources.Add( config );
+
+            var app = builder.UseCKMonitoring()
+                             .Build();
+            await app.StartAsync();
 
             var m = new ActivityMonitor( "The starting topic!" );
 
@@ -130,7 +112,7 @@ namespace CK.Monitoring.Hosting.Tests
 
             m.Info( "DONE!" );
 
-            await host.StopAsync();
+            await app.StopAsync();
 
             var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
             texts.Should()
@@ -141,7 +123,6 @@ namespace CK.Monitoring.Hosting.Tests
         }
 
         [Test]
-        [Explicit("Buggy. To be fixed.")]
         public async Task TagFilters_works_Async()
         {
             CKTrait Sql = ActivityMonitor.Tags.Register( "Sql" );
@@ -179,7 +160,8 @@ namespace CK.Monitoring.Hosting.Tests
 
             RunWithTagFilters( Sql, Machine, m );
 
-            config["CK-Monitoring:TagFilters:0"] = "";
+            config["CK-Monitoring:TagFilters:0:0"] = "Sql";
+            config["CK-Monitoring:TagFilters:0:1"] = "Trace";
 
             await Task.Delay( 200 );
 
@@ -284,26 +266,45 @@ namespace CK.Monitoring.Hosting.Tests
         [Test]
         public async Task DotNetEventSources_works_Async()
         {
-            var current = DotNetEventSourceCollector.GetLevel( "System.Runtime", out var found );
+            DemoSinkHandler.Reset();
+
+            System.Diagnostics.Tracing.EventLevel? current = DotNetEventSourceCollector.GetLevel( "System.Runtime", out var found );
             found.Should().BeTrue();
             current.Should().BeNull();
             try
             {
                 var config = new DynamicConfigurationSource();
-                config["CK-Monitoring:GrandOutput:DotNetEventSources"] = "System.Runtime:V(erbose only V matters)";
-                var host = new HostBuilder()
-                            .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                            .UseCKMonitoring()
-                            .Build();
-                await host.StartAsync();
+                config["CK-Monitoring:GrandOutput:DotNetEventSources"] = "System.Runtime:W(arning only W matters);Microsoft-Extensions-DependencyInjection:V";
+                config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
 
-                var configured = DotNetEventSourceCollector.GetLevel( "System.Runtime", out _ );
-                configured.Should().Be( System.Diagnostics.Tracing.EventLevel.Verbose );
-                await host.StopAsync();
+                var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+                builder.Configuration.Sources.Add( config );
+
+                var app = builder.UseCKMonitoring()
+                                 .Build();
+                await app.StartAsync();
+
+                var rtConf = DotNetEventSourceCollector.GetLevel( "System.Runtime", out _ );
+                rtConf.Should().Be( System.Diagnostics.Tracing.EventLevel.Warning );
+
+                var diConf = DotNetEventSourceCollector.GetLevel( "Microsoft-Extensions-DependencyInjection", out _ );
+                diConf.Should().Be( System.Diagnostics.Tracing.EventLevel.Warning );
+
+                await app.StopAsync();
+
+                var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
+                texts.Should()
+                       .Contain( "YES: Sql!" )
+                       .And.Contain( "Yes again!" )
+                       .And.NotContain( "NOSHOW" )
+                       .And.Contain( "DONE!" );
+
+
             }
             finally
             {
                 DotNetEventSourceCollector.Disable( "System.Runtime" );
+                DemoSinkHandler.Reset();
             }
         }
 

@@ -26,17 +26,6 @@ namespace Microsoft.Extensions.Hosting
         /// <returns>A monitor for the host and application builder.</returns>
         public static IActivityMonitor GetBuilderMonitor( this IHostBuilder builder ) => GetBuilderMonitor( builder.Properties );
 
-        static IActivityMonitor GetBuilderMonitor( IDictionary<object, object> props )
-        {
-            var monitor = (IActivityMonitor?)props.GetValueOrDefault( typeof( IActivityMonitor ) );
-            if( monitor == null )
-            {
-                monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay|ActivityMonitorOptions.SkipAutoConfiguration, nameof( IHostBuilder ) );
-                props[typeof( IActivityMonitor )] = monitor;
-            }
-            return monitor;
-        }
-
         /// <summary>
         /// Gets an activity monitor for this builder context.
         /// <para>
@@ -48,6 +37,16 @@ namespace Microsoft.Extensions.Hosting
         /// <returns>A monitor for the host and application builder.</returns>
         public static IActivityMonitor GetBuilderMonitor( this HostBuilderContext ctx ) => GetBuilderMonitor( ctx.Properties );
 
+        static IActivityMonitor GetBuilderMonitor( IDictionary<object, object> props )
+        {
+            var monitor = (IActivityMonitor?)props.GetValueOrDefault( typeof( IActivityMonitor ) );
+            if( monitor == null )
+            {
+                monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay | ActivityMonitorOptions.SkipAutoConfiguration, nameof( IHostBuilder ) );
+                props[typeof( IActivityMonitor )] = monitor;
+            }
+            return monitor;
+        }
         /// <summary>
         /// Initializes the <see cref="GrandOutput.Default"/> and bounds the configuration to the provided configuration section.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
@@ -71,7 +70,7 @@ namespace Microsoft.Extensions.Hosting
         {
             if( !builder.Properties.ContainsKey( typeof( GrandOutputConfigurationInitializer ) ) )
             {
-                builder.Properties.Add( typeof( GrandOutputConfigurationInitializer ), null );
+                builder.Properties.Add( typeof( GrandOutputConfigurationInitializer ), null! );
                 DoUseMonitoring( builder, null, c => c.GetSection( "CK-Monitoring" ) );
             }
             return builder;

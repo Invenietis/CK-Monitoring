@@ -1,29 +1,69 @@
-using Microsoft.Extensions.Hosting;
+using CK.Core;
+using CK.Monitoring.Hosting;
+using CK.Monitoring;
+using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
+using System.IO;
 
-namespace CK
+namespace Microsoft.Extensions.Hosting
 {
     /// <summary>
     /// Adds extension methods on <see cref="IHostApplicationBuilder"/>.
     /// </summary>
     public static class HostApplicationBuilderMonitoringExtensions
     {
-        /*
-         * NOT AVAILABLE IN .NET6
-         * But not sure that this is the good pattern anyway:
-         * - new .NET8 HostApplicationBuilder is the way to go.
-         * - CK.AppIdentity needs to be accounted.
-         * - 2 possible ways
-         *   - CK-Monitoring is top section: it is configured once, "externally" at the start of the program.
-         *   - CK-Monitoring is a CK-AppIdentity section: it is the build of the AppIdentityService that can configure
-         *     the GrandOutput... it's late... very late.
-         *     Moreover this section could really only be in the "Local" one... that is rather useless.
-         *  => It seems that the CK-Monitoring should be the one and only one top-level configuration with CK-AppIdentity section.
-         *     UseCKMonitoring is/becomes... useless!
-         * 
-                public static IHostApplicationBuilder UseCKMonitoring( this IHostApplicationBuilder builder )
-                {
-                    return builder;
-                }
-        */
+        /// <summary>
+        /// Gets an activity monitor for this builder.
+        /// <para>
+        /// This can always be called: logs in this monitor are retained and emitted once the code injected by <see cref="UseCKMonitoring(IHostBuilder)"/>
+        /// is executed during <see cref="IHostBuilder.Build()"/>.  
+        /// </para>
+        /// </summary>
+        /// <param name="builder">This builder.</param>
+        /// <returns>A monitor for the host and application builder.</returns>
+        public static IActivityMonitor GetBuilderMonitor( this IHostApplicationBuilder builder )
+        {
+            var monitor = (IActivityMonitor?)builder.Properties.GetValueOrDefault( typeof( IActivityMonitor ) );
+            if( monitor == null )
+            {
+                bool hasInitializer = builder.Properties.ContainsKey( typeof( GrandOutputConfigurator ) );
+                monitor = hasInitializer
+                            ? new ActivityMonitor( nameof( IHostApplicationBuilder ) )
+                            : new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay | ActivityMonitorOptions.SkipAutoConfiguration, nameof( IHostApplicationBuilder ) );
+                builder.Properties[typeof( IActivityMonitor )] = monitor;
+            }
+            return monitor;
+        }
+
+        /// <summary>
+        /// Initializes the <see cref="GrandOutput.Default"/> from the "CK-Monitoring" <see cref="IHostApplicationBuilder.Configuration"/> section.
+        /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
+        /// <para>
+        /// This can safely be called multiple times on the same <paramref name="builder"/> but this should not be used
+        /// on a host created inside an already running application (this would reconfigure the GrandOutput.Default).
+        /// </para>
+        /// <para>
+        /// Note that no registrations is done for IActivityMonitor. The standard registration is:
+        /// <code>
+        ///   // The ActivityMonitor is not mapped, only the IActivityMonitor must 
+        ///   // be exposed and the ParallelLogger is the one of the monitor.
+        ///   services.AddScoped&lt;IActivityMonitor, ActivityMonitor&gt;();
+        ///   services.AddScoped(sp => sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
+        /// </code>
+        /// </para>
+        /// </summary>
+        /// <param name="builder">Host builder</param>
+        /// <returns>The builder.</returns>
+        public static T UseCKMonitoring<T>( this T builder ) where T : IHostApplicationBuilder
+        {
+            var t = typeof( GrandOutputConfigurator );
+            if( !builder.Properties.ContainsKey( t ) )
+            {
+                builder.Properties.Add( t, t );
+                new GrandOutputConfigurator( builder );
+            }
+            return builder;
+        }
+
     }
 }

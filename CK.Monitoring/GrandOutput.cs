@@ -5,6 +5,7 @@ using CK.Core;
 using System.Reflection;
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
 namespace CK.Monitoring
 {
@@ -76,7 +77,7 @@ namespace CK.Monitoring
         /// sets it to null.
         /// </para>
         /// </remarks>
-        static public GrandOutput EnsureActiveDefault( GrandOutputConfiguration? configuration = null, bool clearExistingTraceListeners = true )
+        public static GrandOutput EnsureActiveDefault( GrandOutputConfiguration? configuration = null, bool clearExistingTraceListeners = true )
         {
             lock( _defaultLock )
             {
@@ -160,7 +161,7 @@ namespace CK.Monitoring
 
         GrandOutput( bool isDefault, GrandOutputConfiguration config )
         {
-            if( config == null ) throw new ArgumentNullException( nameof( config ) );
+            Throw.CheckNotNullArgument( config );
             // Creates the identity card and the client list first.
             _identityCard = new IdentityCard();
             _clients = new List<WeakReference<GrandOutputClient>>();
