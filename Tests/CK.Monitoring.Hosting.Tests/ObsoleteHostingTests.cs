@@ -14,6 +14,7 @@ namespace CK.Monitoring.Hosting.Tests
 {
 
     [TestFixture]
+    [Obsolete("HostBuilder should not be used anymore.", false )]
     public partial class ObsoleteHostingTests
     {
 
@@ -126,86 +127,6 @@ namespace CK.Monitoring.Hosting.Tests
                    .And.Contain( "DONE!" );
         }
 
-        [Test]
-        public async Task TagFilters_works_Async()
-        {
-            CKTrait Sql = ActivityMonitor.Tags.Register( "Sql" );
-            CKTrait Machine = ActivityMonitor.Tags.Register( "Machine" );
-
-            DemoSinkHandler.Reset();
-            var config = new DynamicConfigurationSource();
-            config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
-            config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Trace";
-            config["CK-Monitoring:TagFilters:0:0"] = "Sql";
-            config["CK-Monitoring:TagFilters:0:1"] = "Debug";
-            config["CK-Monitoring:TagFilters:1:0"] = "Machine";
-            config["CK-Monitoring:TagFilters:1:1"] = "Release!";
-
-            var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                        .UseCKMonitoring()
-                        .Build();
-            await host.StartAsync();
-
-            var m = new ActivityMonitor();
-
-            RunWithTagFilters( Sql, Machine, m );
-
-            // Removing the TagFilters totally should keep the current filters.
-            using( config.StartBatch() )
-            {
-                config.Remove( "CK-Monitoring:TagFilters:0:0" );
-                config.Remove( "CK-Monitoring:TagFilters:0:1" );
-                config.Remove( "CK-Monitoring:TagFilters:1:0" );
-                config.Remove( "CK-Monitoring:TagFilters:1:1" );
-            }
-
-            await Task.Delay( 200 );
-
-            RunWithTagFilters( Sql, Machine, m );
-
-            config["CK-Monitoring:TagFilters:0:0"] = "Sql";
-            config["CK-Monitoring:TagFilters:0:1"] = "Trace";
-
-            await Task.Delay( 200 );
-
-            m.Debug( Sql, "NOP! This is in Debug!" );
-            m.Trace( Machine, "SHOW!" );
-            m.Trace( Machine | Sql, "Yes again!" );
-            m.Trace( "DONE!" );
-
-            await host.StopAsync();
-
-            var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
-            texts.Should()
-                   .Contain( "SHOW!" )
-                   .And.Contain( "Yes again!" )
-                   .And.NotContain( "NOP! This is in Debug!" )
-                   .And.Contain( "DONE!" );
-
-            static void RunWithTagFilters( CKTrait Sql, CKTrait Machine, ActivityMonitor m )
-            {
-                m.Debug( Sql, "YES: Sql!" );
-                m.Trace( Machine, "NOSHOW" );
-                m.Trace( Machine | Sql, "Yes again!" );
-                m.Trace( "DONE!" );
-
-                System.Threading.Thread.Sleep( 200 );
-
-                var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
-                texts.Should()
-                       .Contain( "YES: Sql!" )
-                       .And.Contain( "Yes again!" )
-                       .And.NotContain( "NOSHOW" )
-                       .And.Contain( "DONE!" );
-
-                DemoSinkHandler.Reset();
-            }
-
-            DemoSinkHandler.Reset();
-            InputLogEntry.AliveCount.Should().Be( 0 );
-        }
-
 
         [Test]
         public async Task finding_MailAlerter_handler_by_conventions_Async()
@@ -214,9 +135,14 @@ namespace CK.Monitoring.Hosting.Tests
             var sendMailTag = ActivityMonitor.Tags.Register( "SendMail" );
             // Copy the assembly.
             var runningDir = new NormalizedPath( AppContext.BaseDirectory );
+            var target = runningDir.AppendPart( "CK.Monitoring.MailAlerterHandler.dll" );
             var source = new NormalizedPath( AppContext.BaseDirectory.Replace( "CK.Monitoring.Hosting.Tests", "CK.Monitoring.MailAlerterHandler" ) )
                                 .AppendPart( "CK.Monitoring.MailAlerterHandler.dll" );
-            File.Copy( source, runningDir.AppendPart( "CK.Monitoring.MailAlerterHandler.dll" ), overwrite: true );
+
+            if( !File.Exists( target ) )
+            {
+                File.Copy( source, target, overwrite: true );
+            }
 
             var config = new DynamicConfigurationSource();
             config["CK-Monitoring:GrandOutput:Handlers:MailAlerter:Email"] = "test@test.com";
@@ -235,10 +161,9 @@ namespace CK.Monitoring.Hosting.Tests
             // The assembly has been loaded.
             var a = AppDomain.CurrentDomain.GetAssemblies().Single( a => a.GetName().Name == "CK.Monitoring.MailAlerterHandler" );
             var t = a.GetType( "CK.Monitoring.Handlers.MailAlerter" );
-            Debug.Assert( t != null );
+            Throw.DebugAssert( t != null );
             var sent = (string?)t.GetField( "LastMailSent", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static )!.GetValue( null );
             sent.Should().Be( "Hello World!" );
-
         }
 
         [Test]

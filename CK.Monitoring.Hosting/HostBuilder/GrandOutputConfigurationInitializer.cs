@@ -17,6 +17,7 @@ using static CK.Core.ActivityMonitor;
 namespace CK.Monitoring.Hosting
 {
 
+    [Obsolete( "This one is for the IHostBuilder.", false )]
     sealed class GrandOutputConfigurationInitializer
     {
         /// <summary>

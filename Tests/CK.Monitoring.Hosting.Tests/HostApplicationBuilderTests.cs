@@ -1,15 +1,12 @@
 using CK.AspNet.Tester;
 using CK.Core;
 using FluentAssertions;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting.Tests
@@ -22,6 +19,9 @@ namespace CK.Monitoring.Hosting.Tests
         [TestCase( false )]
         public void GrandOutput_MinimalFilter_configuration_works( bool builderMonitorBeforeUseCKMonitoring )
         {
+            // Disposes current GrandOutput.Default if any.
+            GrandOutput.Default?.Dispose();
+
             DemoSinkHandler.Reset();
             var config = new DynamicConfigurationSource();
             config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
@@ -137,11 +137,13 @@ namespace CK.Monitoring.Hosting.Tests
             config["CK-Monitoring:TagFilters:1:0"] = "Machine";
             config["CK-Monitoring:TagFilters:1:1"] = "Release!";
 
-            var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                        .UseCKMonitoring()
-                        .Build();
-            await host.StartAsync();
+            var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+            builder.Configuration.Sources.Add( config );
+            builder.UseCKMonitoring();
+
+            var app = builder.UseCKMonitoring()
+                             .Build();
+            await app.StartAsync();
 
             var m = new ActivityMonitor();
 
@@ -170,7 +172,7 @@ namespace CK.Monitoring.Hosting.Tests
             m.Trace( Machine | Sql, "Yes again!" );
             m.Trace( "DONE!" );
 
-            await host.StopAsync();
+            await app.StopAsync();
 
             var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
             texts.Should()
@@ -204,10 +206,11 @@ namespace CK.Monitoring.Hosting.Tests
 
 
         [Test]
-        public async Task finding_MailAlerter_handler_by_conventions_Async()
+        public void finding_MailAlerter_handler_by_conventions()
         {
             // Define tag since this assembly doesn't depend on CK.Monitoring.MailAlerterHandler.
             var sendMailTag = ActivityMonitor.Tags.Register( "SendMail" );
+
             // Copy the assembly.
             var runningDir = new NormalizedPath( AppContext.BaseDirectory );
             var source = new NormalizedPath( AppContext.BaseDirectory.Replace( "CK.Monitoring.Hosting.Tests", "CK.Monitoring.MailAlerterHandler" ) )
@@ -216,17 +219,13 @@ namespace CK.Monitoring.Hosting.Tests
 
             var config = new DynamicConfigurationSource();
             config["CK-Monitoring:GrandOutput:Handlers:MailAlerter:Email"] = "test@test.com";
-            var host = new HostBuilder()
-                        .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                        .UseCKMonitoring()
-                        .ConfigureServices( services =>
-                        {
-                            var m = new ActivityMonitor();
-                            m.Info( sendMailTag, "Hello World!" );
-                        } )
-                        .Build();
-            await host.StartAsync();
-            await host.StopAsync();
+
+            var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+            builder.Configuration.Sources.Add( config );
+            builder.UseCKMonitoring();
+
+            var m = new ActivityMonitor();
+            m.Info( sendMailTag, "Hello World!" );
 
             // The assembly has been loaded.
             var a = AppDomain.CurrentDomain.GetAssemblies().Single( a => a.GetName().Name == "CK.Monitoring.MailAlerterHandler" );
@@ -238,7 +237,7 @@ namespace CK.Monitoring.Hosting.Tests
         }
 
         [Test]
-        public async Task StaticGates_works_Async()
+        public void StaticGates_works()
         {
             AsyncLock.Gate.IsOpen.Should().BeFalse();
             AsyncLock.Gate.HasDisplayName.Should().BeTrue( "Otherwise it wouldn't be configurable." );
@@ -247,15 +246,11 @@ namespace CK.Monitoring.Hosting.Tests
             {
                 var config = new DynamicConfigurationSource();
                 config["CK-Monitoring:GrandOutput:StaticGates"] = "AsyncLock";
-                var host = new HostBuilder()
-                            .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                            .UseCKMonitoring()
-                            .Build();
-                await host.StartAsync();
 
+                var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+                builder.Configuration.Sources.Add( config );
+                builder.UseCKMonitoring();
                 AsyncLock.Gate.IsOpen.Should().BeTrue();
-
-                await host.StopAsync();
             }
             finally
             {
@@ -288,18 +283,14 @@ namespace CK.Monitoring.Hosting.Tests
                 rtConf.Should().Be( System.Diagnostics.Tracing.EventLevel.Warning );
 
                 var diConf = DotNetEventSourceCollector.GetLevel( "Microsoft-Extensions-DependencyInjection", out _ );
-                diConf.Should().Be( System.Diagnostics.Tracing.EventLevel.Warning );
+                diConf.Should().Be( System.Diagnostics.Tracing.EventLevel.Verbose );
 
                 await app.StopAsync();
 
                 var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
                 texts.Should()
-                       .Contain( "YES: Sql!" )
-                       .And.Contain( "Yes again!" )
-                       .And.NotContain( "NOSHOW" )
-                       .And.Contain( "DONE!" );
-
-
+                       .Contain( "Applying .Net EventSource configuration: 'System.Runtime:W(arning only W matters);Microsoft-Extensions-DependencyInjection:V'." )
+                       .And.Contain( "[Microsoft-Extensions-DependencyInjection:7] EventName='ServiceProviderBuilt'" );
             }
             finally
             {

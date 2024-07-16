@@ -24,6 +24,7 @@ namespace Microsoft.Extensions.Hosting
         /// </summary>
         /// <param name="builder">This builder.</param>
         /// <returns>A monitor for the host and application builder.</returns>
+        [Obsolete("Use IHostApplicationBuilder simplified API instead.",false)]
         public static IActivityMonitor GetBuilderMonitor( this IHostBuilder builder ) => GetBuilderMonitor( builder.Properties );
 
         /// <summary>
@@ -35,6 +36,7 @@ namespace Microsoft.Extensions.Hosting
         /// </summary>
         /// <param name="ctx">This builder context.</param>
         /// <returns>A monitor for the host and application builder.</returns>
+        [Obsolete( "Use IHostApplicationBuilder simplified API instead.", false )]
         public static IActivityMonitor GetBuilderMonitor( this HostBuilderContext ctx ) => GetBuilderMonitor( ctx.Properties );
 
         static IActivityMonitor GetBuilderMonitor( IDictionary<object, object> props )
@@ -66,6 +68,7 @@ namespace Microsoft.Extensions.Hosting
         /// </summary>
         /// <param name="builder">Host builder</param>
         /// <returns>The builder.</returns>
+        [Obsolete( "Use IHostApplicationBuilder simplified API instead.", false )]
         public static IHostBuilder UseCKMonitoring( this IHostBuilder builder )
         {
             if( !builder.Properties.ContainsKey( typeof( GrandOutputConfigurationInitializer ) ) )
@@ -85,6 +88,7 @@ namespace Microsoft.Extensions.Hosting
         /// <param name="grandOutput">The target <see cref="GrandOutput"/>.</param>
         /// <param name="configurationPath">The path of the monitoring configuration in the global configuration.</param>
         /// <returns>The builder.</returns>
+        [Obsolete( "Use IHostApplicationBuilder simplified API instead.", false )]
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, GrandOutput grandOutput, string configurationPath )
         {
             Throw.CheckNotNullArgument( grandOutput );
@@ -101,6 +105,7 @@ namespace Microsoft.Extensions.Hosting
         /// <param name="grandOutput">The target <see cref="GrandOutput"/>.</param>
         /// <param name="section">The configuration section.</param>
         /// <returns>The builder.</returns>
+        [Obsolete( "Use IHostApplicationBuilder simplified API instead.", false )]
         public static IHostBuilder UseMonitoring( this IHostBuilder builder, GrandOutput grandOutput, IConfigurationSection section )
         {
             Throw.CheckNotNullArgument( grandOutput );
