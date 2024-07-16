@@ -29,7 +29,7 @@ namespace Microsoft.Extensions.Hosting
                 bool hasInitializer = builder.Properties.ContainsKey( typeof( GrandOutputConfigurator ) );
                 monitor = hasInitializer
                             ? new ActivityMonitor( nameof( IHostApplicationBuilder ) )
-                            : new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay | ActivityMonitorOptions.SkipAutoConfiguration, nameof( IHostApplicationBuilder ) );
+                            : new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay, nameof( IHostApplicationBuilder ) );
                 builder.Properties[typeof( IActivityMonitor )] = monitor;
             }
             return monitor;

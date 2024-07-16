@@ -208,7 +208,7 @@ namespace CK.Monitoring
                 }
                 return c;
             }
-            return monitor.Output.RegisterUniqueClient( b => { Debug.Assert( b != null ); return b.Central == this; }, Register, replayInitialLogs: true );
+            return monitor.Output.RegisterUniqueClient( b => { Throw.DebugAssert( b != null ); return b.Central == this; }, Register, replayInitialLogs: true );
         }
 
         /// <summary>
