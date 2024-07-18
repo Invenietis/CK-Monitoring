@@ -62,9 +62,10 @@ namespace Microsoft.Extensions.Hosting
         /// <summary>
         /// Applies all the memorized actions by <see cref="AddAutoConfigure"/> to this builder.
         /// <para>
-        /// Only <see cref="CKBuild(HostApplicationBuilder)"/> should call this right before
-        /// building the host. This is public to allow CK.AspNet CKBuild helper on WebApplicationBuilder
-        /// (in Microsoft.AspNetCore package) to also apply these configurations.
+        /// <see cref="CKBuild(HostApplicationBuilder)"/> (and CKBuild from CK.AspNet package helper for WebApplicationBuilder)
+        /// call this right before building the host.
+        /// </para>
+        /// <para>
         /// It is safe to call this multiple times: only the first call applies the configurations.
         /// </para>
         /// </summary>
@@ -125,6 +126,8 @@ namespace Microsoft.Extensions.Hosting
         ///   services.AddScoped&lt;IActivityMonitor, ActivityMonitor&gt;();
         ///   services.AddScoped(sp => sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
         /// </code>
+        /// Note that if for <see cref="HostApplicationBuilder"/> the IActivityMonitor registration should be done, this is
+        /// not the case for WebApplicationBuilder since the CKBuild from CK.AspNet package handles this.
         /// </para>
         /// </summary>
         /// <param name="builder">Host builder</param>
