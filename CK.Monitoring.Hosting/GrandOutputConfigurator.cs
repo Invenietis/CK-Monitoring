@@ -25,16 +25,16 @@ namespace CK.Monitoring.Hosting
         GrandOutputLoggerAdapterProvider? _loggerProvider;
         IDisposable? _changeToken;
 
-        public GrandOutputConfigurator( IHostApplicationBuilder appBuilder )
+        public GrandOutputConfigurator( IHostApplicationBuilder builder )
         {
-            _configuration = appBuilder.Configuration;
-            var section = appBuilder.Configuration.GetSection( "CK-Monitoring" );
+            _configuration = builder.Configuration;
+            var section = builder.Configuration.GetSection( "CK-Monitoring" );
             if( LogFile.RootLogPath == null )
             {
-                LogFile.RootLogPath = Path.GetFullPath( Path.Combine( appBuilder.Environment.ContentRootPath, section["LogPath"] ?? "Logs" ) );
+                LogFile.RootLogPath = Path.GetFullPath( Path.Combine( builder.Environment.ContentRootPath, section["LogPath"] ?? "Logs" ) );
             }
             ApplyDynamicConfiguration( initialConfigMustWaitForApplication: true );
-            appBuilder.Services.AddSingleton( _loggerProvider );
+            builder.Services.AddSingleton( _loggerProvider );
 
             var reloadToken = section.GetReloadToken();
             _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
@@ -48,7 +48,7 @@ namespace CK.Monitoring.Hosting
                 _loggerProvider._running = false;
             } );
             // If the BuilderMonitor has been requested, replay its logs.
-            var builderMonitor = (IActivityMonitor?)appBuilder.Properties.GetValueOrDefault( typeof( IActivityMonitor ) );
+            var builderMonitor = (IActivityMonitor?)builder.Properties.GetValueOrDefault( typeof( IActivityMonitor ) );
             if( builderMonitor != null )
             {
                 // Instead of relying only on the GrandOuput.Defaut, simply calls the AutoConfiguration action:
