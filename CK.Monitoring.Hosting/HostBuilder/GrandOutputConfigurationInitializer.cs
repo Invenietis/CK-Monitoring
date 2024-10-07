@@ -32,14 +32,17 @@ sealed class GrandOutputConfigurationInitializer
             _grandOutput = grandOutput;
         }
 
-        public void Dispose() => _grandOutput.Dispose();
+        public void Dispose()
+        {
+            _grandOutput.Stop();
+        }
 
         public Task StartAsync( CancellationToken cancellationToken ) => Task.CompletedTask;
 
         public Task StopAsync( CancellationToken cancellationToken )
         {
-            _grandOutput.Dispose();
-            return Task.CompletedTask;
+            _grandOutput.Stop();
+            return _grandOutput.RunningTask;
         }
     }
 
@@ -107,7 +110,7 @@ sealed class GrandOutputConfigurationInitializer
         // We do not handle CancellationTokenRegistration.Dispose here.
         // The target is disposing: everything will be discarded, included
         // this instance of initializer.
-        _target.DisposingToken.Register( () =>
+        _target.StoppedToken.Register( () =>
         {
             _changeToken.Dispose();
             _loggerProvider._running = false;
@@ -121,7 +124,7 @@ sealed class GrandOutputConfigurationInitializer
         // It has been Obsolete (Warn) for a long time. Now we throw. 
         if( _section["HandleAspNetLogs"] != null )
         {
-            throw new CKException( "Configuration name \"HandleAspNetLogs\" is obsolete: please use \"HandleDotNetLogs\" instead." );
+            throw new CKException( "Configuration name \"HandleAspNetLogs\" is obsolete: please use \"HandleDotNetLogs\" (that defaults to true) instead." );
         }
         if( _section["LogUnhandledExceptions"] != null )
         {
@@ -132,7 +135,7 @@ sealed class GrandOutputConfigurationInitializer
 
         LogFilter defaultFilter = LogFilter.Undefined;
         bool hasGlobalDefaultFilter = _section["GlobalDefaultFilter"] != null;
-        bool errorParsingGlobalDefaultFilter = hasGlobalDefaultFilter && !LogFilter.TryParse( _section["GlobalDefaultFilter"], out defaultFilter );
+        bool errorParsingGlobalDefaultFilter = hasGlobalDefaultFilter && !LogFilter.TryParse( _section["GlobalDefaultFilter"]!, out defaultFilter );
 
         if( hasGlobalDefaultFilter && !errorParsingGlobalDefaultFilter )
         {
@@ -376,9 +379,9 @@ sealed class GrandOutputConfigurationInitializer
     }
 
 
-    static void OnConfigurationChanged( object obj )
+    static void OnConfigurationChanged( object? obj )
     {
-        Debug.Assert( obj is GrandOutputConfigurationInitializer );
+        Throw.DebugAssert( obj is GrandOutputConfigurationInitializer );
         var initializer = (GrandOutputConfigurationInitializer)obj;
         initializer.ApplyDynamicConfiguration( false );
         initializer.RenewChangeToken();

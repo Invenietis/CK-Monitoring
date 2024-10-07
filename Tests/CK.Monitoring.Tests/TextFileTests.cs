@@ -61,7 +61,7 @@ public class TextFileTests
     }
 
     [Test]
-    public void text_file_auto_flush_and_reconfiguration()
+    public async Task text_file_auto_flush_and_reconfiguration_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "AutoFlush" );
 
@@ -72,7 +72,7 @@ public class TextFileTests
         var config = new GrandOutputConfiguration { TimerDuration = TimeSpan.FromMilliseconds( 500 ) }
                             .AddHandler( textConf );
 
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
@@ -103,7 +103,7 @@ public class TextFileTests
 
         var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsQuickTest" };
         var config = new GrandOutputConfiguration().AddHandler( textConf );
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             await Task.Run( () =>
             {
@@ -145,7 +145,7 @@ public class TextFileTests
         var config = new GrandOutputConfiguration().AddHandler( textConf );
         int taskCount = 20;
         int logCount = 10;
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             var tasks = Enumerable.Range( 0, taskCount ).Select( c => Task.Run( () =>
              {
@@ -164,17 +164,17 @@ public class TextFileTests
                     .Contain( $"{c} n°{i}." );
     }
 
-    static readonly CKTrait _myTag = ActivityMonitor.Tags.Register( nameof( external_logs_filtering ) );
+    static readonly CKTrait _myTag = ActivityMonitor.Tags.Register( "external_logs_filtering" );
 
     [Test]
-    public void external_logs_filtering()
+    public async Task external_logs_filtering_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "ExternalLogsFiltering" );
 
         var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsFiltering" };
         var config = new GrandOutputConfiguration().AddHandler( textConf );
         ActivityMonitor.DefaultFilter.Line.Should().Be( LogLevelFilter.Trace );
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
             g.ExternalLog( LogLevel.Trace, message: "SHOW 0" );
@@ -220,13 +220,13 @@ public class TextFileTests
 
     [Explicit]
     [Test]
-    public void dumping_text_file_with_multiple_monitors()
+    public async Task dumping_text_file_with_multiple_monitors_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "TextFileMulti" );
         Random r = new Random();
         GrandOutputConfiguration config = new GrandOutputConfiguration()
                                                 .AddHandler( new Handlers.TextFileConfiguration() { Path = "TextFileMulti" } );
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             Parallel.Invoke(
                 () => DumpSampleLogs1( r, g ),
@@ -256,13 +256,13 @@ public class TextFileTests
     }
 
     [Test]
-    public void dumping_text_file()
+    public async Task dumping_text_file_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "TextFile" );
         Random r = new Random();
         GrandOutputConfiguration config = new GrandOutputConfiguration()
                                                 .AddHandler( new Handlers.TextFileConfiguration() { Path = "TextFile" } );
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             DumpSampleLogs1( r, g );
             DumpSampleLogs2( r, g );
@@ -288,7 +288,7 @@ public class TextFileTests
     }
 
     [Test]
-    public void text_file_auto_delete_by_date()
+    public async Task text_file_auto_delete_by_date_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "AutoDelete_Date" );
 
@@ -309,7 +309,7 @@ public class TextFileTests
 
         // TEST DELETION BY DATE
 
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
@@ -328,7 +328,7 @@ public class TextFileTests
         string finalLogFile = Directory.EnumerateFiles( folder ).Single();
 
         // Open another GrandOutput to trigger housekeeping
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             // Wait for next flush (~100 ms)
             Thread.Sleep( 200 );
@@ -338,7 +338,7 @@ public class TextFileTests
     }
 
     [Test]
-    public void text_file_auto_delete_by_size()
+    public async Task text_file_auto_delete_by_size_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "AutoDelete_Size" );
 
@@ -357,7 +357,7 @@ public class TextFileTests
         // Create 3*1 KB log files
         for( int i = 0; i < 3; i++ )
         {
-            using( GrandOutput g = new GrandOutput( config ) )
+            await using( GrandOutput g = new GrandOutput( config ) )
             {
                 var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
                 g.EnsureGrandOutputClient( m );
@@ -375,7 +375,7 @@ public class TextFileTests
 
         // Open another GrandOutput to trigger housekeeping.
         // Note: this DOES create a file!
-        using( GrandOutput g = new GrandOutput( config ) )
+        await using( GrandOutput g = new GrandOutput( config ) )
         {
             // Wait for next flush (~100 ms)
             Thread.Sleep( 200 );

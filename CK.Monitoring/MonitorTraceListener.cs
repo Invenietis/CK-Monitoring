@@ -98,7 +98,7 @@ public sealed class MonitorTraceListener : TraceListener
             if( string.IsNullOrWhiteSpace( message ) ) message = "Fail called with no message.";
             message += " FailFast is true: calling Environment.FailFast. Adios!";
             GrandOutput.ExternalLog( LogLevel.Fatal, TraceListener, message );
-            GrandOutput.Dispose();
+            GrandOutput.StopAndWaitForTermination();
             Environment.FailFast( message );
         }
         else

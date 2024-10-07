@@ -20,14 +20,49 @@ namespace CK.Monitoring.Hosting;
 
 sealed class GrandOutputConfigurator
 {
+    readonly bool _isDefaultGrandOutput;
+    GrandOutput _target;
     IConfiguration _configuration;
-    GrandOutput? _target;
     GrandOutputLoggerAdapterProvider? _loggerProvider;
     IDisposable? _changeToken;
 
-    public GrandOutputConfigurator( IHostApplicationBuilder builder )
+    /// <summary>
+    /// Simply dispose the associated GrandOutput when the host stops.
+    /// <para>
+    /// This is registered in the Builder.Services for independent GrandOutputs.
+    /// The default GrandOutput is bound to AppDomain.CurrentDomain.DomainUnload and AppDomain.CurrentDomain.ProcessExit.
+    /// </para>
+    /// </summary>
+    sealed class HostedService : IHostedLifecycleService
+    {
+        readonly GrandOutput _grandOutput;
+
+        public HostedService( GrandOutput grandOutput ) => _grandOutput = grandOutput;
+
+        public ValueTask DisposeAsync() => _grandOutput.DisposeAsync();
+
+        public Task StartingAsync( CancellationToken cancellationToken ) => Task.CompletedTask;
+
+        Task IHostedService.StartAsync( CancellationToken cancellationToken ) => Task.CompletedTask;
+
+        public Task StartedAsync( CancellationToken cancellationToken ) => Task.CompletedTask;
+
+        public Task StoppingAsync( CancellationToken cancellationToken ) => Task.CompletedTask;
+
+        Task IHostedService.StopAsync( CancellationToken cancellationToken ) => Task.CompletedTask;
+
+        public Task StoppedAsync( CancellationToken cancellationToken )
+        {
+            _grandOutput.Stop();
+            return _grandOutput.RunningTask;
+        }
+
+    }
+
+    public GrandOutputConfigurator( IHostApplicationBuilder builder, bool isDefaultGrandOutput )
     {
         _configuration = builder.Configuration;
+        _isDefaultGrandOutput = isDefaultGrandOutput;
         var section = builder.Configuration.GetSection( "CK-Monitoring" );
         if( LogFile.RootLogPath == null )
         {
@@ -36,13 +71,18 @@ sealed class GrandOutputConfigurator
         ApplyDynamicConfiguration( initialConfigMustWaitForApplication: true );
         builder.Services.AddSingleton( _loggerProvider );
 
+        if( !isDefaultGrandOutput )
+        {
+            builder.Services.AddSingleton<IHostedService>( new HostedService( _target ) );
+        }
+
         var reloadToken = section.GetReloadToken();
         _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
 
         // We do not handle CancellationTokenRegistration.Dispose here.
         // The target is disposing: everything will be discarded, included
         // this instance of initializer.
-        _target.DisposingToken.Register( () =>
+        _target.StoppedToken.Register( () =>
         {
             _changeToken.Dispose();
             _loggerProvider._running = false;
@@ -59,37 +99,25 @@ sealed class GrandOutputConfigurator
         }
     }
 
+    public GrandOutput GrandOutputTarget => _target;
+
     [MemberNotNull( nameof( _target ), nameof( _loggerProvider ) )]
     void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
     {
         var section = _configuration.GetSection( "CK-Monitoring" );
         bool dotNetLogs = !String.Equals( section["HandleDotNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
 
-        LogFilter defaultFilter = LogFilter.Undefined;
-        string? globalDefaultFilter = section["GlobalDefaultFilter"];
-        bool errorParsingGlobalDefaultFilter = globalDefaultFilter != null && !LogFilter.TryParse( globalDefaultFilter, out defaultFilter );
-
-        if( globalDefaultFilter != null && !errorParsingGlobalDefaultFilter )
+        LogFilter defaultFilter = default;
+        string? globalDefaultFilter = null;
+        bool errorParsingGlobalDefaultFilter = false;
+        if( _isDefaultGrandOutput )
         {
-            if( initialConfigMustWaitForApplication )
-            {
-                // On first initialization, configure the filter as early as possible.
-                if( defaultFilter.Group != LogLevelFilter.None && defaultFilter.Line != LogLevelFilter.None )
-                {
-                    ActivityMonitor.DefaultFilter = defaultFilter;
-                }
-                // If the filter is invalid (a None appears), keep the default Trace. 
-            }
-            else
-            {
-                // If a GlobalDefaultFilter has been successfully parsed and we are reconfiguring and it is different than
-                // the current one, logs the change and applies the configuration.
-                if( defaultFilter != ActivityMonitor.DefaultFilter )
-                {
-                    Throw.DebugAssert( "Since initialConfigMustWaitForApplication is false.", _target != null );
-                    defaultFilter = SetGlobalDefaultFilter( _target, defaultFilter );
-                }
-            }
+            ParseAndSetStaticConfigurations( _target,
+                                             section,
+                                             initialConfigMustWaitForApplication,
+                                             out defaultFilter,
+                                             out globalDefaultFilter,
+                                             out errorParsingGlobalDefaultFilter );
         }
 
         try
@@ -98,7 +126,9 @@ sealed class GrandOutputConfigurator
             if( _target == null )
             {
                 Throw.DebugAssert( initialConfigMustWaitForApplication );
-                _target = GrandOutput.EnsureActiveDefault( c );
+                _target = _isDefaultGrandOutput
+                            ? GrandOutput.EnsureActiveDefault( c )
+                            : new GrandOutput( c );
                 _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
             }
             else
@@ -114,63 +144,24 @@ sealed class GrandOutputConfigurator
                 // Using the default "Text" log configuration.
                 // If this fails (!), let the exception breaks the whole initialization since this
                 // is really unrecoverable.
-                _target = GrandOutput.EnsureActiveDefault();
+                _target = _isDefaultGrandOutput
+                            ? GrandOutput.EnsureActiveDefault()
+                            : new GrandOutput();
                 _loggerProvider = new GrandOutputLoggerAdapterProvider( _target );
             }
-            _target.ExternalLog( Core.LogLevel.Fatal, message: $"While applying dynamic configuration.", ex: ex );
+            _target.ExternalLog( Core.LogLevel.Fatal, message: $"While applying dynamic configuration.", ex );
         }
         Debug.Assert( _loggerProvider != null );
         _loggerProvider._running = dotNetLogs;
 
-        // Applying Tags.
-        List<(CKTrait, LogClamper)>? parsedTags = null;
-        foreach( var entry in section.GetSection( "TagFilters" ).GetChildren() )
+        if( _isDefaultGrandOutput )
         {
-            if( int.TryParse( entry.Key, out var idxEntry ) )
-            {
-                parsedTags = HandleTag( _target, parsedTags, entry, entry["0"], entry["1"] );
-            }
-            else
-            {
-                parsedTags = HandleTag( _target, parsedTags, entry, entry.Key, entry.Value );
-            }
-        }
-        if( parsedTags != null )
-        {
-            ActivityMonitor.Tags.SetFilters( parsedTags.ToArray() );
-        }
-
-        if( globalDefaultFilter != null )
-        {
-            // Always log the parse error, but only log and applies if this is the initial configuration.
-            if( errorParsingGlobalDefaultFilter )
-            {
-                _target.ExternalLog( Core.LogLevel.Error, message: $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
-            }
-            else if( initialConfigMustWaitForApplication )
-            {
-                SetGlobalDefaultFilter( _target, defaultFilter );
-            }
-        }
-
-        static List<(CKTrait, LogClamper)>? HandleTag( GrandOutput target, List<(CKTrait, LogClamper)>? parsedTags, IConfigurationSection entry, string? name, string? filter )
-        {
-            if( name != null && filter != null )
-            {
-                var t = ActivityMonitor.Tags.Register( name );
-                if( !t.IsEmpty && LogClamper.TryParse( filter, out var c ) )
-                {
-                    parsedTags ??= new List<(CKTrait, LogClamper)>();
-                    parsedTags.Add( (t, c) );
-                }
-                else
-                {
-                    if( t.IsEmpty )
-                        target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters '{entry.Path}': [{name},{filter}]. Tag is empty" );
-                    else target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters '{entry.Path}': [{name},{filter}]. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
-                }
-            }
-            return parsedTags;
+            ApplyStaticConfigurations( _target,
+                                       section,
+                                       initialConfigMustWaitForApplication,
+                                       defaultFilter,
+                                       globalDefaultFilter,
+                                       errorParsingGlobalDefaultFilter );
         }
 
         static LogFilter SetGlobalDefaultFilter( GrandOutput target, LogFilter defaultFilter )
@@ -183,6 +174,99 @@ sealed class GrandOutputConfigurator
             target.ExternalLog( Core.LogLevel.Info, message: $"Configuring ActivityMonitor.DefaultFilter to GlobalDefaultFilter = '{defaultFilter}'." );
             ActivityMonitor.DefaultFilter = defaultFilter;
             return defaultFilter;
+        }
+
+        static void ParseAndSetStaticConfigurations( GrandOutput? target,
+                                                     IConfigurationSection section,
+                                                     bool initialConfigMustWaitForApplication,
+                                                     out LogFilter defaultFilter,
+                                                     out string? globalDefaultFilter,
+                                                     out bool errorParsingGlobalDefaultFilter )
+        {
+            defaultFilter = LogFilter.Undefined;
+            globalDefaultFilter = section["GlobalDefaultFilter"];
+            errorParsingGlobalDefaultFilter = globalDefaultFilter != null && !LogFilter.TryParse( globalDefaultFilter, out defaultFilter );
+            if( globalDefaultFilter != null && !errorParsingGlobalDefaultFilter )
+            {
+                if( initialConfigMustWaitForApplication )
+                {
+                    // On first initialization, configure the filter as early as possible.
+                    if( defaultFilter.Group != LogLevelFilter.None && defaultFilter.Line != LogLevelFilter.None )
+                    {
+                        ActivityMonitor.DefaultFilter = defaultFilter;
+                    }
+                    // If the filter is invalid (a None appears), keep the default Trace. 
+                }
+                else
+                {
+                    // If a GlobalDefaultFilter has been successfully parsed and we are reconfiguring and it is different than
+                    // the current one, logs the change and applies the configuration.
+                    if( defaultFilter != ActivityMonitor.DefaultFilter )
+                    {
+                        Throw.DebugAssert( "Since initialConfigMustWaitForApplication is false.", target != null );
+                        defaultFilter = SetGlobalDefaultFilter( target, defaultFilter );
+                    }
+                }
+            }
+        }
+
+        static void ApplyStaticConfigurations( GrandOutput target,
+                                               IConfigurationSection section,
+                                               bool initialConfigMustWaitForApplication,
+                                               LogFilter defaultFilter,
+                                               string? globalDefaultFilter,
+                                               bool errorParsingGlobalDefaultFilter )
+        {
+            // Applying Tags.
+            List<(CKTrait, LogClamper)>? parsedTags = null;
+            foreach( var entry in section.GetSection( "TagFilters" ).GetChildren() )
+            {
+                if( int.TryParse( entry.Key, out var idxEntry ) )
+                {
+                    parsedTags = HandleTag( target, parsedTags, entry, entry["0"], entry["1"] );
+                }
+                else
+                {
+                    parsedTags = HandleTag( target, parsedTags, entry, entry.Key, entry.Value );
+                }
+            }
+            if( parsedTags != null )
+            {
+                ActivityMonitor.Tags.SetFilters( parsedTags.ToArray() );
+            }
+
+            if( globalDefaultFilter != null )
+            {
+                // Always log the parse error, but only log and applies if this is the initial configuration.
+                if( errorParsingGlobalDefaultFilter )
+                {
+                    target.ExternalLog( Core.LogLevel.Error, message: $"Unable to parse configuration 'GlobalDefaultFilter'. Expected \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                }
+                else if( initialConfigMustWaitForApplication )
+                {
+                    SetGlobalDefaultFilter( target, defaultFilter );
+                }
+            }
+
+            static List<(CKTrait, LogClamper)>? HandleTag( GrandOutput target, List<(CKTrait, LogClamper)>? parsedTags, IConfigurationSection entry, string? name, string? filter )
+            {
+                if( name != null && filter != null )
+                {
+                    var t = ActivityMonitor.Tags.Register( name );
+                    if( !t.IsEmpty && LogClamper.TryParse( filter, out var c ) )
+                    {
+                        parsedTags ??= new List<(CKTrait, LogClamper)>();
+                        parsedTags.Add( (t, c) );
+                    }
+                    else
+                    {
+                        if( t.IsEmpty )
+                            target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters '{entry.Path}': [{name},{filter}]. Tag is empty" );
+                        else target.ExternalLog( Core.LogLevel.Warn, message: $"Ignoring TagFilters '{entry.Path}': [{name},{filter}]. Unable to parse clamp value. Expected a LogFilter (followed by an optional '!'): \"Debug\", \"Trace\", \"Verbose\", \"Monitor\", \"Terse\", \"Release\", \"Off\" or pairs of \"{{Group,Line}}\" levels where Group or Line can be Debug, Trace, Info, Warn, Error, Fatal or Off." );
+                    }
+                }
+                return parsedTags;
+            }
         }
     }
 

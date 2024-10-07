@@ -114,6 +114,7 @@ public static class HostBuilderMonitoringHostExtensions
         return DoUseMonitoring( builder, grandOutput, c => section );
     }
 
+    [Obsolete( "Use IHostApplicationBuilder simplified API instead.", false )]
     static IHostBuilder DoUseMonitoring( IHostBuilder builder, GrandOutput? grandOutput, Func<IConfiguration, IConfigurationSection> configSection )
     {
         var initializer = new GrandOutputConfigurationInitializer( grandOutput );

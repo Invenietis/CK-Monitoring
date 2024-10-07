@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using CK.Core;
 using CK.Core.Impl;
 
@@ -50,7 +51,7 @@ public sealed class GrandOutputClient : IActivityMonitorBoundClient
 
     LogFilter IActivityMonitorBoundClient.MinimalFilter => _central.MinimalFilter;
 
-    bool IActivityMonitorBoundClient.IsDead => _central.IsDisposed;
+    bool IActivityMonitorBoundClient.IsDead => _central.StoppedToken.IsCancellationRequested;
 
     internal bool IsBoundToMonitor => _monitorSource != null;
 
@@ -58,7 +59,7 @@ public sealed class GrandOutputClient : IActivityMonitorBoundClient
 
     void IActivityMonitorClient.OnUnfilteredLog( ref ActivityMonitorLogData data )
     {
-        if( _central.IsDisposed ) return;
+        if( _central.StoppedToken.IsCancellationRequested ) return;
         Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
         InputLogEntry e = InputLogEntry.AcquireInputLogEntry( _central.GrandOutpuId,
                                                               ref data,
@@ -72,7 +73,7 @@ public sealed class GrandOutputClient : IActivityMonitorBoundClient
 
     void IActivityMonitorClient.OnOpenGroup( IActivityLogGroup group )
     {
-        if( _central.IsDisposed ) return;
+        if( _central.StoppedToken.IsCancellationRequested ) return;
         Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
         InputLogEntry e = InputLogEntry.AcquireInputLogEntry( _central.GrandOutpuId,
                                                               ref group.Data,
@@ -90,7 +91,7 @@ public sealed class GrandOutputClient : IActivityMonitorBoundClient
 
     void IActivityMonitorClient.OnGroupClosed( IActivityLogGroup group, IReadOnlyList<ActivityLogGroupConclusion> conclusions )
     {
-        if( _central.IsDisposed ) return;
+        if( _central.StoppedToken.IsCancellationRequested ) return;
         Debug.Assert( _monitorSource != null, "Since we are called by the monitor..." );
         InputLogEntry e = InputLogEntry.AcquireInputLogEntry( _central.GrandOutpuId,
                                                               group.CloseLogTime,

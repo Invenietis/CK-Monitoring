@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting.Tests;
 
@@ -20,11 +21,12 @@ public class BuilderMonitorTests
     }
 
     [Test]
-    public void BuilderMonitor_is_always_available()
+    public async Task BuilderMonitor_is_always_available_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "FromBuilderMonitor" );
         // Disposes current GrandOutput.Default if any.
-        GrandOutput.Default?.Dispose();
+        var d = GrandOutput.Default;
+        if( d != null ) await d.DisposeAsync();
 
         // The GetBuilderMonitor() is available.
         var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
@@ -41,7 +43,7 @@ public class BuilderMonitorTests
         builder.GetBuilderMonitor().Info( "After configure." );
 
         var app = builder.Build();
-        GrandOutput.Default!.Dispose();
+        await GrandOutput.Default!.DisposeAsync();
 
         var text = TestHelper.FileReadAllText( Directory.EnumerateFiles( folder ).Single() );
         text.Should().Contain( "This will eventually be logged!" )

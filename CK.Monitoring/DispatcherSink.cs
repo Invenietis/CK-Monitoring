@@ -30,6 +30,9 @@ public class DispatcherSink
     readonly Action<IActivityMonitor> _initialRegister;
     readonly Action<LogFilter?, LogLevelFilter?> _filterChange;
     readonly CancellationTokenSource _stopTokenSource;
+    // We Dispose the _stopTokenSource: copy a token here that will not
+    // throw a ObjectDisposedException when retrieved.
+    CancellationToken _stoppingToken;
     readonly object _externalLogLock;
     readonly string _sinkMonitorId;
 
@@ -40,7 +43,6 @@ public class DispatcherSink
     long _nextExternalTicks;
     int _configurationCount;
     DateTimeStamp _externalLogLastTime;
-    volatile bool _forceClose;
     readonly bool _isDefaultGrandOutput;
     bool _unhandledExceptionTracking;
 
@@ -58,6 +60,7 @@ public class DispatcherSink
         _handlers = new List<IGrandOutputHandler>();
         _confTrigger = new object();
         _stopTokenSource = new CancellationTokenSource();
+        _stoppingToken = _stopTokenSource.Token;
         _timerDuration = timerDuration;
         _deltaTicks = timerDuration.Ticks;
         _deltaExternalTicks = externalTimerDuration.Ticks;
@@ -93,7 +96,7 @@ public class DispatcherSink
     /// <summary>
     /// Gets a cancellation token that is canceled by Stop.
     /// </summary>
-    internal CancellationToken StoppingToken => _stopTokenSource.Token;
+    internal CancellationToken StoppingToken => _stoppingToken;
 
 
     async Task ProcessAsync( IActivityMonitor monitor )
@@ -124,7 +127,7 @@ public class DispatcherSink
         _nextExternalTicks = now + _timerDuration.Ticks;
         // Creates and launch the "awaker". This avoids any CancellationToken.
         Timer awaker = new Timer( _ => _queue.Writer.TryWrite( null ), null, 100, 100 );
-        while( !_forceClose && await _queue.Reader.WaitToReadAsync() )
+        while( await _queue.Reader.WaitToReadAsync() )
         {
             _queue.Reader.TryRead( out var o );
             newConf = _newConf;
@@ -243,6 +246,7 @@ public class DispatcherSink
             }
         }
         foreach( var h in _handlers ) await SafeActivateOrDeactivateAsync( monitor, h, false );
+        _stopTokenSource.Dispose();
         monitor.MonitorEnd();
     }
 
@@ -332,7 +336,7 @@ public class DispatcherSink
             Monitor.PulseAll( _confTrigger );
     }
 
-    async ValueTask<bool> SafeActivateOrDeactivateAsync( IActivityMonitor monitor, IGrandOutputHandler h, bool activate )
+    static async ValueTask<bool> SafeActivateOrDeactivateAsync( IActivityMonitor monitor, IGrandOutputHandler h, bool activate )
     {
         try
         {
@@ -356,27 +360,21 @@ public class DispatcherSink
     /// </returns>
     internal bool Stop()
     {
-        // TryWrite and TryComplete return false if the channel has been completed.
-        if( _queue.Writer.TryWrite( InputLogEntry.CloseSentinel ) && _queue.Writer.TryComplete() )
+        lock( _externalLogLock )
         {
-            _identityCard.LocalUninitialize( _isDefaultGrandOutput );
-            SetUnhandledExceptionTracking( false );
-            _stopTokenSource.Cancel();
-            return true;
+            if( !_stopTokenSource.IsCancellationRequested )
+            {
+                _stopTokenSource.Cancel();
+                if( _queue.Writer.TryWrite( InputLogEntry.CloseSentinel ) ) _queue.Writer.TryComplete();
+                _identityCard.LocalUninitialize( _isDefaultGrandOutput );
+                SetUnhandledExceptionTracking( false );
+                return true;
+            }
         }
         return false;
     }
 
-    internal void Finalize( int millisecondsBeforeForceClose )
-    {
-#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
-        if( !_task.Wait( millisecondsBeforeForceClose ) ) _forceClose = true;
-        _task.Wait();
-#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
-        _stopTokenSource.Dispose();
-    }
-
-    internal bool IsRunning => !_stopTokenSource.IsCancellationRequested;
+    internal Task RunningTask => _task;
 
     /// <summary>
     /// Handles a log entry.

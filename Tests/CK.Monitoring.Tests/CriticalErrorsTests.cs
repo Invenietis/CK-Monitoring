@@ -4,6 +4,7 @@ using System.Linq;
 using CK.Core;
 using NUnit.Framework;
 using FluentAssertions;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests;
 
@@ -33,12 +34,14 @@ public class CriticalErrorsTests
     [TestCase( "Trace.Assert", false, Explicit = false )]
     [TestCase( "Debug.Fail", false, Explicit = false )]
     [TestCase( "Debug.Assert", false, Explicit = false )]
-    public void Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener( string action, bool monitorTraceListenerFailFast )
+    public async Task Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener_Async( string action, bool monitorTraceListenerFailFast )
     {
-        NormalizedPath folder = LogFile.RootLogPath + nameof( Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener );
+        NormalizedPath folder = LogFile.RootLogPath + nameof( Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener_Async );
         Directory.CreateDirectory( folder );
-        var textConf = new Handlers.TextFileConfiguration() { Path = nameof( Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener ) };
-        using( GrandOutput g = new GrandOutput( new GrandOutputConfiguration().AddHandler( textConf ) ) )
+        var textConf = new Handlers.TextFileConfiguration() { Path = nameof( Debug_and_Trace_FailFast_are_handled_by_the_MonitorTraceListener_Async ) };
+
+        GrandOutput g = new GrandOutput( new GrandOutputConfiguration().AddHandler( textConf ) );
+        await using( g.ConfigureAwait( false ) )
         {
             // This is what the GrandOtput.Default does with its default options.
             System.Diagnostics.Trace.Listeners.Clear();

@@ -58,7 +58,7 @@ public class GrandOutputTests
 
     [Explicit]
     [Test]
-    public void Console_handler_demo()
+    public async Task Console_handler_demo_Async()
     {
         var a = new ActivityMonitor();
         a.Output.RegisterClient( new ActivityMonitorConsoleClient() );
@@ -70,7 +70,7 @@ public class GrandOutputTests
         {
             Path = "test"
         } );
-        using( var g = new GrandOutput( c ) )
+        await using( var g = new GrandOutput( c ) )
         {
             var m = CreateMonitorAndRegisterGrandOutput( "Hello Console!", g );
             m.Info( "This is the same demo, but with the GrandOutputConsole." );
@@ -102,7 +102,7 @@ public class GrandOutputTests
     }
 
     [Test]
-    public void reading_static_logger_entries()
+    public async Task reading_static_logger_entries_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "StaticLogger" );
 
@@ -113,7 +113,7 @@ public class GrandOutputTests
                 new Handlers.BinaryFileConfiguration { Path = folder + "/GZip", UseGzipCompression = true } }
         };
 
-        using( GrandOutput g = new GrandOutput( c ) )
+        await using( GrandOutput g = new GrandOutput( c ) )
         {
             ActivityMonitor.StaticLogger.Info( "This is a static log." );
         }
@@ -161,7 +161,7 @@ public class GrandOutputTests
                             UseGzipCompression = false
                         } );
 
-        using( GrandOutput g = new GrandOutput( c ) )
+        await using( GrandOutput g = new GrandOutput( c ) )
         {
             var taskA = Task.Factory.StartNew( () => DumpMonitor1083Entries( CreateMonitorAndRegisterGrandOutput( "Task A", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
             var taskB = Task.Factory.StartNew( () => DumpMonitor1083Entries( CreateMonitorAndRegisterGrandOutput( "Task B", g ), 5 ), default, TaskCreationOptions.LongRunning, TaskScheduler.Default );
@@ -289,11 +289,11 @@ public class GrandOutputTests
     }
 
     [Test]
-    public void External_log_filter_check()
+    public async Task External_log_filter_check_Async()
     {
         // Resets the default global filter.
         ActivityMonitor.DefaultFilter = LogFilter.Trace;
-        using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
+        await using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
         {
             g.ExternalLogLevelFilter.Should().Be( LogLevelFilter.None );
             g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
@@ -320,88 +320,26 @@ public class GrandOutputTests
     }
 
     [Test]
-    public void GrandOutput_MinimalFilter_works()
+    public async Task GrandOutput_MinimalFilter_works_Async()
     {
-        using GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
+        await using GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
         var m = CreateMonitorAndRegisterGrandOutput( "Test.", go );
         m.ActualFilter.Should().Be( LogFilter.Undefined );
         go.MinimalFilter = LogFilter.Release;
         m.ActualFilter.Should().Be( LogFilter.Release );
     }
 
-    //[Test]
-    //public void ApplyConfiguration_can_wait()
-    //{
-    //    var c100 = new GrandOutputConfiguration()
-    //                    .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 100 } );
-    //    var c0 = new GrandOutputConfiguration()
-    //                    .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 0 } );
-    //    SlowSinkHandler.ActivatedDelay = -1;
-    //    using( var g = new GrandOutput( c100 ) )
-    //    {
-    //        SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
-    //        // Without waiting, we must be able to find an apply that
-    //        // did not succeed in at least 11 tries.
-    //        int i;
-    //        for( i = 0; i <= 10; ++i )
-    //        {
-    //            SlowSinkHandler.ActivatedDelay = -1;
-    //            g.ApplyConfiguration( c0, waitForApplication: false );
-    //            if( SlowSinkHandler.ActivatedDelay == -1 ) break;
-    //        }
-    //        i.Should().BeLessThan( 10 );
-    //        // ...Artificially adding multiple configurations with 0 delay and no wait
-    //        // to fill the "queue" of pending configurations.
-    //        for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c0, waitForApplication: false );
-    //        // With wait for application:
-    //        // ...Applying 100 is effective.
-    //        g.ApplyConfiguration( c100, waitForApplication: true );
-    //        SlowSinkHandler.ActivatedDelay.Should().Be( 100 );
-    //        // ...Artificially adding multiple configurations with 100 delay.
-    //        for( i = 0; i <= 10; ++i ) g.ApplyConfiguration( c100, waitForApplication: false );
-    //        // ...Applying 0 is effective.
-    //        g.ApplyConfiguration( c0, waitForApplication: true );
-    //        SlowSinkHandler.ActivatedDelay.Should().Be( 0 );
-    //    }
-    //}
-
     [Test]
-    public void GrandOutput_signals_its_disposing_via_a_CancellationToken()
+    public async Task GrandOutput_signals_its_disposing_via_a_CancellationToken_Async()
     {
         GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
-        // Simulates an event stream.
-        // Since the goal of this test is to mimic a kind of unsubscribe to
-        // an event stream with DisposingToken.Register, we use simple
-        // boolean to signal the event (using a Monitor or the CancellationToken itself
-        // would be "too easy".
-        // Update 2017-12-15: this failed once on Appveyor (release configuration).
-        // instead of a simple boolean, now use an interlocked.
-        // bool subscribed = true;
-        int subscribed = 1;
-        bool atleastOneReceived = false;
-        var t = new Thread( () =>
-        {
-            while( Interlocked.Exchange( ref subscribed, 1 ) == 1 )
-            {
-                // This throws if the sink queue is closed.
-                go.ExternalLog( LogLevel.Fatal, message: "Test", ex: null );
-                atleastOneReceived = true;
-            }
-        } );
-        go.DisposingToken.Register( () => Interlocked.Exchange( ref subscribed, 0 ) );
-        t.Start();
-        // In debug, here, using simple booleans with no interlocked works well (memory is
-        // synchronized because of the debug).
-        // In Release (both on Net461 & netcoreapp2.1) and even with Interlocked, this is not detected...
-        // while( receivedCount == 0 ) ;
-        // The Thread.Yield() does the job...
-        while( !atleastOneReceived ) Thread.Yield();
-        go.Dispose();
-        subscribed.Should().BeGreaterOrEqualTo( 0 ).And.BeLessOrEqualTo( 1 );
+        go.StoppedToken.IsCancellationRequested.Should().BeFalse();
+        await go.DisposeAsync();
+        go.StoppedToken.IsCancellationRequested.Should().BeTrue();
     }
 
     [TestCase( 1 )]
-    public void disposing_GrandOutput_waits_for_termination( int loop )
+    public async Task disposing_GrandOutput_waits_for_termination_Async( int loop )
     {
         string logPath = TestHelper.PrepareLogFolder( "Termination" );
         var c = new GrandOutputConfiguration()
@@ -409,7 +347,7 @@ public class GrandOutputTests
                         .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } )
                         .AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } );
         GrandOutputMemoryCollector inMemory;
-        using( var g = new GrandOutput( c ) )
+        await using( var g = new GrandOutput( c ) )
         {
             inMemory = g.CreateMemoryCollector( 2000 * loop, ignoreCloseGroup: false );
             var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
@@ -430,30 +368,6 @@ public class GrandOutputTests
             .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
             .Sum()
             .Should().Be( loop );
-    }
-
-    [TestCase( 1 )]
-    public void disposing_GrandOutput_deactivate_handlers_even_when_disposing_fast_but_logs_are_lost( int loop )
-    {
-        string logPath = TestHelper.PrepareLogFolder( "TerminationLost" );
-        var c = new GrandOutputConfiguration()
-                       .AddHandler( new SlowSinkHandlerConfiguration() { Delay = 10 } )
-                       .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } );
-        using( var g = new GrandOutput( c ) )
-        {
-            var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
-            g.EnsureGrandOutputClient( m );
-            DumpMonitor1083Entries( m, loop );
-            g.Dispose( 0 );
-        }
-        var fileNames = Directory.EnumerateFiles( logPath ).ToList();
-        fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ), "All temporary files have been closed." );
-        fileNames
-            .Where( n => n.EndsWith( ".txt" ) )
-            .Select( n => File.ReadAllText( n ) )
-            .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
-            .Sum()
-            .Should().BeLessThan( loop, $"There is less that the normal {loop} \"~~~~~FINAL TRACE~~~~~\" in text logs." );
     }
 
     // Caution: In the first run one entry is the IdentityCard!

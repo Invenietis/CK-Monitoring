@@ -6,6 +6,8 @@ using System.Reflection;
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
+using System.Reflection.Emit;
 
 namespace CK.Monitoring;
 
@@ -15,7 +17,7 @@ namespace CK.Monitoring;
 /// available as soon as <see cref="EnsureActiveDefault"/> is called 
 /// and will be automatically used by new <see cref="ActivityMonitor"/>.
 /// </summary>
-public sealed partial class GrandOutput : IDisposable
+public sealed partial class GrandOutput : IAsyncDisposable
 {
     readonly List<WeakReference<GrandOutputClient>> _clients;
     readonly DispatcherSink _sink;
@@ -83,12 +85,7 @@ public sealed partial class GrandOutput : IDisposable
         {
             if( _default == null )
             {
-                if( configuration == null )
-                {
-                    configuration = new GrandOutputConfiguration()
-                                        .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
-                    configuration.InternalClone = true;
-                }
+                configuration ??= CreateInternalDefaultConfiguration();
                 _default = new GrandOutput( true, configuration );
                 ActivityMonitor.AutoConfiguration += AutoRegisterDefault;
                 _traceListener = new MonitorTraceListener( _default, failFast: false );
@@ -98,6 +95,14 @@ public sealed partial class GrandOutput : IDisposable
             else if( configuration != null ) _default.ApplyConfiguration( configuration, true );
         }
         return _default;
+    }
+
+    static GrandOutputConfiguration CreateInternalDefaultConfiguration()
+    {
+        GrandOutputConfiguration? configuration = new GrandOutputConfiguration()
+                            .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
+        configuration.InternalClone = true;
+        return configuration;
     }
 
     static void AutoRegisterDefault( IActivityMonitor m )
@@ -146,12 +151,23 @@ public sealed partial class GrandOutput : IDisposable
 
     static GrandOutput()
     {
-        AppDomain.CurrentDomain.DomainUnload += ( o, e ) => Default?.Dispose();
-        AppDomain.CurrentDomain.ProcessExit += ( o, e ) => Default?.Dispose();
+        // Attempts to block the destruction until logs are
+        // flushed... Just an attempt...
+        static void HardStop( object? o, EventArgs e ) => Default?.StopAndWaitForTermination();
+        AppDomain.CurrentDomain.DomainUnload += HardStop;
+        AppDomain.CurrentDomain.ProcessExit += HardStop;
     }
 
     /// <summary>
-    /// Initializes a new <see cref="GrandOutput"/>. 
+    /// Initializes a new independent <see cref="GrandOutput"/> with a default configuration (the default "Text" handler only).
+    /// </summary>
+    public GrandOutput()
+        : this( false, CreateInternalDefaultConfiguration() )
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new independent <see cref="GrandOutput"/>. 
     /// </summary>
     /// <param name="config">The configuration.</param>
     public GrandOutput( GrandOutputConfiguration config )
@@ -189,7 +205,6 @@ public sealed partial class GrandOutput : IDisposable
     /// <returns>A newly created client or the already existing one.</returns>
     public GrandOutputClient EnsureGrandOutputClient( IActivityMonitor monitor )
     {
-        if( IsDisposed ) Throw.ObjectDisposedException( nameof( GrandOutput ) );
         Throw.CheckNotNullArgument( monitor );
         var c = DoEnsureGrandOutputClient( monitor );
         if( c == null ) Throw.ObjectDisposedException( nameof( GrandOutput ) );
@@ -198,17 +213,17 @@ public sealed partial class GrandOutput : IDisposable
 
     GrandOutputClient? DoEnsureGrandOutputClient( IActivityMonitor monitor )
     {
-        GrandOutputClient? Register()
+        GrandOutputClient? DoRegister()
         {
             var c = new GrandOutputClient( this );
             lock( _clients )
             {
-                if( IsDisposed ) c = null;
+                if( _sink.StoppingToken.IsCancellationRequested ) c = null;
                 else _clients.Add( new WeakReference<GrandOutputClient>( c ) );
             }
             return c;
         }
-        return monitor.Output.RegisterUniqueClient( b => { Throw.DebugAssert( b != null ); return b.Central == this; }, Register, replayInitialLogs: true );
+        return monitor.Output.RegisterUniqueClient( b => b.Central == this, DoRegister, replayInitialLogs: true );
     }
 
     /// <summary>
@@ -324,7 +339,7 @@ public sealed partial class GrandOutput : IDisposable
     /// This is intended to be used in tests: there is little to no interest to use this collector elsewhere.
     /// </para>
     /// </summary>
-    /// <param name="maxCapacity">The maximal number of collected entries: oldest entries are automatocally discarded.</param>
+    /// <param name="maxCapacity">The maximal number of collected entries: oldest entries are automatically discarded.</param>
     /// <param name="ignoreCloseGroup">False to also collect <see cref="LogEntryType.CloseGroup"/>.</param>
     /// <returns>A collector that must be disposed.</returns>
     public GrandOutputMemoryCollector CreateMemoryCollector( int maxCapacity, bool ignoreCloseGroup = true )
@@ -333,10 +348,9 @@ public sealed partial class GrandOutput : IDisposable
     }
 
     /// <summary>
-    /// Gets a cancellation token that is cancelled at the start
-    /// of <see cref="Dispose()"/>.
+    /// Gets a cancellation token that is cancelled by the <see cref="Stop()"/>.
     /// </summary>
-    public CancellationToken DisposingToken => _sink.StoppingToken;
+    public CancellationToken StoppedToken => _sink.StoppingToken;
 
     void DoGarbageDeadClients()
     {
@@ -358,35 +372,57 @@ public sealed partial class GrandOutput : IDisposable
     public DispatcherSink Sink => _sink;
 
     /// <summary>
-    /// Gets whether this GrandOutput has been disposed.
+    /// Definitely stops this GrandOutput. Thsi can be called concurrently and multiple times.
+    /// If this is the default one that is stopped, <see cref="Default"/> is set to null.
+    /// <para>
+    /// This doesn't wait for the internal agent to terminate. Use <see cref="RunningTask"/> to
+    /// await for the actual agent termination.
+    /// </para>
     /// </summary>
-    public bool IsDisposed => !_sink.IsRunning;
+    /// <returns>
+    /// True if this call stopped this GrandOutput, false if it has been already been stopped by another thread.
+    /// </returns>
+    public bool Stop()
+    {
+        if( !_sink.Stop() ) return false;
+        lock( _defaultLock )
+        {
+            if( _default == this )
+            {
+                ActivityMonitor.AutoConfiguration -= AutoRegisterDefault;
+                Throw.DebugAssert( _traceListener != null );
+                Trace.Listeners.Remove( _traceListener );
+                _traceListener = null;
+                _default = null;
+            }
+        }
+        ActivityMonitor.OnStaticLog -= _sink.OnStaticLog;
+        SignalClients();
+        return true;
+    }
+
+    internal void StopAndWaitForTermination()
+    {
+        Stop();
+#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
+        _sink.RunningTask.Wait();
+#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
+    }
 
     /// <summary>
-    /// Closes this <see cref="GrandOutput"/>.
+    /// Gets a task that will be completed once the internal agent will be done.
+    /// </summary>
+    public Task RunningTask => _sink.RunningTask;
+
+    /// <summary>
+    /// Calss <see cref="Stop"/> and await for the <see cref="RunningTask"/>.
     /// If this is the default one that is disposed, <see cref="Default"/> is set to null.
     /// </summary>
-    /// <param name="millisecondsBeforeForceClose">Maximal time to wait.</param>
-    public void Dispose( int millisecondsBeforeForceClose = Timeout.Infinite )
+    public ValueTask DisposeAsync()
     {
-        if( _sink.Stop() )
-        {
-            lock( _defaultLock )
-            {
-                if( _default == this )
-                {
-                    ActivityMonitor.AutoConfiguration -= AutoRegisterDefault;
-                    Debug.Assert( _traceListener != null );
-                    Trace.Listeners.Remove( _traceListener );
-                    _traceListener = null;
-                    _default = null;
-
-                }
-            }
-            ActivityMonitor.OnStaticLog -= _sink.OnStaticLog;
-            SignalClients();
-            _sink.Finalize( millisecondsBeforeForceClose );
-        }
+        Stop();
+        var t = _sink.RunningTask;
+        return t.IsCompleted ? default : new ValueTask( t );
     }
 
     void SignalClients()
@@ -401,14 +437,5 @@ public sealed partial class GrandOutput : IDisposable
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Calls <see cref="Dispose(int)"/> with <see cref="Timeout.Infinite"/>.
-    /// If this is the default one that is disposed, <see cref="Default"/> is set to null.
-    /// </summary>
-    public void Dispose()
-    {
-        Dispose( Timeout.Infinite );
     }
 }

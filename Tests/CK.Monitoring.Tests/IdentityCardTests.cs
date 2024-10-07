@@ -168,9 +168,9 @@ public class IdentityCardTests
     }
 
     [Test]
-    public void CoreApplicationIdentity_initialize_injects_CoreApplicationIdentity_values()
+    public async Task CoreApplicationIdentity_initialize_injects_CoreApplicationIdentity_values_Async()
     {
-        using var g = new GrandOutput( new GrandOutputConfiguration() );
+        await using var g = new GrandOutput( new GrandOutputConfiguration() );
         CoreApplicationIdentity.Initialize();
         g.IdentityCard.Identities["AppIdentity"].Should().NotBeEmpty();
         g.IdentityCard.Identities["AppIdentity/InstanceId"].Single().Should().Be( CoreApplicationIdentity.InstanceId );
@@ -183,12 +183,12 @@ public class IdentityCardTests
     }
 
     [Test]
-    public void ActivityMonitorSimpleSenderExtension_AddIdentityInformation_updates_the_identity_card()
+    public async Task ActivityMonitorSimpleSenderExtension_AddIdentityInformation_updates_the_identity_card_Async()
     {
         string folder = TestHelper.PrepareLogFolder( "AddIdentityInformation" );
         var textConf = new Handlers.TextFileConfiguration() { Path = "AddIdentityInformation", AutoFlushRate = 1 };
 
-        using var g = new GrandOutput( new GrandOutputConfiguration() { TimerDuration = TimeSpan.FromMilliseconds( 15 ), Handlers = { textConf } } );
+        await using var g = new GrandOutput( new GrandOutputConfiguration() { TimerDuration = TimeSpan.FromMilliseconds( 15 ), Handlers = { textConf } } );
         var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
         g.EnsureGrandOutputClient( m );
         m.AddIdentityInformation( "Hello", "World!" );

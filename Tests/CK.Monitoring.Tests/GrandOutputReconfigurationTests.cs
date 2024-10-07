@@ -7,15 +7,16 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests;
 
 public class GrandOutputReconfigurationTests
 {
     [Test]
-    public void BinaryGzip_reconfiguration()
+    public async Task BinaryGzip_reconfiguration_Async()
     {
-        string folder = TestHelper.PrepareLogFolder( nameof( BinaryGzip_reconfiguration ) );
+        string folder = TestHelper.PrepareLogFolder( nameof( BinaryGzip_reconfiguration_Async ) );
         var h = new Handlers.BinaryFileConfiguration()
         {
             Path = folder + @"\FirstPath",
@@ -24,7 +25,8 @@ public class GrandOutputReconfigurationTests
         var c = new GrandOutputConfiguration().AddHandler( h );
 
         var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
-        using( GrandOutput g = new GrandOutput( c ) )
+        GrandOutput g = new GrandOutput( c );
+        await using( g.ConfigureAwait(false) )
         {
             g.EnsureGrandOutputClient( m );
 

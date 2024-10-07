@@ -6,6 +6,7 @@ using CK.Core;
 using NUnit.Framework;
 using FluentAssertions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests.Persistence;
 
@@ -28,7 +29,7 @@ public class MultiFileReaderTests
     [TestCase( false )]
     [TestCase( true )]
     [Explicit( "Buggy. To be fixed." )]
-    public void duplicates_are_automatically_removed( bool useGzipFormat )
+    public async Task duplicates_are_automatically_removed_Async( bool useGzipFormat )
     {
         Stopwatch sw = new Stopwatch();
         for( int nbEntries1 = 1; nbEntries1 < 8; ++nbEntries1 )
@@ -36,12 +37,12 @@ public class MultiFileReaderTests
             {
                 TestHelper.ConsoleMonitor.Trace( $"Start {nbEntries1}/{nbEntries2}." );
                 sw.Restart();
-                DuplicateTestWith6Entries( nbEntries1, nbEntries2, useGzipFormat );
+                await DuplicateTestWith6Entries_Async( nbEntries1, nbEntries2, useGzipFormat );
                 TestHelper.ConsoleMonitor.Trace( $"Done in {sw.Elapsed}." );
             }
     }
 
-    private static void DuplicateTestWith6Entries( int nbEntries1, int nbEntries2, bool gzip = false )
+    static async Task DuplicateTestWith6Entries_Async( int nbEntries1, int nbEntries2, bool gzip = false )
     {
         var folder = TestHelper.PrepareLogFolder( "ReadDuplicates" );
 
@@ -58,7 +59,7 @@ public class MultiFileReaderTests
                             MaxCountPerFile = nbEntries2,
                             UseGzipCompression = gzip
                         } );
-        using( var o = new GrandOutput( config ) )
+        await using( var o = new GrandOutput( config ) )
         {
             var m = new ActivityMonitor();
             o.EnsureGrandOutputClient( m );

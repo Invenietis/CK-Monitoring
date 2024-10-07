@@ -1,6 +1,8 @@
+using CK.Core;
 using FluentAssertions;
 using NUnit.Framework;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests;
 
@@ -8,12 +10,15 @@ namespace CK.Monitoring.Tests;
 public class GrandOutputDefaultTests
 {
     [Test]
-    public void applying_empty_configuration_and_disposing()
+    public async Task applying_empty_configuration_and_disposing_Async()
     {
         TestHelper.InitalizePaths();
         GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
         Debug.Assert( GrandOutput.Default != null );
-        GrandOutput.Default.Dispose();
+        await GrandOutput.Default.DisposeAsync();
         GrandOutput.Default.Should().BeNull();
     }
+
+
+
 }

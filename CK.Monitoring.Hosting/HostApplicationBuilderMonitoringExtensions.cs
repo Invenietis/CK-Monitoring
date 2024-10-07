@@ -115,6 +115,10 @@ public static class HostApplicationBuilderMonitoringExtensions
     /// <summary>
     /// Initializes the <see cref="GrandOutput.Default"/> from the <see cref="IHostApplicationBuilder.Configuration"/> "CK-Monitoring" section.
     /// <para>
+    /// <see cref="GetBuilderMonitor(IHostApplicationBuilder)">IHostApplicationBuilder.GetBuilderMonitor()</see> can be called anytime (before
+    /// this method is called): logs to this builder monitor will automatically be transferred to the GrandOutput once it is setup.
+    /// </para>
+    /// <para>
     /// This can safely be called multiple times on the same <paramref name="builder"/> but this should not be used
     /// on a host created inside an already running application (this would reconfigure the GrandOutput.Default).
     /// </para>
@@ -138,8 +142,30 @@ public static class HostApplicationBuilderMonitoringExtensions
         if( !builder.Properties.ContainsKey( t ) )
         {
             builder.Properties.Add( t, t );
-            new GrandOutputConfigurator( builder );
+            _ = new GrandOutputConfigurator( builder, isDefaultGrandOutput: true );
         }
+        return builder;
+    }
+
+
+    /// <summary>
+    /// Initializes an independent <see cref="GrandOutput"/> from the <see cref="IHostApplicationBuilder.Configuration"/> "CK-Monitoring" section.
+    /// This GrandOuput will be automatically disposed when calling <see cref="IHost.StopAsync(System.Threading.CancellationToken)"/>.
+    /// <para>
+    /// Yhis is for advanced scenario. <see cref="UseCKMonitoring{T}(T)"/> should almost always be used.
+    /// </para>
+    /// </summary>
+    /// <param name="builder">Host builder</param>
+    /// <returns>The builder.</returns>
+    public static T UseCKMonitoringWithIndependentGrandOutput<T>( this T builder, out GrandOutput grandOutput ) where T : IHostApplicationBuilder
+    {
+        var t = typeof( GrandOutput );
+        if( !builder.Properties.TryGetValue( t,out var oGrandOutput ) )
+        {
+            var c = new GrandOutputConfigurator( builder, isDefaultGrandOutput: false );
+            builder.Properties.Add( t, oGrandOutput = c.GrandOutputTarget );
+        }
+        grandOutput = (GrandOutput)oGrandOutput;
         return builder;
     }
 

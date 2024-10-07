@@ -7,6 +7,7 @@ using System.Threading;
 using FluentAssertions;
 using CK.Monitoring.InterProcess;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests;
 
@@ -14,13 +15,13 @@ namespace CK.Monitoring.Tests;
 public class SimplePipeIntraProcessTests
 {
     [Test]
-    public void sending_log_from_client()
+    public async Task sending_log_from_client_Async()
     {
         string logPath = TestHelper.PrepareLogFolder( "sending_log_from_client" );
         var c = new GrandOutputConfiguration()
                         .AddHandler( new Handlers.TextFileConfiguration() { Path = logPath } )
                         .AddHandler( new Handlers.BinaryFileConfiguration() { Path = logPath } );
-        using( var g = new GrandOutput( c ) )
+        await using( var g = new GrandOutput( c ) )
         {
             var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );

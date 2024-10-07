@@ -1,9 +1,11 @@
 using CK.AspNet.Tester;
 using CK.Core;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -17,10 +19,11 @@ public partial class HostApplicationBuilderTests
 {
     [TestCase( true )]
     [TestCase( false )]
-    public void GrandOutput_MinimalFilter_configuration_works( bool builderMonitorBeforeUseCKMonitoring )
+    public async Task GrandOutput_MinimalFilter_configuration_works_Async( bool builderMonitorBeforeUseCKMonitoring )
     {
         // Disposes current GrandOutput.Default if any.
-        GrandOutput.Default?.Dispose();
+        var d = GrandOutput.Default;
+        if( d != null ) await d.DisposeAsync();
 
         DemoSinkHandler.Reset();
         var config = new DynamicConfigurationSource();

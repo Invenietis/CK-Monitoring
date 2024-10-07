@@ -1,6 +1,8 @@
 using CK.AspNet.Tester;
 using CK.Core;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using System;
@@ -15,26 +17,27 @@ namespace CK.Monitoring.Hosting.Tests;
 [TestFixture]
 public class LogSenderTests
 {
-    public async Task<IHost> StartHostAsync()
+    public static async Task<(IHost Host, GrandOutput GrandOutput)> StartHostAsync()
     {
-        var config = new DynamicConfigurationSource();
-        config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.FakeLogSender, CK.Monitoring.Hosting.Tests"] = "true";
-        var host = new HostBuilder()
-                    .ConfigureAppConfiguration( ( hostingContext, c ) => c.Add( config ) )
-                    .UseCKMonitoring()
-                    .Build();
+        var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+        builder.Configuration.Add<DynamicConfigurationSource>( c => c["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.FakeLogSender, CK.Monitoring.Hosting.Tests"] = "true" );
+        builder.UseCKMonitoringWithIndependentGrandOutput( out var go );
+
+        var host = builder.Build();
         await host.StartAsync();
-        return host;
+        return (host, go);
     }
 
     [Test]
     public async Task creating_sender_waits_for_SenderCanBeCreated_and_Sender_is_Disposed_Async()
     {
         FakeLogSender.Reset();
-        var host = await StartHostAsync();
+        var (host, grandOutput) = await StartHostAsync();
         Debug.Assert( FakeLogSender.ActivatedSender != null );
 
         var monitor = new ActivityMonitor() { AutoTags = FakeLogSender.TestTag };
+        grandOutput.EnsureGrandOutputClient( monitor );
+
         monitor.Info( "NOSHOW" );
         await Task.Delay( 50 );
         FakeLogSender.ActivatedSender.Should().NotBeNull();
@@ -50,16 +53,19 @@ public class LogSenderTests
 
         await host.StopAsync();
         sender.Disposed.Should().BeTrue();
+        grandOutput.StoppedToken.IsCancellationRequested.Should().BeTrue();
     }
 
     [Test]
     public async Task waiting_for_ISender_creation_buffers_the_logs_Async()
     {
         FakeLogSender.Reset();
-        var host = await StartHostAsync();
+        var (host, grandOutput) = await StartHostAsync();
         Debug.Assert( FakeLogSender.ActivatedSender != null, "The handler is activated." );
 
         var monitor = new ActivityMonitor() { AutoTags = FakeLogSender.TestTag };
+        grandOutput.EnsureGrandOutputClient( monitor );
+
         monitor.Info( "NOSHOW since the buffer is configured to 5 and we'll buffer 6 logs here." );
         await Task.Delay( 50 );
 
@@ -88,6 +94,7 @@ public class LogSenderTests
         FakeLogSender.LogSent.Concatenate().Should().Contain( "n°1, n°2, n°3, n°4, n°5, n°6" ).And.NotContain( "NOSHOW" );
 
         await host.StopAsync();
+        grandOutput.StoppedToken.IsCancellationRequested.Should().BeTrue();
     }
 
     [Test]
@@ -97,10 +104,11 @@ public class LogSenderTests
         FakeLogSender.FakeSenderCanBeCreated = true;
         FakeLogSender.FakeSenderPersistentError = true;
 
-        var host = await StartHostAsync();
+        var (host, grandOutput) = await StartHostAsync();
         Debug.Assert( FakeLogSender.ActivatedSender == null );
 
         await host.StopAsync();
+        grandOutput.StoppedToken.IsCancellationRequested.Should().BeTrue();
     }
 
     [Test]
@@ -111,7 +119,7 @@ public class LogSenderTests
         // but cannot create the sender yet.
         FakeLogSender.FakeSenderPersistentError = true;
 
-        var host = await StartHostAsync();
+        var (host, grandOutput) = await StartHostAsync();
         Debug.Assert( FakeLogSender.ActivatedSender != null );
         FakeLogSender.ActivatedSender.FakeSender.Should().BeNull();
 
@@ -121,6 +129,8 @@ public class LogSenderTests
         // Handling a log entry triggers the sender creation but the "persistent error"
         // throws an exception: the handler is condemned (deactivation and removed).
         var monitor = new ActivityMonitor() { AutoTags = FakeLogSender.TestTag };
+        grandOutput.EnsureGrandOutputClient( monitor );
+
         monitor.Info( "NOSHOW" );
         await Task.Delay( 50 );
 
@@ -151,10 +161,12 @@ public class LogSenderTests
         FakeLogSender.Reset();
         FakeLogSender.FakeSenderCanBeCreated = true;
         Open( true );
-        var host = await StartHostAsync();
+        var (host, grandOutput) = await StartHostAsync();
         Debug.Assert( FakeLogSender.ActivatedSender != null, "The handler is activated." );
 
         var monitor = new ActivityMonitor() { AutoTags = FakeLogSender.TestTag };
+        grandOutput.EnsureGrandOutputClient( monitor );
+
         monitor.Info( "n°1" );
         await Task.Delay( 50 );
         Open( false );
