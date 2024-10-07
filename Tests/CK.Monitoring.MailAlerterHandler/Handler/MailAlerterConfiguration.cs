@@ -5,28 +5,27 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CK.Monitoring.Handlers
+namespace CK.Monitoring.Handlers;
+
+public class MailAlerterConfiguration : IHandlerConfiguration
 {
-    public class MailAlerterConfiguration : IHandlerConfiguration
+    public string? Email { get; set; }
+
+    public IHandlerConfiguration Clone()
     {
-        public string? Email { get; set; }
-
-        public IHandlerConfiguration Clone()
+        return new MailAlerterConfiguration()
         {
-            return new MailAlerterConfiguration()
-            {
-                Email = Email
-            };
-        }
+            Email = Email
+        };
+    }
 
-        internal bool CheckValidity( IActivityMonitor monitor )
+    internal bool CheckValidity( IActivityMonitor monitor )
+    {
+        if( String.IsNullOrWhiteSpace( Email ) )
         {
-            if( String.IsNullOrWhiteSpace( Email ) )
-            {
-                monitor.Error( $"Invalid Email configuration: {Email}" );
-                return false;
-            }
-            return true;
+            monitor.Error( $"Invalid Email configuration: {Email}" );
+            return false;
         }
+        return true;
     }
 }

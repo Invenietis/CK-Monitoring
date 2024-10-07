@@ -1,34 +1,33 @@
 using System;
 
-namespace CK.Monitoring.Handlers
+namespace CK.Monitoring.Handlers;
+
+/// <summary>
+/// Configuration object for <see cref="BinaryFile"/>.
+/// </summary>
+public class BinaryFileConfiguration : FileConfigurationBase
 {
     /// <summary>
-    /// Configuration object for <see cref="BinaryFile"/>.
+    /// Gets or sets whether to use Gzip compression after closing log files.
+    /// Defaults to false.
     /// </summary>
-    public class BinaryFileConfiguration : FileConfigurationBase
+    public bool UseGzipCompression { get; set; }
+
+
+    /// <summary>
+    /// Clones this configuration.
+    /// </summary>
+    /// <returns>Clone of this configuration.</returns>
+    public override IHandlerConfiguration Clone()
     {
-        /// <summary>
-        /// Gets or sets whether to use Gzip compression after closing log files.
-        /// Defaults to false.
-        /// </summary>
-        public bool UseGzipCompression { get; set; }
-
-
-        /// <summary>
-        /// Clones this configuration.
-        /// </summary>
-        /// <returns>Clone of this configuration.</returns>
-        public override IHandlerConfiguration Clone()
+        return new BinaryFileConfiguration()
         {
-            return new BinaryFileConfiguration()
-            {
-                Path = Path,
-                MaxCountPerFile = MaxCountPerFile,
-                UseGzipCompression = UseGzipCompression,
-                HousekeepingRate = HousekeepingRate,
-                MinimumTimeSpanToKeep = MinimumTimeSpanToKeep,
-                MaximumTotalKbToKeep = MaximumTotalKbToKeep,
-            };
-        }
+            Path = Path,
+            MaxCountPerFile = MaxCountPerFile,
+            UseGzipCompression = UseGzipCompression,
+            HousekeepingRate = HousekeepingRate,
+            MinimumTimeSpanToKeep = MinimumTimeSpanToKeep,
+            MaximumTotalKbToKeep = MaximumTotalKbToKeep,
+        };
     }
 }

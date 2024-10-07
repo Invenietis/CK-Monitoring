@@ -2,65 +2,64 @@ using CK.Core;
 using System;
 using System.Collections.Generic;
 
-namespace CK.Monitoring
+namespace CK.Monitoring;
+
+/// <summary>
+/// Parented log entry binds an entry to its parent group and can be a missing entry (a line or group opening or closing that we know it exists
+/// but have no data for it or only their <see cref="IBaseLogEntry.LogTime"/>).
+/// </summary>
+public class ParentedLogEntry
 {
     /// <summary>
-    /// Parented log entry binds an entry to its parent group and can be a missing entry (a line or group opening or closing that we know it exists
-    /// but have no data for it or only their <see cref="IBaseLogEntry.LogTime"/>).
+    /// Parent entry. Null when there is no group above.
     /// </summary>
-    public class ParentedLogEntry
+    public readonly ParentedLogEntry? Parent;
+
+    /// <summary>
+    /// The entry itself.
+    /// </summary>
+    public readonly IBaseLogEntry Entry;
+
+    internal ParentedLogEntry( ParentedLogEntry? parent, IBaseLogEntry entry )
     {
-        /// <summary>
-        /// Parent entry. Null when there is no group above.
-        /// </summary>
-        public readonly ParentedLogEntry? Parent;
+        Parent = parent;
+        Entry = entry;
+    }
 
-        /// <summary>
-        /// The entry itself.
-        /// </summary>
-        public readonly IBaseLogEntry Entry;
+    /// <summary>
+    /// Gets whether this is actually a missing entry (it can be a group opening, closing or a mere line): we do not have data for it, except, may be its <see cref="IBaseLogEntry.LogTime"/>
+    /// (if the log time is not known, the <see cref="Entry"/>'s <see cref="IBaseLogEntry.LogTime">LogTime</see> is <see cref="DateTimeStamp.Unknown"/>).
+    /// </summary>
+    public bool IsMissing => LogEntry.IsMissingLogEntry( Entry );
 
-        internal ParentedLogEntry( ParentedLogEntry? parent, IBaseLogEntry entry )
-        {
-            Parent = parent;
-            Entry = entry;
-        }
+    /// <summary>
+    /// Collects path of <see cref="IBaseLogEntry"/> in a reusable list (the buffer is <see cref="List{T}.Clear">cleared</see> first).
+    /// </summary>
+    /// <param name="reusableBuffer">List that will be cleared and filled with parents.</param>
+    /// <param name="addThis">Set it to true to append to also add this entry.</param>
+    public void GetPath( List<IBaseLogEntry> reusableBuffer, bool addThis = false )
+    {
+        if( reusableBuffer == null ) throw new ArgumentNullException( "reusableBuffer" );
+        reusableBuffer.Clear();
+        CollectPath( p => reusableBuffer.Add( p.Entry ), addThis );
+    }
 
-        /// <summary>
-        /// Gets whether this is actually a missing entry (it can be a group opening, closing or a mere line): we do not have data for it, except, may be its <see cref="IBaseLogEntry.LogTime"/>
-        /// (if the log time is not known, the <see cref="Entry"/>'s <see cref="IBaseLogEntry.LogTime">LogTime</see> is <see cref="DateTimeStamp.Unknown"/>).
-        /// </summary>
-        public bool IsMissing => LogEntry.IsMissingLogEntry( Entry ); 
+    /// <summary>
+    /// Collects the path of this <see cref="ParentedLogEntry"/>, optionally terminated with this entry.
+    /// </summary>
+    /// <param name="collector">Action for each item.</param>
+    /// <param name="addThis">Set it to true to append to also call the collector with this entry.</param>
+    public void CollectPath( Action<ParentedLogEntry> collector, bool addThis = false )
+    {
+        if( collector == null ) throw new ArgumentNullException( "collector" );
 
-        /// <summary>
-        /// Collects path of <see cref="IBaseLogEntry"/> in a reusable list (the buffer is <see cref="List{T}.Clear">cleared</see> first).
-        /// </summary>
-        /// <param name="reusableBuffer">List that will be cleared and filled with parents.</param>
-        /// <param name="addThis">Set it to true to append to also add this entry.</param>
-        public void GetPath( List<IBaseLogEntry> reusableBuffer, bool addThis = false )
-        {
-            if( reusableBuffer == null ) throw new ArgumentNullException( "reusableBuffer" );
-            reusableBuffer.Clear();
-            CollectPath( p => reusableBuffer.Add( p.Entry ), addThis );
-        }
+        if( Parent != null ) Parent.DoGetPath( collector );
+        if( addThis ) collector( this );
+    }
 
-        /// <summary>
-        /// Collects the path of this <see cref="ParentedLogEntry"/>, optionally terminated with this entry.
-        /// </summary>
-        /// <param name="collector">Action for each item.</param>
-        /// <param name="addThis">Set it to true to append to also call the collector with this entry.</param>
-        public void CollectPath( Action<ParentedLogEntry> collector, bool addThis = false )
-        {
-            if( collector == null ) throw new ArgumentNullException( "collector" );
-
-            if( Parent != null ) Parent.DoGetPath( collector );
-            if( addThis ) collector( this );
-        }
-
-        void DoGetPath( Action<ParentedLogEntry> collector )
-        {
-            if( Parent != null ) Parent.DoGetPath( collector );
-            collector( this );
-        }
+    void DoGetPath( Action<ParentedLogEntry> collector )
+    {
+        if( Parent != null ) Parent.DoGetPath( collector );
+        collector( this );
     }
 }

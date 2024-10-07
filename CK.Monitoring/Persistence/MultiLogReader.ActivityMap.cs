@@ -6,574 +6,572 @@ using CK.Core;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 
-namespace CK.Monitoring
+namespace CK.Monitoring;
+
+public sealed partial class MultiLogReader : IDisposable
 {
-    public sealed partial class MultiLogReader : IDisposable
+    /// <summary>
+    /// Immutable snapshot of a <see cref="MultiLogReader"/>'s content.
+    /// </summary>
+    public sealed class ActivityMap
     {
-        /// <summary>
-        /// Immutable snapshot of a <see cref="MultiLogReader"/>'s content.
-        /// </summary>
-        public sealed class ActivityMap
+        readonly IReadOnlyCollection<RawLogFile> _allFiles;
+        readonly IReadOnlyCollection<RawLogFile> _validFiles;
+        readonly IReadOnlyList<Monitor> _monitorList;
+        readonly Dictionary<string, Monitor> _monitors;
+        readonly DateTime _firstEntryDate;
+        readonly DateTime _lastEntryDate;
+
+        internal ActivityMap( MultiLogReader reader )
         {
-            readonly IReadOnlyCollection<RawLogFile> _allFiles;
-            readonly IReadOnlyCollection<RawLogFile> _validFiles;
-            readonly IReadOnlyList<Monitor> _monitorList;
-            readonly Dictionary<string, Monitor> _monitors;
-            readonly DateTime _firstEntryDate;
-            readonly DateTime _lastEntryDate;
-
-            internal ActivityMap( MultiLogReader reader )
-            {
-                // ConcurrentDictionary.Values is a snapshot (a ReadOnlyCollection), this is why 
-                // it is safe to wrap it in a IReadOnlyCollection wrapper.
-                _allFiles = (ReadOnlyCollection<RawLogFile>)reader._files.Values;
-                _validFiles = _allFiles.Where( f => f.Error == null && f.TotalEntryCount > 0 ).ToArray();
-                _monitors = reader._monitors.ToDictionary( e => e.Key, e => new Monitor( e.Value ) );
-                _monitorList = _monitors.Values.OrderBy( m => m.FirstEntryTime ).ToArray();
-                _firstEntryDate = reader._globalFirstEntryTime;
-                _lastEntryDate = reader._globalLastEntryTime;
-            }
-
-            /// <summary>
-            /// Gets the very first entry time (among all <see cref="Monitors"/>).
-            /// </summary>
-            public DateTime FirstEntryDate => _firstEntryDate;
-
-            /// <summary>
-            /// Gets the very last entry time (among all <see cref="Monitors"/>).
-            /// </summary>
-            public DateTime LastEntryDate => _lastEntryDate;
-
-            /// <summary>
-            /// Gets the valid files (see <see cref="RawLogFile.IsValidFile"/>).
-            /// </summary>
-            public IReadOnlyCollection<RawLogFile> ValidFiles => _validFiles;
-
-            /// <summary>
-            /// Gets all files (even the ones for which <see cref="RawLogFile.IsValidFile"/> is false).
-            /// </summary>
-            public IReadOnlyCollection<RawLogFile> AllFiles => _allFiles;
-
-            /// <summary>
-            /// Gets all the monitors that this ActivityMap contains ordered by their <see cref="Monitor.FirstEntryTime"/>.
-            /// </summary>
-            public IReadOnlyList<Monitor> Monitors => _monitorList;
-
-            /// <summary>
-            /// Finds a <see cref="Monitor"/> by its identifier.
-            /// </summary>
-            /// <param name="monitorId">The monitor's identifier.</param>
-            /// <returns>The monitor or null if not found.</returns>
-            public Monitor? FindMonitor( string monitorId ) => _monitors.GetValueOrDefault( monitorId );
+            // ConcurrentDictionary.Values is a snapshot (a ReadOnlyCollection), this is why 
+            // it is safe to wrap it in a IReadOnlyCollection wrapper.
+            _allFiles = (ReadOnlyCollection<RawLogFile>)reader._files.Values;
+            _validFiles = _allFiles.Where( f => f.Error == null && f.TotalEntryCount > 0 ).ToArray();
+            _monitors = reader._monitors.ToDictionary( e => e.Key, e => new Monitor( e.Value ) );
+            _monitorList = _monitors.Values.OrderBy( m => m.FirstEntryTime ).ToArray();
+            _firstEntryDate = reader._globalFirstEntryTime;
+            _lastEntryDate = reader._globalLastEntryTime;
         }
 
         /// <summary>
-        /// Immutable information that describes one monitor's content.
+        /// Gets the very first entry time (among all <see cref="Monitors"/>).
         /// </summary>
-        public class Monitor
-        {
-            readonly string _monitorId;
-            readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
-            readonly DateTimeStamp _firstEntryTime;
-            readonly int _firstDepth;
-            readonly DateTimeStamp _lastEntryTime;
-            readonly int _lastDepth;
-            readonly IReadOnlyList<KeyValuePair<CKTrait, int>> _tags;
+        public DateTime FirstEntryDate => _firstEntryDate;
 
-            internal Monitor( LiveIndexedMonitor m )
+        /// <summary>
+        /// Gets the very last entry time (among all <see cref="Monitors"/>).
+        /// </summary>
+        public DateTime LastEntryDate => _lastEntryDate;
+
+        /// <summary>
+        /// Gets the valid files (see <see cref="RawLogFile.IsValidFile"/>).
+        /// </summary>
+        public IReadOnlyCollection<RawLogFile> ValidFiles => _validFiles;
+
+        /// <summary>
+        /// Gets all files (even the ones for which <see cref="RawLogFile.IsValidFile"/> is false).
+        /// </summary>
+        public IReadOnlyCollection<RawLogFile> AllFiles => _allFiles;
+
+        /// <summary>
+        /// Gets all the monitors that this ActivityMap contains ordered by their <see cref="Monitor.FirstEntryTime"/>.
+        /// </summary>
+        public IReadOnlyList<Monitor> Monitors => _monitorList;
+
+        /// <summary>
+        /// Finds a <see cref="Monitor"/> by its identifier.
+        /// </summary>
+        /// <param name="monitorId">The monitor's identifier.</param>
+        /// <returns>The monitor or null if not found.</returns>
+        public Monitor? FindMonitor( string monitorId ) => _monitors.GetValueOrDefault( monitorId );
+    }
+
+    /// <summary>
+    /// Immutable information that describes one monitor's content.
+    /// </summary>
+    public class Monitor
+    {
+        readonly string _monitorId;
+        readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
+        readonly DateTimeStamp _firstEntryTime;
+        readonly int _firstDepth;
+        readonly DateTimeStamp _lastEntryTime;
+        readonly int _lastDepth;
+        readonly IReadOnlyList<KeyValuePair<CKTrait, int>> _tags;
+
+        internal Monitor( LiveIndexedMonitor m )
+        {
+            _monitorId = m.MonitorId;
+            _files = m._files.OrderBy( f => f.FirstEntryTime ).ToArray();
+            _firstEntryTime = m._firstEntryTime;
+            _firstDepth = m._firstDepth;
+            _lastEntryTime = m._lastEntryTime;
+            _lastDepth = m._lastDepth;
+            _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Array.Empty<KeyValuePair<CKTrait, int>>();
+        }
+
+        /// <summary>
+        /// Gets the monitor's identifier.
+        /// </summary>
+        public string MonitorId => _monitorId;
+
+        /// <summary>
+        /// Gets the different files where entries from this monitor appear.
+        /// </summary>
+        public IReadOnlyList<RawLogFileMonitorOccurence> Files => _files;
+
+        /// <summary>
+        /// Gets the very first known entry time for this monitor.
+        /// </summary>
+        public DateTimeStamp FirstEntryTime => _firstEntryTime;
+
+        /// <summary>
+        /// Gets the very first known depth for this monitor.
+        /// </summary>
+        public int FirstDepth => _firstDepth;
+
+        /// <summary>
+        /// Gets the very last known entry time for this monitor.
+        /// </summary>
+        public DateTimeStamp LastEntryTime => _lastEntryTime;
+
+        /// <summary>
+        /// Gets the very last known depth for this monitor.
+        /// </summary>
+        public int LastDepth => _lastDepth;
+
+        /// <summary>
+        /// Gets the weighted occurrences of each tags that have been logged in this monitor.
+        /// </summary>
+        public IReadOnlyList<KeyValuePair<CKTrait, int>> AllTags => _tags;
+
+        internal sealed class MultiFileReader : IDisposable
+        {
+            readonly DateTimeStamp _firstLogTime;
+            readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
+            CKSortedArrayList<OneLogReader>? _readers;
+
+            public MultiFileReader( DateTimeStamp firstLogTime, IReadOnlyList<RawLogFileMonitorOccurence> files )
             {
-                _monitorId = m.MonitorId;
-                _files = m._files.OrderBy( f => f.FirstEntryTime ).ToArray();
-                _firstEntryTime = m._firstEntryTime;
-                _firstDepth = m._firstDepth;
-                _lastEntryTime = m._lastEntryTime;
-                _lastDepth = m._lastDepth;
-                _tags = m._tags != null ? m._tags.OrderByDescending( k => k.Key ).ToArray() : Array.Empty<KeyValuePair<CKTrait, int>>();
+                _firstLogTime = firstLogTime;
+                _files = files;
             }
 
-            /// <summary>
-            /// Gets the monitor's identifier.
-            /// </summary>
-            public string MonitorId => _monitorId;
-
-            /// <summary>
-            /// Gets the different files where entries from this monitor appear.
-            /// </summary>
-            public IReadOnlyList<RawLogFileMonitorOccurence> Files => _files;
-
-            /// <summary>
-            /// Gets the very first known entry time for this monitor.
-            /// </summary>
-            public DateTimeStamp FirstEntryTime => _firstEntryTime;
-
-            /// <summary>
-            /// Gets the very first known depth for this monitor.
-            /// </summary>
-            public int FirstDepth => _firstDepth;
-
-            /// <summary>
-            /// Gets the very last known entry time for this monitor.
-            /// </summary>
-            public DateTimeStamp LastEntryTime => _lastEntryTime;
-
-            /// <summary>
-            /// Gets the very last known depth for this monitor.
-            /// </summary>
-            public int LastDepth => _lastDepth;
-
-            /// <summary>
-            /// Gets the weighted occurrences of each tags that have been logged in this monitor.
-            /// </summary>
-            public IReadOnlyList<KeyValuePair<CKTrait, int>> AllTags => _tags;
-
-            internal sealed class MultiFileReader : IDisposable
+            public IFullLogEntry Current
             {
-                readonly DateTimeStamp _firstLogTime;
-                readonly IReadOnlyList<RawLogFileMonitorOccurence> _files;
-                CKSortedArrayList<OneLogReader>? _readers;
-
-                public MultiFileReader( DateTimeStamp firstLogTime, IReadOnlyList<RawLogFileMonitorOccurence> files )
+                get
                 {
-                    _firstLogTime = firstLogTime;
-                    _files = files;
+                    Debug.Assert( _readers != null, "MemberNotNullWhen on MoveNext doesn't work." );
+                    return _readers[0].Head.Entry;
+                }
+            }
+
+            sealed class OneLogReader : IDisposable
+            {
+                public MulticastLogEntryWithOffset Head;
+                LogReader? _reader;
+                public readonly RawLogFileMonitorOccurence File;
+                public readonly int FirstGroupDepth;
+
+                public OneLogReader( RawLogFileMonitorOccurence file, DateTimeStamp firstLogTime )
+                    : this( file, file.CreateFilteredReaderAndMoveTo( firstLogTime ) )
+                {
                 }
 
-                public IFullLogEntry Current
+                public OneLogReader( RawLogFileMonitorOccurence file, long offset )
+                    : this( file, file.CreateFilteredReaderAndMoveTo( offset ) )
                 {
-                    get
-                    {
-                        Debug.Assert( _readers != null, "MemberNotNullWhen on MoveNext doesn't work." );
-                        return _readers[0].Head.Entry;
-                    }
                 }
 
-                sealed class OneLogReader : IDisposable
+                OneLogReader( RawLogFileMonitorOccurence file, LogReader positioned )
                 {
-                    public MulticastLogEntryWithOffset Head;
-                    LogReader? _reader;
-                    public readonly RawLogFileMonitorOccurence File;
-                    public readonly int FirstGroupDepth;
+                    File = file;
+                    _reader = positioned;
+                    Debug.Assert( _reader.CurrentMulticast != null );
+                    FirstGroupDepth = _reader.CurrentMulticast.GroupDepth;
+                    Head = _reader.CurrentMulticastWithOffset;
+                }
 
-                    public OneLogReader( RawLogFileMonitorOccurence file, DateTimeStamp firstLogTime )
-                        : this( file, file.CreateFilteredReaderAndMoveTo( firstLogTime ) )
+                public bool Forward()
+                {
+                    Debug.Assert( _reader != null );
+                    if( _reader.MoveNext() )
                     {
-                    }
-
-                    public OneLogReader( RawLogFileMonitorOccurence file, long offset )
-                        : this( file, file.CreateFilteredReaderAndMoveTo( offset ) )
-                    {
-                    }
-
-                    OneLogReader( RawLogFileMonitorOccurence file, LogReader positioned )
-                    {
-                        File = file;
-                        _reader = positioned;
-                        Debug.Assert( _reader.CurrentMulticast != null );
-                        FirstGroupDepth = _reader.CurrentMulticast.GroupDepth;
                         Head = _reader.CurrentMulticastWithOffset;
-                    }
-
-                    public bool Forward()
-                    {
-                        Debug.Assert( _reader != null );
-                        if( _reader.MoveNext() )
-                        {
-                            Head = _reader.CurrentMulticastWithOffset;
-                            return true;
-                        }
-                        _reader.Dispose();
-                        _reader = null;
-                        return false;
-                    }
-
-                    /// <summary>
-                    /// Compares Head.Entry.LogTime. 
-                    /// </summary>
-                    static public int CompareHeadTime( OneLogReader r1, OneLogReader r2 )
-                    {
-                        return r1.Head.Entry.LogTime.CompareTo( r2.Head.Entry.LogTime );
-                    }
-
-                    public void Dispose()
-                    {
-                        if( _reader != null )
-                        {
-                            _reader.Dispose();
-                            _reader = null;
-                        }
-                    }
-                }
-
-                [MemberNotNullWhen( true, nameof( _readers ) )]
-                public bool MoveNext()
-                {
-                    if( _readers == null )
-                    {
-                        if( _files.Count == 0 ) return false;
-                        _readers = new CKSortedArrayList<OneLogReader>( OneLogReader.CompareHeadTime, allowDuplicates: true );
-                        foreach( var r in _files.Where( occ => occ.LastEntryTime >= _firstLogTime ).Select( occ => new OneLogReader( occ, _firstLogTime ) ) )
-                        {
-                            _readers.Add( r );
-                        }
-                        if( _readers.Count == 0 ) return false;
-                        RemoveAllDuplicates();
-                        Debug.Assert( _readers.Count > 0 );
                         return true;
                     }
-                    if( _readers.Count == 0 ) return false;
-                    if( !_readers[0].Forward() )
-                    {
-                        _readers.RemoveAt( 0 );
-                        return _readers.Count > 0;
-                    }
-                    else
-                    {
-                        RemoveDuplicateAround( _readers.CheckPosition( 0 ) );
-                        Debug.Assert( _readers.Count > 0 );
-                        return true;
-                    }
-                }
-
-                void RemoveDuplicateAround( int idx )
-                {
-                    Debug.Assert( _readers != null );
-                    // We can not be intelligent here:
-                    // - The CKSortedArrayList does not guaranty a stable sort: the new reader position
-                    //   should be checked around again.
-                    // - Recursivity is a bad idea: imagine 2 identical files...
-                    // ==> Lookups on the left and on the right and if a duplicate has been found, relies on RemoveAllDuplicates.
-                    if( idx > 0 && RemoveDuplicate( idx - 1, idx ) ) RemoveAllDuplicates();
-                    else if( idx < _readers.Count - 1 && RemoveDuplicate( idx, idx + 1 ) ) RemoveAllDuplicates();
-                }
-
-                void RemoveAllDuplicates()
-                {
-                    Debug.Assert( _readers != null );
-                    bool doItAgain;
-                    do
-                    {
-                        doItAgain = false;
-                        for( int i = 0; i < _readers.Count - 1; ++i )
-                        {
-                            doItAgain |= RemoveDuplicate( i, i + 1 );
-                        }
-                    }
-                    while( doItAgain );
-                }
-
-                bool RemoveDuplicate( int i1, int i2 )
-                {
-                    Debug.Assert( _readers != null );
-                    var first = _readers[i1];
-                    var second = _readers[i2];
-                    if( first.Head.Entry.LogTime == second.Head.Entry.LogTime )
-                    {
-                        if( !second.Forward() )
-                        {
-                            _readers.RemoveAt( i2 );
-                        }
-                        else
-                        {
-                            _readers.CheckPosition( i2 );
-                        }
-                        return true;
-                    }
+                    _reader.Dispose();
+                    _reader = null;
                     return false;
                 }
 
+                /// <summary>
+                /// Compares Head.Entry.LogTime. 
+                /// </summary>
+                static public int CompareHeadTime( OneLogReader r1, OneLogReader r2 )
+                {
+                    return r1.Head.Entry.LogTime.CompareTo( r2.Head.Entry.LogTime );
+                }
+
                 public void Dispose()
                 {
-                    if( _readers != null )
-                        for( int i = 0; i < _readers.Count; ++i ) _readers[i].Dispose();
+                    if( _reader != null )
+                    {
+                        _reader.Dispose();
+                        _reader = null;
+                    }
                 }
             }
 
-            /// <summary>
-            /// A disposable paged reader that gives access to <see cref="Entries"/> by unifying all the raw log 
-            /// files and removing duplicates from them.
-            /// Pages are sequentially accessed from a first page (obtained by <see cref="ReadFirstPage(DateTimeStamp, int)"/>) and then by calling <see cref="ForwardPage"/>.
-            /// </summary>
-            public sealed class LivePage : IDisposable
+            [MemberNotNullWhen( true, nameof( _readers ) )]
+            public bool MoveNext()
             {
-                class WrappedList : IReadOnlyList<ParentedLogEntry>
+                if( _readers == null )
                 {
-                    public readonly ParentedLogEntry[] Entries;
-
-                    public WrappedList( ParentedLogEntry[] entries )
+                    if( _files.Count == 0 ) return false;
+                    _readers = new CKSortedArrayList<OneLogReader>( OneLogReader.CompareHeadTime, allowDuplicates: true );
+                    foreach( var r in _files.Where( occ => occ.LastEntryTime >= _firstLogTime ).Select( occ => new OneLogReader( occ, _firstLogTime ) ) )
                     {
-                        Entries = entries;
+                        _readers.Add( r );
                     }
-
-                    public ParentedLogEntry this[int index]
-                    {
-                        get
-                        {
-                            Throw.CheckOutOfRangeArgument( index < Count );
-                            return Entries[index];
-                        }
-                    }
-
-                    public int Count { get; set; }
-
-                    public IEnumerator<ParentedLogEntry> GetEnumerator()
-                    {
-                        return Entries.Take( Count ).GetEnumerator();
-                    }
-
-                    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-                    {
-                        return GetEnumerator();
-                    }
-
-                    internal void FillPage( MultiFileReader r, List<ParentedLogEntry> path )
-                    {
-                        IBaseLogEntry? lastPrevEntry = Count > 0 ? Entries[Count - 1].Entry : null;
-                        Count = DoFillPage( r, path, lastPrevEntry );
-                    }
-
-                    int DoFillPage( MultiFileReader r, List<ParentedLogEntry> path, IBaseLogEntry? lastPrevEntry )
-                    {
-                        ParentedLogEntry? parent = path.Count > 0 ? path[path.Count - 1] : null;
-                        int i = 0;
-                        do
-                        {
-                            var entry = r.Current;
-                            if( entry.GroupDepth < path.Count )
-                            {
-                                // Adds a MissingCloseGroup with an unknown time for tail groups: handles the 
-                                // last closing group specifically.
-                                while( entry.GroupDepth < path.Count - 1 )
-                                {
-                                    if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingCloseGroup( DateTimeStamp.Unknown ) ) ) return i;
-                                }
-                                // Handles the last auto-close group: we may know its time thanks to our current entry (if its previous type is a CloseGroup).
-                                Debug.Assert( entry.GroupDepth == path.Count - 1, "We are on the last group to auto-close." );
-                                DateTimeStamp prevTime = entry.PreviousEntryType == LogEntryType.CloseGroup ? entry.PreviousLogTime : DateTimeStamp.Unknown;
-                                if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingCloseGroup( prevTime ) ) ) return i;
-                            }
-                            else if( entry.GroupDepth > path.Count )
-                            {
-                                // Adds a MissingOpenGroup with an unknown time for head groups: handles the 
-                                // last opening group specifically.
-                                while( entry.GroupDepth > path.Count + 1 )
-                                {
-                                    if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingOpenGroup( DateTimeStamp.Unknown ) ) ) return i;
-                                }
-                                // Handles the last auto-open group: we may know its time thanks to our current entry (if its previous type is a OpenGroup).
-                                Debug.Assert( entry.GroupDepth == path.Count + 1, "We are on the last group to auto-open." );
-                                DateTimeStamp prevTime = entry.PreviousEntryType == LogEntryType.OpenGroup ? entry.PreviousLogTime : DateTimeStamp.Unknown;
-                                if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingOpenGroup( prevTime ) ) ) return i;
-                            }
-                            // If we know the time and type of the previous entry and this does not correspond to 
-                            // our predecessor, we inject a missing line.
-                            // This is necessarily a line that we inject here thanks to the open/close adjustment above.
-                            // If the log type of the known previous entry is Open or Close group, it means that there are incoherent group depths... and 
-                            // we ignore this pathological case.
-                            if( entry.PreviousEntryType != LogEntryType.None )
-                            {
-                                IBaseLogEntry? prevEntry = i > 0 ? Entries[i - 1].Entry : lastPrevEntry;
-                                if( prevEntry == null || prevEntry.LogTime != entry.PreviousLogTime )
-                                {
-                                    if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingLine( entry.PreviousLogTime ) ) ) return i;
-                                }
-                            }
-                            // Now that missing data has been handled, appends the line itself.
-                            if( AppendEntry( path, ref parent, ref i, entry.CreateLightLogEntry() ) ) return i;
-                        }
-                        while( r.MoveNext() );
-                        return i;
-                    }
-
-                    bool AppendEntry( List<ParentedLogEntry> path, ref ParentedLogEntry? parent, ref int i, IBaseLogEntry e )
-                    {
-                        Debug.Assert( e.LogType != LogEntryType.None );
-                        if( e.LogType == LogEntryType.CloseGroup )
-                        {
-                            // Take no risk here: ignores the case where a close occurs while we are already 
-                            // at the root. This SHOULD never happen unless there is a mismatch between FirstInitialGroupDepth
-                            // and actual log file content.
-                            if( path.Count > 0 )
-                            {
-                                Entries[i++] = new ParentedLogEntry( parent, e );
-                                path.RemoveAt( path.Count - 1 );
-                                if( i == Entries.Length ) return true;
-                                parent = path.Count > 0 ? path[path.Count - 1] : null;
-                            }
-                            return false;
-                        }
-                        var pE = new ParentedLogEntry( parent, e );
-                        Entries[i++] = pE;
-                        if( e.LogType == LogEntryType.OpenGroup )
-                        {
-                            path.Add( pE );
-                            parent = pE;
-                        }
-                        return i == Entries.Length;
-                    }
+                    if( _readers.Count == 0 ) return false;
+                    RemoveAllDuplicates();
+                    Debug.Assert( _readers.Count > 0 );
+                    return true;
                 }
-
-                readonly WrappedList _entries;
-                readonly MultiFileReader? _r;
-                readonly int _pageLength;
-                readonly List<ParentedLogEntry> _currentPath;
-
-                internal LivePage( int initialGroupDepth, ParentedLogEntry[] entries, MultiFileReader? r, int pageLength )
+                if( _readers.Count == 0 ) return false;
+                if( !_readers[0].Forward() )
                 {
-                    Debug.Assert( pageLength == entries.Length || entries.Length == 0 );
-                    _r = r;
-                    _pageLength = pageLength;
-                    _currentPath = new List<ParentedLogEntry>();
-                    ParentedLogEntry? e = null;
-                    for( int i = 0; i < initialGroupDepth; ++i )
-                    {
-                        ParentedLogEntry g = new ParentedLogEntry( e, LogEntry.CreateMissingOpenGroup( DateTimeStamp.Unknown ) );
-                        _currentPath.Add( g );
-                        e = g;
-                    }
-                    _entries = new WrappedList( entries );
-                    if( _r != null ) _entries.FillPage( _r, _currentPath );
+                    _readers.RemoveAt( 0 );
+                    return _readers.Count > 0;
                 }
-
-                /// <summary>
-                /// Gets the log entries of the current page.
-                /// </summary>
-                public IReadOnlyList<ParentedLogEntry> Entries => _entries;
-
-                /// <summary>
-                /// Gets the page length. 
-                /// </summary>
-                public int PageLength => _pageLength;
-
-                /// <summary>
-                /// Loads the next page and returns the number of available entries.
-                /// </summary>
-                /// <returns>The number of entries.</returns>
-                public int ForwardPage()
+                else
                 {
-                    if( _r != null )
-                    {
-                        if( _r.MoveNext() )
-                        {
-                            _entries.FillPage( _r, _currentPath );
-                        }
-                        else
-                        {
-                            _entries.Count = 0;
-                        }
-                    }
-                    return Entries.Count;
-                }
-
-                /// <summary>
-                /// Closes all resources.
-                /// </summary>
-                public void Dispose()
-                {
-                    if( _r != null ) _r.Dispose();
+                    RemoveDuplicateAround( _readers.CheckPosition( 0 ) );
+                    Debug.Assert( _readers.Count > 0 );
+                    return true;
                 }
             }
 
-            /// <summary>
-            /// Loads the first available entries.
-            /// </summary>
-            /// <param name="pageLength">The length of pages. Must be greater than 0.</param>
-            /// <returns>The first <see cref="LivePage"/> from which next pages can be retrieved.</returns>
-            public LivePage ReadFirstPage( int pageLength )
+            void RemoveDuplicateAround( int idx )
             {
-                return ReadFirstPage( FirstEntryTime, pageLength );
+                Debug.Assert( _readers != null );
+                // We can not be intelligent here:
+                // - The CKSortedArrayList does not guaranty a stable sort: the new reader position
+                //   should be checked around again.
+                // - Recursivity is a bad idea: imagine 2 identical files...
+                // ==> Lookups on the left and on the right and if a duplicate has been found, relies on RemoveAllDuplicates.
+                if( idx > 0 && RemoveDuplicate( idx - 1, idx ) ) RemoveAllDuplicates();
+                else if( idx < _readers.Count - 1 && RemoveDuplicate( idx, idx + 1 ) ) RemoveAllDuplicates();
             }
 
-            /// <summary>
-            /// Loads the first available entries starting at a given time.
-            /// </summary>
-            /// <param name="firstLogTime">The first log time.</param>
-            /// <param name="pageLength">The length of pages. Must be greater than 0.</param>
-            /// <returns>The first <see cref="LivePage"/> from which next pages can be retrieved.</returns>
-            public LivePage ReadFirstPage( DateTimeStamp firstLogTime, int pageLength )
+            void RemoveAllDuplicates()
             {
-                Throw.CheckOutOfRangeArgument( pageLength > 0 );
-                MultiFileReader r = new MultiFileReader( firstLogTime, _files );
-                if( r.MoveNext() )
+                Debug.Assert( _readers != null );
+                bool doItAgain;
+                do
                 {
-                    return new LivePage( _firstDepth, new ParentedLogEntry[pageLength], r, pageLength );
-                }
-                return new LivePage( _firstDepth, Array.Empty<ParentedLogEntry>(), null, pageLength );
-            }
-
-            /// <summary>
-            /// Retrieves all entries for this monitor.
-            /// </summary>
-            /// <param name="pageLength">Page length.</param>
-            /// <returns>All log entries in order for this Monitor.</returns>
-            public IEnumerable<ParentedLogEntry> ReadAllEntries( int pageLength = 1024 )
-            {
-                using( var p = ReadFirstPage( pageLength ) )
-                {
-                    foreach( var e in p.Entries ) yield return e;
-                    while( p.ForwardPage() > 0 )
-                        foreach( var e in p.Entries ) yield return e;
-                }
-            }
-
-            /// <summary>
-            /// Replays this monitor's content into another monitor.
-            /// </summary>
-            /// <param name="replay">The target monitor. Can not be null.</param>
-            /// <param name="monitor">Optional monitor (nothing is logged when null).</param>
-            public void Replay( IActivityMonitor replay, IActivityMonitor? monitor = null )
-            {
-                using( monitor?.OpenInfo( $"Replaying activity from '{MonitorId}'." ) )
-                {
-                    int nbMissing = 0;
-                    int nbTotal = 0;
-                    using( var page = ReadFirstPage( 1024 ) )
+                    doItAgain = false;
+                    for( int i = 0; i < _readers.Count - 1; ++i )
                     {
-                        foreach( ParentedLogEntry e in page.Entries )
-                        {
-                            ++nbTotal;
-                            LogLevel level = e.Entry.LogLevel;
-                            if( e.IsMissing )
-                            {
-                                ++nbMissing;
-                                level = LogLevel.Trace;
-                            }
-                            switch( e.Entry.LogType )
-                            {
-                                case LogEntryType.Line:
-                                    replay.UnfilteredLog( e.Entry.LogLevel, e.Entry.Tags, e.Entry.Text, e.Entry.Exception, e.Entry.FileName, e.Entry.LineNumber );
-                                    break;
-                                case LogEntryType.OpenGroup:
-                                    replay.UnfilteredOpenGroup( e.Entry.LogLevel, e.Entry.Tags, e.Entry.Text, e.Entry.Exception, e.Entry.FileName, e.Entry.LineNumber );
-                                    break;
-                                case LogEntryType.CloseGroup:
-                                    replay.CloseGroup( e.Entry.Conclusions );
-                                    break;
-                            }
-                        }
-                        page.ForwardPage();
+                        doItAgain |= RemoveDuplicate( i, i + 1 );
                     }
-                    monitor?.CloseGroup( $"Replayed {nbTotal} entries ({nbMissing} missing)." );
                 }
+                while( doItAgain );
+            }
+
+            bool RemoveDuplicate( int i1, int i2 )
+            {
+                Debug.Assert( _readers != null );
+                var first = _readers[i1];
+                var second = _readers[i2];
+                if( first.Head.Entry.LogTime == second.Head.Entry.LogTime )
+                {
+                    if( !second.Forward() )
+                    {
+                        _readers.RemoveAt( i2 );
+                    }
+                    else
+                    {
+                        _readers.CheckPosition( i2 );
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            public void Dispose()
+            {
+                if( _readers != null )
+                    for( int i = 0; i < _readers.Count; ++i ) _readers[i].Dispose();
             }
         }
 
         /// <summary>
-        /// Creates an <see cref="ActivityMap"/> snapshot from this reader.
+        /// A disposable paged reader that gives access to <see cref="Entries"/> by unifying all the raw log 
+        /// files and removing duplicates from them.
+        /// Pages are sequentially accessed from a first page (obtained by <see cref="ReadFirstPage(DateTimeStamp, int)"/>) and then by calling <see cref="ForwardPage"/>.
         /// </summary>
-        /// <returns>An immutable snapshot of this reader's content.</returns>
-        public ActivityMap GetActivityMap()
+        public sealed class LivePage : IDisposable
         {
-            _lockWriteRead.EnterWriteLock();
-            try
+            class WrappedList : IReadOnlyList<ParentedLogEntry>
             {
-                return new ActivityMap( this );
+                public readonly ParentedLogEntry[] Entries;
+
+                public WrappedList( ParentedLogEntry[] entries )
+                {
+                    Entries = entries;
+                }
+
+                public ParentedLogEntry this[int index]
+                {
+                    get
+                    {
+                        Throw.CheckOutOfRangeArgument( index < Count );
+                        return Entries[index];
+                    }
+                }
+
+                public int Count { get; set; }
+
+                public IEnumerator<ParentedLogEntry> GetEnumerator()
+                {
+                    return Entries.Take( Count ).GetEnumerator();
+                }
+
+                System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+                {
+                    return GetEnumerator();
+                }
+
+                internal void FillPage( MultiFileReader r, List<ParentedLogEntry> path )
+                {
+                    IBaseLogEntry? lastPrevEntry = Count > 0 ? Entries[Count - 1].Entry : null;
+                    Count = DoFillPage( r, path, lastPrevEntry );
+                }
+
+                int DoFillPage( MultiFileReader r, List<ParentedLogEntry> path, IBaseLogEntry? lastPrevEntry )
+                {
+                    ParentedLogEntry? parent = path.Count > 0 ? path[path.Count - 1] : null;
+                    int i = 0;
+                    do
+                    {
+                        var entry = r.Current;
+                        if( entry.GroupDepth < path.Count )
+                        {
+                            // Adds a MissingCloseGroup with an unknown time for tail groups: handles the 
+                            // last closing group specifically.
+                            while( entry.GroupDepth < path.Count - 1 )
+                            {
+                                if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingCloseGroup( DateTimeStamp.Unknown ) ) ) return i;
+                            }
+                            // Handles the last auto-close group: we may know its time thanks to our current entry (if its previous type is a CloseGroup).
+                            Debug.Assert( entry.GroupDepth == path.Count - 1, "We are on the last group to auto-close." );
+                            DateTimeStamp prevTime = entry.PreviousEntryType == LogEntryType.CloseGroup ? entry.PreviousLogTime : DateTimeStamp.Unknown;
+                            if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingCloseGroup( prevTime ) ) ) return i;
+                        }
+                        else if( entry.GroupDepth > path.Count )
+                        {
+                            // Adds a MissingOpenGroup with an unknown time for head groups: handles the 
+                            // last opening group specifically.
+                            while( entry.GroupDepth > path.Count + 1 )
+                            {
+                                if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingOpenGroup( DateTimeStamp.Unknown ) ) ) return i;
+                            }
+                            // Handles the last auto-open group: we may know its time thanks to our current entry (if its previous type is a OpenGroup).
+                            Debug.Assert( entry.GroupDepth == path.Count + 1, "We are on the last group to auto-open." );
+                            DateTimeStamp prevTime = entry.PreviousEntryType == LogEntryType.OpenGroup ? entry.PreviousLogTime : DateTimeStamp.Unknown;
+                            if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingOpenGroup( prevTime ) ) ) return i;
+                        }
+                        // If we know the time and type of the previous entry and this does not correspond to 
+                        // our predecessor, we inject a missing line.
+                        // This is necessarily a line that we inject here thanks to the open/close adjustment above.
+                        // If the log type of the known previous entry is Open or Close group, it means that there are incoherent group depths... and 
+                        // we ignore this pathological case.
+                        if( entry.PreviousEntryType != LogEntryType.None )
+                        {
+                            IBaseLogEntry? prevEntry = i > 0 ? Entries[i - 1].Entry : lastPrevEntry;
+                            if( prevEntry == null || prevEntry.LogTime != entry.PreviousLogTime )
+                            {
+                                if( AppendEntry( path, ref parent, ref i, LogEntry.CreateMissingLine( entry.PreviousLogTime ) ) ) return i;
+                            }
+                        }
+                        // Now that missing data has been handled, appends the line itself.
+                        if( AppendEntry( path, ref parent, ref i, entry.CreateLightLogEntry() ) ) return i;
+                    }
+                    while( r.MoveNext() );
+                    return i;
+                }
+
+                bool AppendEntry( List<ParentedLogEntry> path, ref ParentedLogEntry? parent, ref int i, IBaseLogEntry e )
+                {
+                    Debug.Assert( e.LogType != LogEntryType.None );
+                    if( e.LogType == LogEntryType.CloseGroup )
+                    {
+                        // Take no risk here: ignores the case where a close occurs while we are already 
+                        // at the root. This SHOULD never happen unless there is a mismatch between FirstInitialGroupDepth
+                        // and actual log file content.
+                        if( path.Count > 0 )
+                        {
+                            Entries[i++] = new ParentedLogEntry( parent, e );
+                            path.RemoveAt( path.Count - 1 );
+                            if( i == Entries.Length ) return true;
+                            parent = path.Count > 0 ? path[path.Count - 1] : null;
+                        }
+                        return false;
+                    }
+                    var pE = new ParentedLogEntry( parent, e );
+                    Entries[i++] = pE;
+                    if( e.LogType == LogEntryType.OpenGroup )
+                    {
+                        path.Add( pE );
+                        parent = pE;
+                    }
+                    return i == Entries.Length;
+                }
             }
-            finally
+
+            readonly WrappedList _entries;
+            readonly MultiFileReader? _r;
+            readonly int _pageLength;
+            readonly List<ParentedLogEntry> _currentPath;
+
+            internal LivePage( int initialGroupDepth, ParentedLogEntry[] entries, MultiFileReader? r, int pageLength )
             {
-                _lockWriteRead.ExitWriteLock();
+                Debug.Assert( pageLength == entries.Length || entries.Length == 0 );
+                _r = r;
+                _pageLength = pageLength;
+                _currentPath = new List<ParentedLogEntry>();
+                ParentedLogEntry? e = null;
+                for( int i = 0; i < initialGroupDepth; ++i )
+                {
+                    ParentedLogEntry g = new ParentedLogEntry( e, LogEntry.CreateMissingOpenGroup( DateTimeStamp.Unknown ) );
+                    _currentPath.Add( g );
+                    e = g;
+                }
+                _entries = new WrappedList( entries );
+                if( _r != null ) _entries.FillPage( _r, _currentPath );
+            }
+
+            /// <summary>
+            /// Gets the log entries of the current page.
+            /// </summary>
+            public IReadOnlyList<ParentedLogEntry> Entries => _entries;
+
+            /// <summary>
+            /// Gets the page length. 
+            /// </summary>
+            public int PageLength => _pageLength;
+
+            /// <summary>
+            /// Loads the next page and returns the number of available entries.
+            /// </summary>
+            /// <returns>The number of entries.</returns>
+            public int ForwardPage()
+            {
+                if( _r != null )
+                {
+                    if( _r.MoveNext() )
+                    {
+                        _entries.FillPage( _r, _currentPath );
+                    }
+                    else
+                    {
+                        _entries.Count = 0;
+                    }
+                }
+                return Entries.Count;
+            }
+
+            /// <summary>
+            /// Closes all resources.
+            /// </summary>
+            public void Dispose()
+            {
+                if( _r != null ) _r.Dispose();
             }
         }
 
+        /// <summary>
+        /// Loads the first available entries.
+        /// </summary>
+        /// <param name="pageLength">The length of pages. Must be greater than 0.</param>
+        /// <returns>The first <see cref="LivePage"/> from which next pages can be retrieved.</returns>
+        public LivePage ReadFirstPage( int pageLength )
+        {
+            return ReadFirstPage( FirstEntryTime, pageLength );
+        }
+
+        /// <summary>
+        /// Loads the first available entries starting at a given time.
+        /// </summary>
+        /// <param name="firstLogTime">The first log time.</param>
+        /// <param name="pageLength">The length of pages. Must be greater than 0.</param>
+        /// <returns>The first <see cref="LivePage"/> from which next pages can be retrieved.</returns>
+        public LivePage ReadFirstPage( DateTimeStamp firstLogTime, int pageLength )
+        {
+            Throw.CheckOutOfRangeArgument( pageLength > 0 );
+            MultiFileReader r = new MultiFileReader( firstLogTime, _files );
+            if( r.MoveNext() )
+            {
+                return new LivePage( _firstDepth, new ParentedLogEntry[pageLength], r, pageLength );
+            }
+            return new LivePage( _firstDepth, Array.Empty<ParentedLogEntry>(), null, pageLength );
+        }
+
+        /// <summary>
+        /// Retrieves all entries for this monitor.
+        /// </summary>
+        /// <param name="pageLength">Page length.</param>
+        /// <returns>All log entries in order for this Monitor.</returns>
+        public IEnumerable<ParentedLogEntry> ReadAllEntries( int pageLength = 1024 )
+        {
+            using( var p = ReadFirstPage( pageLength ) )
+            {
+                foreach( var e in p.Entries ) yield return e;
+                while( p.ForwardPage() > 0 )
+                    foreach( var e in p.Entries ) yield return e;
+            }
+        }
+
+        /// <summary>
+        /// Replays this monitor's content into another monitor.
+        /// </summary>
+        /// <param name="replay">The target monitor. Can not be null.</param>
+        /// <param name="monitor">Optional monitor (nothing is logged when null).</param>
+        public void Replay( IActivityMonitor replay, IActivityMonitor? monitor = null )
+        {
+            using( monitor?.OpenInfo( $"Replaying activity from '{MonitorId}'." ) )
+            {
+                int nbMissing = 0;
+                int nbTotal = 0;
+                using( var page = ReadFirstPage( 1024 ) )
+                {
+                    foreach( ParentedLogEntry e in page.Entries )
+                    {
+                        ++nbTotal;
+                        LogLevel level = e.Entry.LogLevel;
+                        if( e.IsMissing )
+                        {
+                            ++nbMissing;
+                            level = LogLevel.Trace;
+                        }
+                        switch( e.Entry.LogType )
+                        {
+                            case LogEntryType.Line:
+                                replay.UnfilteredLog( e.Entry.LogLevel, e.Entry.Tags, e.Entry.Text, e.Entry.Exception, e.Entry.FileName, e.Entry.LineNumber );
+                                break;
+                            case LogEntryType.OpenGroup:
+                                replay.UnfilteredOpenGroup( e.Entry.LogLevel, e.Entry.Tags, e.Entry.Text, e.Entry.Exception, e.Entry.FileName, e.Entry.LineNumber );
+                                break;
+                            case LogEntryType.CloseGroup:
+                                replay.CloseGroup( e.Entry.Conclusions );
+                                break;
+                        }
+                    }
+                    page.ForwardPage();
+                }
+                monitor?.CloseGroup( $"Replayed {nbTotal} entries ({nbMissing} missing)." );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates an <see cref="ActivityMap"/> snapshot from this reader.
+    /// </summary>
+    /// <returns>An immutable snapshot of this reader's content.</returns>
+    public ActivityMap GetActivityMap()
+    {
+        _lockWriteRead.EnterWriteLock();
+        try
+        {
+            return new ActivityMap( this );
+        }
+        finally
+        {
+            _lockWriteRead.ExitWriteLock();
+        }
     }
 
 }
