@@ -69,7 +69,7 @@ sealed class GrandOutputConfigurator
             LogFile.RootLogPath = Path.GetFullPath( Path.Combine( builder.Environment.ContentRootPath, section["LogPath"] ?? "Logs" ) );
         }
         ApplyDynamicConfiguration( initialConfigMustWaitForApplication: true );
-        builder.Services.AddSingleton( _loggerProvider );
+        builder.Services.AddSingleton<ILoggerProvider>( _loggerProvider );
 
         if( !isDefaultGrandOutput )
         {
@@ -195,7 +195,7 @@ sealed class GrandOutputConfigurator
                     {
                         ActivityMonitor.DefaultFilter = defaultFilter;
                     }
-                    // If the filter is invalid (a None appears), keep the default Trace. 
+                    // If the filter is invalid (a None appears), keep the default Trace.
                 }
                 else
                 {
