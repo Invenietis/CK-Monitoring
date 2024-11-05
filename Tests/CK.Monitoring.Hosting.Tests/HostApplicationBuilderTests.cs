@@ -312,24 +312,31 @@ public partial class HostApplicationBuilderTests
         if( d != null ) await d.DisposeAsync();
 
         DemoSinkHandler.Reset();
+        try
+        {
+            var config = new DynamicConfigurationSource();
+            config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
+            config["CK-Monitoring:GrandOutput:HandleDotNetLogs"] = "true";
+            config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
 
-        var config = new DynamicConfigurationSource();
-        config["CK-Monitoring:GrandOutput:Handlers:CK.Monitoring.Hosting.Tests.DemoSinkHandler, CK.Monitoring.Hosting.Tests"] = "true";
-        config["CK-Monitoring:GrandOutput:HandleDotNetLogs"] = "true";
-        config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
+            var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
+            builder.Configuration.Sources.Add( config );
 
-        var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
-        builder.Configuration.Sources.Add( config );
+            builder.UseCKMonitoring();
+            builder.Services.AddLogging();
+            var host = builder.Build();
+            System.Threading.Thread.Sleep( 200 );
 
-        builder.UseCKMonitoring();
-        builder.Services.AddLogging();
-        var host = builder.Build();
-        System.Threading.Thread.Sleep( 200 );
+            var logger = host.Services.GetRequiredService<ILogger<HostApplicationBuilderTests>>();
+            logger.LogInformation( "Hello world (MS.Extensions.Logging)" );
+            System.Threading.Thread.Sleep( 200 );
 
-        var logger = host.Services.GetRequiredService<ILogger<HostApplicationBuilderTests>>();
-        logger.LogInformation( "Hello world (MS.Extensions.Logging)" );
-
-        var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).ToArray();
-        texts.Should().Contain( "[CK.Monitoring.Hosting.Tests.HostApplicationBuilderTests] Hello world (MS.Extensions.Logging)" );
+            var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).ToArray();
+            texts.Should().Contain( "[CK.Monitoring.Hosting.Tests.HostApplicationBuilderTests] Hello world (MS.Extensions.Logging)" );
+        }
+        finally
+        {
+            DemoSinkHandler.Reset();
+        }
     }
 }
