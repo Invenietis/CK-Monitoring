@@ -1,28 +1,27 @@
-namespace CK.Monitoring.InterProcess
+namespace CK.Monitoring.InterProcess;
+
+/// <summary>
+/// Defines the final status of a <see cref="SimpleLogPipeReceiver"/>.
+/// </summary>
+public enum LogReceiverEndStatus
 {
     /// <summary>
-    /// Defines the final status of a <see cref="SimpleLogPipeReceiver"/>.
+    /// The receiver is still running.
     /// </summary>
-    public enum LogReceiverEndStatus
-    {
-        /// <summary>
-        /// The receiver is still running.
-        /// </summary>
-        None,
+    None,
 
-        /// <summary>
-        /// The client sent its "goodbye" message.
-        /// </summary>
-        Normal,
+    /// <summary>
+    /// The client sent its "goodbye" message.
+    /// </summary>
+    Normal,
 
-        /// <summary>
-        /// The client stopped without sending the "goodbye" message.
-        /// </summary>
-        MissingEndMarker,
+    /// <summary>
+    /// The client stopped without sending the "goodbye" message.
+    /// </summary>
+    MissingEndMarker,
 
-        /// <summary>
-        /// An error occurred.
-        /// </summary>
-        Error
-    }
+    /// <summary>
+    /// An error occurred.
+    /// </summary>
+    Error
 }

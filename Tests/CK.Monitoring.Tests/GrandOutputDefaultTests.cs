@@ -1,20 +1,24 @@
+using CK.Core;
 using FluentAssertions;
 using NUnit.Framework;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
-namespace CK.Monitoring.Tests
+namespace CK.Monitoring.Tests;
+
+[TestFixture]
+public class GrandOutputDefaultTests
 {
-    [TestFixture]
-    public class GrandOutputDefaultTests
+    [Test]
+    public async Task applying_empty_configuration_and_disposing_Async()
     {
-        [Test]
-        public void applying_empty_configuration_and_disposing()
-        {
-            TestHelper.InitalizePaths();
-            GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
-            Debug.Assert( GrandOutput.Default != null );
-            GrandOutput.Default.Dispose();
-            GrandOutput.Default.Should().BeNull();
-        }
+        TestHelper.InitalizePaths();
+        GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
+        Debug.Assert( GrandOutput.Default != null );
+        await GrandOutput.Default.DisposeAsync();
+        GrandOutput.Default.Should().BeNull();
     }
+
+
+
 }
