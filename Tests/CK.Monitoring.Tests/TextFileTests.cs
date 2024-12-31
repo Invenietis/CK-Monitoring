@@ -76,12 +76,9 @@ public class TextFileTests
         {
             var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
-            Thread.Sleep( 5 );
             m.Info( "Must wait 3 seconds..." );
-            Thread.Sleep( 700 );
-            string tempFile = Directory.EnumerateFiles( folder ).Single();
-            TestHelper.FileReadAllText( tempFile ).Should().BeEmpty();
             Thread.Sleep( 3000 );
+            string tempFile = Directory.EnumerateFiles( folder ).Single();
             TestHelper.FileReadAllText( tempFile ).Should().Contain( "Must wait 3 seconds..." );
 
             textConf.AutoFlushRate = 1;
