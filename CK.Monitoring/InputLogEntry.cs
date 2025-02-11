@@ -237,6 +237,11 @@ public sealed partial class InputLogEntry : IFullLogEntry
             _text = null;
             _monitorId = null;
             _refCount = 1;
+            // The Initialize() overloads for SinkLog and CloseGroup do not set _fileName and _lineNumber.
+            _fileName = null;
+            _lineNumber = 0;
+            // The remaining fields will reset by all three Initialize() overloads on reuse:
+            // _groupDepth, _logType, _previousEntryType, _logTime, _logLevel and _previousLogTime
             Release( this );
             return;
         }
