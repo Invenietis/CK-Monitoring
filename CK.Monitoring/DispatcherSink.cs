@@ -13,7 +13,7 @@ namespace CK.Monitoring;
 /// Log event sink: <see cref="Handle(InputLogEntry)"/> dispatches the log
 /// event to the <see cref="IGrandOutputHandler"/>.
 /// </summary>
-public class DispatcherSink
+public sealed class DispatcherSink
 {
     // Null is the Timer (awaker).
     // InputLogEntry is the most common.
