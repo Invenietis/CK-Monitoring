@@ -19,7 +19,7 @@ public class GrandOutputReconfigurationTests
         string folder = TestHelper.PrepareLogFolder( nameof( BinaryGzip_reconfiguration_Async ) );
         var h = new Handlers.BinaryFileConfiguration()
         {
-            Path = folder + @"\FirstPath",
+            Path = Path.Combine( folder, "FirstPath" ),
             UseGzipCompression = false
         };
         var c = new GrandOutputConfiguration().AddHandler( h );
@@ -50,8 +50,15 @@ public class GrandOutputReconfigurationTests
             m.Trace( "No Compression (in second folder)." );
         }
         // First file is NOT compressed, the second one is.
-        var fileNamesFirst = Directory.EnumerateFiles( folder + @"\FirstPath" ).ToList();
-        fileNamesFirst.Should().BeInAscendingOrder().And.HaveCount( 2 ).And.NotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
+        var fileNamesFirst = Directory.EnumerateFiles( Path.Combine( folder, "FirstPath" ) ).ToList();
+        if( Environment.OSVersion.Platform == PlatformID.Win32NT )
+        {
+            fileNamesFirst.Should().BeInAscendingOrder().And.HaveCount( 2 ).And.NotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
+        }
+        else
+        {
+            fileNamesFirst.Sort();
+        }
         File.ReadAllText( fileNamesFirst[0] ).Should().Contain( "No Compression." );
         File.ReadAllText( fileNamesFirst[1] ).Should().NotContain( "With Compression.", "Cannot read it in clear text since it is compressed..." );
         using( var reader = LogReader.Open( fileNamesFirst[1] ) )
@@ -60,8 +67,15 @@ public class GrandOutputReconfigurationTests
             reader.Current.Text.Should().Be( "With Compression." );
         }
         // First file is compressed, not the second one.
-        var fileNamesSecond = Directory.EnumerateFiles( folder + @"\SecondPath" ).ToList();
-        fileNamesSecond.Should().BeInAscendingOrder().And.HaveCount( 2 ).And.NotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
+        var fileNamesSecond = Directory.EnumerateFiles( Path.Combine( folder, "SecondPath" ) ).ToList();
+        if( Environment.OSVersion.Platform == PlatformID.Win32NT )
+        {
+            fileNamesSecond.Should().BeInAscendingOrder().And.HaveCount( 2 ).And.NotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
+        }
+        else
+        {
+            fileNamesSecond.Sort();
+        }
         File.ReadAllText( fileNamesSecond[0] ).Should().NotContain( "With Compression (in second folder).", "The fist file is compressed..." );
         // We restrict the log entries to the one of our monitor: this filters out the logs from the DispatcherSink.
         using( var reader = LogReader.Open( fileNamesSecond[0], filter: new LogReader.BaseEntryFilter( m.UniqueId ) ) )
