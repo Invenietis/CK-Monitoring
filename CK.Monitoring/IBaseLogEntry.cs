@@ -47,13 +47,13 @@ public interface IBaseLogEntry
 
     /// <summary>
     /// Gets the file name of the source code that emitted the log.
-    /// Null when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
+    /// Null when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>, or for external logs.
     /// </summary>
     string? FileName { get; }
 
     /// <summary>
     /// Gets the line number in the source code <see cref="FileName"/> that emitted the log.
-    /// 0 when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>.
+    /// 0 when <see cref="LogType"/> is <see cref="LogEntryType.CloseGroup"/>, or for external logs.
     /// </summary>
     int LineNumber { get; }
 
