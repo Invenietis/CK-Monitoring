@@ -1,11 +1,9 @@
 using CK.AspNet.Tester;
 using CK.Core;
-using FluentAssertions;
-using Microsoft.Extensions.Configuration;
+using Shouldly;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -40,29 +38,29 @@ public partial class HostApplicationBuilderTests
         if( !builderMonitorBeforeUseCKMonitoring ) monitor = builder.GetBuilderMonitor();
         Throw.DebugAssert( monitor != null );
 
-        monitor.ActualFilter.Should().Be( LogFilter.Undefined, "Initially Undefined." );
+        monitor.ActualFilter.ShouldBe( LogFilter.Undefined, "Initially Undefined." );
 
         config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
 
         System.Threading.Thread.Sleep( 200 );
-        monitor.ActualFilter.Should().Be( LogFilter.Debug, "First Debug applied." );
+        monitor.ActualFilter.ShouldBe( LogFilter.Debug, "First Debug applied." );
 
         config["CK-Monitoring:GrandOutput:MinimalFilter"] = "{Fatal,Debug}";
         System.Threading.Thread.Sleep( 200 );
-        monitor.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Explicit {Off,Debug} filter." );
+        monitor.ActualFilter.ShouldBe( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Explicit {Off,Debug} filter." );
 
         config["CK-Monitoring:GrandOutput:MinimalFilter"] = null!;
         System.Threading.Thread.Sleep( 200 );
-        monitor.ActualFilter.Should().Be( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Null doesn't change anything." );
+        monitor.ActualFilter.ShouldBe( new LogFilter( LogLevelFilter.Fatal, LogLevelFilter.Debug ), "Null doesn't change anything." );
 
         // Restores the Debug level (we are on the GrandOutput.Default).
         config["CK-Monitoring:GrandOutput:MinimalFilter"] = "Debug";
         System.Threading.Thread.Sleep( 200 );
 
         var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).ToArray();
-        texts.Where( e => e != null && e.StartsWith( "GrandOutput.Default configuration n°4." ) ).Should().NotBeEmpty();
+        texts.Where( e => e != null && e.StartsWith( "GrandOutput.Default configuration n°4." ) ).ShouldNotBeEmpty();
         texts.Where( e => e != null && e.StartsWith( "GrandOutput.Default configuration n°5." ) )
-            .Should().BeEmpty( "There has been the initial configuration (n°0) and 4 reconfigurations." );
+            .ShouldBeEmpty( "There has been the initial configuration (n°0) and 4 reconfigurations." );
     }
 
     [Test]
@@ -87,11 +85,10 @@ public partial class HostApplicationBuilderTests
 
         await app.StopAsync();
 
-        DemoSinkHandler.LogEvents.Select( e => e.Text ).Should()
-               .Contain( "Topic: The topic!" )
-               .And.Contain( "BEFORE" )
-               .And.Contain( "While applying dynamic configuration." )
-               .And.Contain( "AFTER" );
+        DemoSinkHandler.LogEvents.Select( e => e.Text ).ShouldContain( "Topic: The topic!" )
+               .ShouldContain( "BEFORE" )
+               .ShouldContain( "While applying dynamic configuration." )
+               .ShouldContain( "AFTER" );
     }
 
 
@@ -120,11 +117,10 @@ public partial class HostApplicationBuilderTests
         await app.StopAsync();
 
         var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
-        texts.Should()
-               .Contain( "GrandOutput.Default configuration n°0" )
-               .And.Contain( "GrandOutput.Default configuration n°1" )
-               .And.NotContain( "GrandOutput.Default configuration n°2" )
-               .And.Contain( "DONE!" );
+        texts.ShouldContain( "GrandOutput.Default configuration n°0" )
+               .ShouldContain( "GrandOutput.Default configuration n°1" )
+               .ShouldNotContain( "GrandOutput.Default configuration n°2" )
+               .ShouldContain( "DONE!" );
     }
 
     [Test]
@@ -180,11 +176,10 @@ public partial class HostApplicationBuilderTests
         await app.StopAsync();
 
         var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
-        texts.Should()
-               .Contain( "SHOW!" )
-               .And.Contain( "Yes again!" )
-               .And.NotContain( "NOP! This is in Debug!" )
-               .And.Contain( "DONE!" );
+        texts.ShouldContain( "SHOW!" )
+               .ShouldContain( "Yes again!" )
+               .ShouldNotContain( "NOP! This is in Debug!" )
+               .ShouldContain( "DONE!" );
 
         static void RunWithTagFilters( CKTrait Sql, CKTrait Machine, ActivityMonitor m )
         {
@@ -196,17 +191,16 @@ public partial class HostApplicationBuilderTests
             System.Threading.Thread.Sleep( 200 );
 
             var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
-            texts.Should()
-                   .Contain( "YES: Sql!" )
-                   .And.Contain( "Yes again!" )
-                   .And.NotContain( "NOSHOW" )
-                   .And.Contain( "DONE!" );
+            texts.ShouldContain( "YES: Sql!" )
+                   .ShouldContain( "Yes again!" )
+                   .ShouldNotContain( "NOSHOW" )
+                   .ShouldContain( "DONE!" );
 
             DemoSinkHandler.Reset();
         }
 
         DemoSinkHandler.Reset();
-        InputLogEntry.AliveCount.Should().Be( 0 );
+        InputLogEntry.AliveCount.ShouldBe( 0 );
     }
 
 
@@ -237,16 +231,16 @@ public partial class HostApplicationBuilderTests
         var t = a.GetType( "CK.Monitoring.Handlers.MailAlerter" );
         Debug.Assert( t != null );
         var sent = (string?)t.GetField( "LastMailSent", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static )!.GetValue( null );
-        sent.Should().Be( "Hello World!" );
+        sent.ShouldBe( "Hello World!" );
 
     }
 
     [Test]
     public void StaticGates_works()
     {
-        AsyncLock.Gate.IsOpen.Should().BeFalse();
-        AsyncLock.Gate.HasDisplayName.Should().BeTrue( "Otherwise it wouldn't be configurable." );
-        AsyncLock.Gate.DisplayName.Should().Be( "AsyncLock" );
+        AsyncLock.Gate.IsOpen.ShouldBeFalse();
+        AsyncLock.Gate.HasDisplayName.ShouldBeTrue( "Otherwise it wouldn't be configurable." );
+        AsyncLock.Gate.DisplayName.ShouldBe( "AsyncLock" );
         try
         {
             var config = new DynamicConfigurationSource();
@@ -255,7 +249,7 @@ public partial class HostApplicationBuilderTests
             var builder = Host.CreateEmptyApplicationBuilder( new HostApplicationBuilderSettings { DisableDefaults = true } );
             builder.Configuration.Sources.Add( config );
             builder.UseCKMonitoring();
-            AsyncLock.Gate.IsOpen.Should().BeTrue();
+            AsyncLock.Gate.IsOpen.ShouldBeTrue();
         }
         finally
         {
@@ -269,8 +263,8 @@ public partial class HostApplicationBuilderTests
         DemoSinkHandler.Reset();
 
         System.Diagnostics.Tracing.EventLevel? current = DotNetEventSourceCollector.GetLevel( "System.Runtime", out var found );
-        found.Should().BeTrue();
-        current.Should().BeNull();
+        found.ShouldBeTrue();
+        current.ShouldBeNull();
         try
         {
             var config = new DynamicConfigurationSource();
@@ -285,17 +279,16 @@ public partial class HostApplicationBuilderTests
             await app.StartAsync();
 
             var rtConf = DotNetEventSourceCollector.GetLevel( "System.Runtime", out _ );
-            rtConf.Should().Be( System.Diagnostics.Tracing.EventLevel.Warning );
+            rtConf.ShouldBe( System.Diagnostics.Tracing.EventLevel.Warning );
 
             var diConf = DotNetEventSourceCollector.GetLevel( "Microsoft-Extensions-DependencyInjection", out _ );
-            diConf.Should().Be( System.Diagnostics.Tracing.EventLevel.Verbose );
+            diConf.ShouldBe( System.Diagnostics.Tracing.EventLevel.Verbose );
 
             await app.StopAsync();
 
             var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).Concatenate( System.Environment.NewLine );
-            texts.Should()
-                   .Contain( "Applying .Net EventSource configuration: 'System.Runtime:W(arning only W matters);Microsoft-Extensions-DependencyInjection:V'." )
-                   .And.Contain( "[Microsoft-Extensions-DependencyInjection:7] EventName='ServiceProviderBuilt'" );
+            texts.ShouldContain( "Applying .Net EventSource configuration: 'System.Runtime:W(arning only W matters);Microsoft-Extensions-DependencyInjection:V'." )
+                   .ShouldContain( "[Microsoft-Extensions-DependencyInjection:7] EventName='ServiceProviderBuilt'" );
         }
         finally
         {
@@ -332,7 +325,7 @@ public partial class HostApplicationBuilderTests
             System.Threading.Thread.Sleep( 200 );
 
             var texts = DemoSinkHandler.LogEvents.OrderBy( e => e.LogTime ).Select( e => e.Text ).ToArray();
-            texts.Should().Contain( "[CK.Monitoring.Hosting.Tests.HostApplicationBuilderTests] Hello world (MS.Extensions.Logging)" );
+            texts.ShouldContain( "[CK.Monitoring.Hosting.Tests.HostApplicationBuilderTests] Hello world (MS.Extensions.Logging)" );
         }
         finally
         {

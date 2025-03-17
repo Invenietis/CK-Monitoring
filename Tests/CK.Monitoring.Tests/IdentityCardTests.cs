@@ -1,12 +1,11 @@
 using CK.Core;
-using FluentAssertions;
+using Shouldly;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,17 +22,17 @@ public class IdentityCardTests
         id.OnChanged += ev =>
         {
             ++callCount;
-            ev.IdentityCard.Should().BeSameAs( id );
-            ev.AddedInfo.Should().BeEquivalentTo( new[] { ("a", "b") } );
+            ev.IdentityCard.ShouldBeSameAs( id );
+            ev.AddedInfo.ShouldBe( new[] { ("a", "b") } );
         };
         id.OnChanged += ev => ++callCount;
 
         var e = id.Add( "a", "b" );
         Debug.Assert( e != null );
-        e.AddedInfo.Count.Should().Be( 1 );
-        e.Identities["a"].Should().BeEquivalentTo( new[] { "b" } );
+        e.AddedInfo.Count.ShouldBe( 1 );
+        e.Identities["a"].ShouldBe( new[] { "b" } );
 
-        callCount.Should().Be( 2 );
+        callCount.ShouldBe( 2 );
     }
 
     [Test]
@@ -43,67 +42,67 @@ public class IdentityCardTests
         int callCount = 0;
         id.OnChanged += ev => ++callCount;
 
-        id.Add( "a", "b" ).Should().NotBeNull();
-        id.Add( "a", "b" ).Should().BeNull();
-        id.Add( ("a", "b") ).Should().BeNull();
-        id.Add( ("a", "b"), ("a", "b"), ("a", "b"), ("a", "b") ).Should().BeNull();
-        callCount.Should().Be( 1 );
+        id.Add( "a", "b" ).ShouldNotBeNull();
+        id.Add( "a", "b" ).ShouldBeNull();
+        id.Add( ("a", "b") ).ShouldBeNull();
+        id.Add( ("a", "b"), ("a", "b"), ("a", "b"), ("a", "b") ).ShouldBeNull();
+        callCount.ShouldBe( 1 );
 
-        id.Add( "a", "c" ).Should().NotBeNull();
+        id.Add( "a", "c" ).ShouldNotBeNull();
         var c = id.Add( ("a", "d"), ("A", "b"), ("A", "c") );
         Debug.Assert( c != null );
-        c.AddedInfo.Should().BeEquivalentTo( new[] { ("a", "d"), ("A", "b"), ("A", "c") } );
+        c.AddedInfo.ShouldBe( new[] { ("a", "d"), ("A", "b"), ("A", "c") } );
 
-        callCount.Should().Be( 3 );
+        callCount.ShouldBe( 3 );
 
         c = id.Add( ("a", "d"), ("B", "1"), ("B", "2"), ("A", "c"), ("B", "3") );
         Debug.Assert( c != null );
-        c.AddedInfo.Should().BeEquivalentTo( new[] { ("B", "1"), ("B", "2"), ("B", "3") } );
-        callCount.Should().Be( 4 );
+        c.AddedInfo.ShouldBe( new[] { ("B", "1"), ("B", "2"), ("B", "3") } );
+        callCount.ShouldBe( 4 );
 
         c = id.Add( ("C", "0"), ("B", "1"), ("B", "2"), ("A", "c"), ("B", "3") );
         Debug.Assert( c != null );
-        c.AddedInfo.Should().BeEquivalentTo( new[] { ("C", "0") } );
-        callCount.Should().Be( 5 );
+        c.AddedInfo.ShouldBe( new[] { ("C", "0") } );
+        callCount.ShouldBe( 5 );
 
-        id.Identities.Should().HaveCount( 4 );
-        id.Identities.Keys.Should().BeEquivalentTo( new[] { "a", "A", "B", "C" } );
+        id.Identities.Count.ShouldBe( 4 );
+        id.Identities.Keys.ShouldBe( new[] { "a", "A", "B", "C" } );
     }
 
     [Test]
     public void key_and_value_cannot_contain_the_9_first_chracters_and_keys_cannot_contain_newlines()
     {
         var id = new IdentityCard();
-        id.Add( null!, "valid" ).Should().BeNull();
-        id.Add( "", "valid" ).Should().BeNull();
-        id.Add( "A\u0000A", "valid" ).Should().BeNull();
-        id.Add( "A\u0001A", "valid" ).Should().BeNull();
-        id.Add( "A\u0002A", "valid" ).Should().BeNull();
-        id.Add( "A\u0003A", "valid" ).Should().BeNull();
-        id.Add( "A\u0004A", "valid" ).Should().BeNull();
-        id.Add( "A\u0005A", "valid" ).Should().BeNull();
-        id.Add( "A\u0006A", "valid" ).Should().BeNull();
-        id.Add( "A\u0007A", "valid" ).Should().BeNull();
-        id.Add( "A\u0008A", "valid" ).Should().BeNull();
+        id.Add( null!, "valid" ).ShouldBeNull();
+        id.Add( "", "valid" ).ShouldBeNull();
+        id.Add( "A\u0000A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0001A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0002A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0003A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0004A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0005A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0006A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0007A", "valid" ).ShouldBeNull();
+        id.Add( "A\u0008A", "valid" ).ShouldBeNull();
 
-        id.Add( "A\u0009A", "valid" ).Should().NotBeNull();
+        id.Add( "A\u0009A", "valid" ).ShouldNotBeNull();
 
-        id.Add( "valid", null! ).Should().BeNull();
-        id.Add( "valid", "" ).Should().BeNull();
-        id.Add( "valid", "A\u0000A" ).Should().BeNull();
-        id.Add( "valid", "A\u0001A" ).Should().BeNull();
-        id.Add( "valid", "A\u0002A" ).Should().BeNull();
-        id.Add( "valid", "A\u0003A" ).Should().BeNull();
-        id.Add( "valid", "A\u0004A" ).Should().BeNull();
-        id.Add( "valid", "A\u0005A" ).Should().BeNull();
-        id.Add( "valid", "A\u0006A" ).Should().BeNull();
-        id.Add( "valid", "A\u0007A" ).Should().BeNull();
-        id.Add( "valid", "A\u0008A" ).Should().BeNull();
+        id.Add( "valid", null! ).ShouldBeNull();
+        id.Add( "valid", "" ).ShouldBeNull();
+        id.Add( "valid", "A\u0000A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0001A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0002A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0003A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0004A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0005A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0006A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0007A" ).ShouldBeNull();
+        id.Add( "valid", "A\u0008A" ).ShouldBeNull();
 
-        id.Add( "valid", "A\u0009A" ).Should().NotBeNull();
+        id.Add( "valid", "A\u0009A" ).ShouldNotBeNull();
 
-        id.Add( "A\rA", "valid" ).Should().BeNull();
-        id.Add( "A\nA", "valid" ).Should().BeNull();
+        id.Add( "A\rA", "valid" ).ShouldBeNull();
+        id.Add( "A\nA", "valid" ).ShouldBeNull();
     }
 
     [Test]
@@ -116,7 +115,7 @@ public class IdentityCardTests
         {
             var s = IdentityCard.Pack( a );
             var r = (IReadOnlyList<(string, string)>?)IdentityCard.TryUnpack( s );
-            r.Should().BeEquivalentTo( a );
+            r.ShouldBe( a );
         }
     }
 
@@ -156,13 +155,14 @@ public class IdentityCardTests
         {
             var s = c.ToString();
             var r = IdentityCard.TryCreate( s );
-            Debug.Assert( r != null );
-            r.Identities.Should().BeEquivalentTo( c.Identities );
+            r.ShouldNotBeNull().Identities.Count.ShouldBe( c.Identities.Count );
+            r.Identities.ShouldAll( e => e.Value.ShouldBeEquivalentTo( c.Identities[e.Key] ) );
 
             if( s.Length > 0 )
             {
                 var i = (IReadOnlyDictionary<string, IReadOnlyCollection<string>>?)IdentityCard.TryUnpack( s );
-                i.Should().BeEquivalentTo( c.Identities );
+                i.ShouldNotBeNull().Count.ShouldBe( c.Identities.Count );
+                i.ShouldAll( e => e.Value.ShouldBeEquivalentTo( c.Identities[e.Key] ) );
             }
         }
     }
@@ -172,13 +172,13 @@ public class IdentityCardTests
     {
         await using var g = new GrandOutput( new GrandOutputConfiguration() );
         CoreApplicationIdentity.Initialize();
-        g.IdentityCard.Identities["AppIdentity"].Should().NotBeEmpty();
-        g.IdentityCard.Identities["AppIdentity/InstanceId"].Single().Should().Be( CoreApplicationIdentity.InstanceId );
-        g.IdentityCard.Identities["AppIdentity/ContextualId"].Single().Should().Be( CoreApplicationIdentity.Instance.ContextualId );
+        g.IdentityCard.Identities["AppIdentity"].ShouldNotBeEmpty();
+        g.IdentityCard.Identities["AppIdentity/InstanceId"].Single().ShouldBe( CoreApplicationIdentity.InstanceId );
+        g.IdentityCard.Identities["AppIdentity/ContextualId"].Single().ShouldBe( CoreApplicationIdentity.Instance.ContextualId );
         // The empty ContextDescriptor cannot be a valid value.
         if( CoreApplicationIdentity.Instance.ContextDescriptor.Length > 0 )
         {
-            g.IdentityCard.Identities["AppIdentity/ContextDescriptor"].Single().Should().Be( CoreApplicationIdentity.Instance.ContextDescriptor );
+            g.IdentityCard.Identities["AppIdentity/ContextDescriptor"].Single().ShouldBe( CoreApplicationIdentity.Instance.ContextDescriptor );
         }
     }
 
@@ -197,15 +197,15 @@ public class IdentityCardTests
 
         Thread.Sleep( 100 );
 
-        g.IdentityCard.Identities["Hello"].Should().NotBeEmpty( "The identity card has been updated." );
-        g.IdentityCard.Identities["Hello"].Should().BeEquivalentTo( new[] { "World!", "World2" }, o => o.WithoutStrictOrdering() );
+        g.IdentityCard.Identities["Hello"].ShouldNotBeEmpty( "The identity card has been updated." );
+        g.IdentityCard.Identities["Hello"].ShouldBe( ["World!", "World2" ], ignoreOrder: true );
 
         string tempFile = Directory.EnumerateFiles( folder ).Single();
         var lines = TestHelper.FileReadAllText( tempFile ).Split( Environment.NewLine, StringSplitOptions.RemoveEmptyEntries );
         var helloUpdateLines = lines.Where( l => l.Contains( $"Hello{ActivityMonitorSimpleSenderExtension.IdentityCard.KeySeparator}World!" ) );
-        helloUpdateLines.Should().HaveCount( 1, "The Hello line has been added only once." );
+        helloUpdateLines.Count().ShouldBe( 1, "The Hello line has been added only once." );
 
         var hello2UpdateLines = lines.Where( l => l.Contains( $"Hello{ActivityMonitorSimpleSenderExtension.IdentityCard.KeySeparator}World2" ) );
-        hello2UpdateLines.Should().HaveCount( 1, "The Hello World2 line has been added only once." );
+        hello2UpdateLines.Count().ShouldBe( 1, "The Hello World2 line has been added only once." );
     }
 }

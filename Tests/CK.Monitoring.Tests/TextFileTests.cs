@@ -4,7 +4,7 @@ using System.Linq;
 using CK.Core;
 using NUnit.Framework;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using System.Threading;
 
 namespace CK.Monitoring.Tests;
@@ -66,7 +66,7 @@ public class TextFileTests
         string folder = TestHelper.PrepareLogFolder( "AutoFlush" );
 
         var textConf = new Handlers.TextFileConfiguration() { Path = "AutoFlush" };
-        textConf.AutoFlushRate.Should().Be( 6, "Default AutoFlushRate configuration." );
+        textConf.AutoFlushRate.ShouldBe( 6, "Default AutoFlushRate configuration." );
 
         // Avoid relying on the internal 500ms default.
         var config = new GrandOutputConfiguration { TimerDuration = TimeSpan.FromMilliseconds( 500 ) }
@@ -80,19 +80,19 @@ public class TextFileTests
             m.Info( "Must wait 3 seconds..." );
             Thread.Sleep( 700 );
             string tempFile = Directory.EnumerateFiles( folder ).Single();
-            TestHelper.FileReadAllText( tempFile ).Should().BeEmpty();
+            TestHelper.FileReadAllText( tempFile ).ShouldBeEmpty();
             Thread.Sleep( 3000 );
-            TestHelper.FileReadAllText( tempFile ).Should().Contain( "Must wait 3 seconds..." );
+            TestHelper.FileReadAllText( tempFile ).ShouldContain( "Must wait 3 seconds..." );
 
             textConf.AutoFlushRate = 1;
             m.Info( "Reconfiguration triggers a flush..." );
             Thread.Sleep( 10 );
             g.ApplyConfiguration( new GrandOutputConfiguration().AddHandler( textConf ), waitForApplication: true );
-            TestHelper.FileReadAllText( tempFile ).Should().Contain( "Reconfiguration triggers a flush..." );
+            TestHelper.FileReadAllText( tempFile ).ShouldContain( "Reconfiguration triggers a flush..." );
             m.Info( "Wait only approx 500ms..." );
             Thread.Sleep( 700 );
             string final = TestHelper.FileReadAllText( tempFile );
-            final.Should().Contain( "Wait only approx 500ms" );
+            final.ShouldContain( "Wait only approx 500ms" );
         }
     }
 
@@ -125,15 +125,14 @@ public class TextFileTests
             await t;
         }
         string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
-        textLogged.Should()
-                    .Contain( "Normal monitor starts." )
-                    .And.Contain( "Async started from ActivityMonitor.StaticLogger." )
-                    .And.Contain( "Async started." )
-                    .And.Contain( "Async n°0." )
-                    .And.Contain( "Async n°9." )
-                    .And.Contain( "Async n°0 from ActivityMonitor.StaticLogger." )
-                    .And.Contain( "Async n°9 from ActivityMonitor.StaticLogger." )
-                    .And.Contain( "This is the end." );
+        textLogged.ShouldContain( "Normal monitor starts." )
+                  .ShouldContain( "Async started from ActivityMonitor.StaticLogger." )
+                  .ShouldContain( "Async started." )
+                  .ShouldContain( "Async n°0." )
+                  .ShouldContain( "Async n°9." )
+                  .ShouldContain( "Async n°0 from ActivityMonitor.StaticLogger." )
+                  .ShouldContain( "Async n°9 from ActivityMonitor.StaticLogger." )
+                  .ShouldContain( "This is the end." );
     }
 
     [Test]
@@ -160,8 +159,7 @@ public class TextFileTests
         string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
         for( int c = 0; c < taskCount; ++c )
             for( int i = 0; i < logCount; ++i )
-                textLogged.Should()
-                    .Contain( $"{c} n°{i}." );
+                textLogged.ShouldContain( $"{c} n°{i}." );
     }
 
     static readonly CKTrait _myTag = ActivityMonitor.Tags.Register( "external_logs_filtering" );
@@ -173,7 +171,7 @@ public class TextFileTests
 
         var textConf = new Handlers.TextFileConfiguration() { Path = "ExternalLogsFiltering" };
         var config = new GrandOutputConfiguration().AddHandler( textConf );
-        ActivityMonitor.DefaultFilter.Line.Should().Be( LogLevelFilter.Trace );
+        ActivityMonitor.DefaultFilter.Line.ShouldBe( LogLevelFilter.Trace );
         await using( GrandOutput g = new GrandOutput( config ) )
         {
             g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
@@ -189,8 +187,8 @@ public class TextFileTests
             g.ExternalLog( LogLevel.Debug, message: "NOSHOW" );
             g.ExternalLog( LogLevel.Trace, message: "SHOW 4" );
 
-            g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
-            g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeTrue();
+            g.IsExternalLogEnabled( LogLevel.Debug ).ShouldBeFalse();
+            g.IsExternalLogEnabled( LogLevel.Trace ).ShouldBeTrue();
 
             ActivityMonitor.Tags.AddFilter( _myTag, new LogClamper( LogFilter.Verbose, true ) );
 
@@ -198,24 +196,23 @@ public class TextFileTests
             g.ExternalLog( LogLevel.Info, _myTag, message: "SHOW 5" );
             g.ExternalLog( LogLevel.Trace, _myTag, message: "NOSHOW" );
 
-            g.IsExternalLogEnabled( LogLevel.Info, _myTag ).Should().BeTrue();
-            g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).Should().BeFalse();
+            g.IsExternalLogEnabled( LogLevel.Info, _myTag ).ShouldBeTrue();
+            g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).ShouldBeFalse();
 
             ActivityMonitor.Tags.RemoveFilter( _myTag );
 
-            g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).Should().BeTrue();
+            g.IsExternalLogEnabled( LogLevel.Trace, _myTag ).ShouldBeTrue();
             g.ExternalLog( LogLevel.Trace, _myTag, message: "SHOW 6" );
         }
         string textLogged = File.ReadAllText( Directory.EnumerateFiles( folder ).Single() );
-        textLogged.Should()
-                    .Contain( "SHOW 0" )
-                    .And.Contain( "SHOW 1" )
-                    .And.Contain( "SHOW 2" )
-                    .And.Contain( "SHOW 3" )
-                    .And.Contain( "SHOW 4" )
-                    .And.Contain( "SHOW 5" )
-                    .And.Contain( "SHOW 6" )
-                    .And.NotContain( "NOSHOW" );
+        textLogged.ShouldContain( "SHOW 0" )
+                  .ShouldContain( "SHOW 1" )
+                  .ShouldContain( "SHOW 2" )
+                  .ShouldContain( "SHOW 3" )
+                  .ShouldContain( "SHOW 4" )
+                  .ShouldContain( "SHOW 5" )
+                  .ShouldContain( "SHOW 6" )
+                  .ShouldNotContain( "NOSHOW" );
     }
 
     [Explicit]
@@ -270,12 +267,12 @@ public class TextFileTests
         FileInfo f = new DirectoryInfo( LogFile.RootLogPath + "TextFile" ).EnumerateFiles().Single();
         string text = File.ReadAllText( f.FullName );
         Console.WriteLine( text );
-        text.Should().Contain( "First Activity..." );
-        text.Should().Contain( "End of first activity." );
-        text.Should().Contain( "another one" );
-        text.Should().Contain( "Something must be said" );
-        text.Should().Contain( "My very first conclusion." );
-        text.Should().Contain( "My second conclusion." );
+        text.ShouldContain( "First Activity..." );
+        text.ShouldContain( "End of first activity." );
+        text.ShouldContain( "another one" );
+        text.ShouldContain( "Something must be said" );
+        text.ShouldContain( "My very first conclusion." );
+        text.ShouldContain( "My second conclusion." );
         string lineWithSecondConclusion = text.Split( "\n" ).Single( s => s.Contains( "My second conclusion." ) );
         lineWithSecondConclusion
             .Replace( "My second conclusion.", "" )
@@ -283,7 +280,7 @@ public class TextFileTests
             .Replace( "|", "" )
             .Replace( "\n", "" )
             .Replace( "\r", "" )
-            .Should().BeEmpty();
+            .ShouldBeEmpty();
 
     }
 
@@ -293,10 +290,10 @@ public class TextFileTests
         string folder = TestHelper.PrepareLogFolder( "AutoDelete_Date" );
 
         var textConf = new Handlers.TextFileConfiguration() { Path = "AutoDelete_Date" };
-        textConf.HousekeepingRate.Should().Be( 1800, "Default HousekeepingRate configuration" );
-        textConf.MinimumDaysToKeep.Should().Be( 60, "Default HousekeepingRate configuration" );
-        textConf.MinimumTimeSpanToKeep.Should().Be( TimeSpan.FromDays( 60 ), "Default HousekeepingRate configuration" );
-        textConf.MaximumTotalKbToKeep.Should().Be( 100_000, "Default HousekeepingRate configuration" );
+        textConf.HousekeepingRate.ShouldBe( 1800, "Default HousekeepingRate configuration" );
+        textConf.MinimumDaysToKeep.ShouldBe( 60, "Default HousekeepingRate configuration" );
+        textConf.MinimumTimeSpanToKeep.ShouldBe( TimeSpan.FromDays( 60 ), "Default HousekeepingRate configuration" );
+        textConf.MaximumTotalKbToKeep.ShouldBe( 100_000, "Default HousekeepingRate configuration" );
 
         // Change configuration for tests
         textConf.HousekeepingRate = 1; // Run every 500ms normally (here TimerDuration is set to 100ms).
@@ -318,12 +315,12 @@ public class TextFileTests
             Thread.Sleep( 30 );
 
             string tempFile = Directory.EnumerateFiles( folder ).Single();
-            File.Exists( tempFile ).Should().BeTrue( "Log file was created and exists" );
+            File.Exists( tempFile ).ShouldBeTrue( "Log file was created and exists" );
 
             // Wait for next flush (~100ms), and deletion threshold (3000ms)
             Thread.Sleep( 3200 );
 
-            File.Exists( tempFile ).Should().BeTrue( "Log file wasn't deleted yet - it's still active" );
+            File.Exists( tempFile ).ShouldBeTrue( "Log file wasn't deleted yet - it's still active" );
         }
         string finalLogFile = Directory.EnumerateFiles( folder ).Single();
 
@@ -334,7 +331,7 @@ public class TextFileTests
             Thread.Sleep( 200 );
         }
 
-        File.Exists( finalLogFile ).Should().BeFalse( "Inactive log file was deleted" );
+        File.Exists( finalLogFile ).ShouldBeFalse( "Inactive log file was deleted" );
     }
 
     [Test]
@@ -371,7 +368,7 @@ public class TextFileTests
         }
 
         var totalLogSize = GetTotalLogSize();
-        totalLogSize.Should().BeGreaterThan( 2500 );
+        totalLogSize.ShouldBeGreaterThan( 2500 );
 
         // Open another GrandOutput to trigger housekeeping.
         // Note: this DOES create a file!
@@ -381,7 +378,7 @@ public class TextFileTests
             Thread.Sleep( 200 );
         }
         var files = Directory.GetFiles( folder ).Select( f => Path.GetFileName( f ) );
-        files.Should().HaveCount( 2, $"Only 2 files should be kept - the last log file, and 1x~1KB file: {files.Concatenate()}" );
+        files.Count().ShouldBe( 2, $"Only 2 files should be kept - the last log file, and 1x~1KB file: {files.Concatenate()}" );
     }
 
     static void DumpSampleLogs1( Random r, GrandOutput g )

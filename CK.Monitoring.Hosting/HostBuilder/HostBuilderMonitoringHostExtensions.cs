@@ -2,8 +2,6 @@ using CK.Monitoring.Hosting;
 using CK.Core;
 using CK.Monitoring;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 

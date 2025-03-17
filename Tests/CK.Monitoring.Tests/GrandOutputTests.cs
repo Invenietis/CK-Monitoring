@@ -4,8 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CK.Core;
 using NUnit.Framework;
-using FluentAssertions;
-using System.Threading;
+using Shouldly;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 
@@ -125,21 +124,21 @@ public class GrandOutputTests
         static void ReadLog( string ckmon )
         {
             using var r = LogReader.Open( ckmon );
-            r.BadEndOfFileMarker.Should().BeFalse();
-            r.ReadException.Should().BeNull();
+            r.BadEndOfFileMarker.ShouldBeFalse();
+            r.ReadException.ShouldBeNull();
             bool d = false;
             while( r.MoveNext() )
             {
                 Debug.Assert( r.CurrentMulticast != null );
                 if( r.CurrentMulticast.MonitorId == ActivityMonitor.StaticLogMonitorUniqueId )
                 {
-                    r.CurrentMulticast.FileName.Should().EndWith( "GrandOutputTests.cs" );
-                    r.CurrentMulticast.Text.Should().Be( "This is a static log." );
+                    r.CurrentMulticast.FileName.ShouldEndWith( "GrandOutputTests.cs" );
+                    r.CurrentMulticast.Text.ShouldBe( "This is a static log." );
                     d = true;
                 }
             }
-            r.ReadException.Should().BeNull();
-            d.Should().BeTrue();
+            r.ReadException.ShouldBeNull();
+            d.ShouldBeTrue();
         }
     }
 
@@ -178,14 +177,14 @@ public class GrandOutputTests
         FileInfo rawCkmonFile = new FileInfo( rawCkmon );
 
         // Test file size
-        gzipCkmonFile.Exists.Should().BeTrue();
-        rawCkmonFile.Exists.Should().BeTrue();
-        gzipCkmonFile.Length.Should().BeLessThan( rawCkmonFile.Length );
+        gzipCkmonFile.Exists.ShouldBeTrue();
+        rawCkmonFile.Exists.ShouldBeTrue();
+        gzipCkmonFile.Length.ShouldBeLessThan( rawCkmonFile.Length );
 
         // Check that the gzip file is the same as the raw file re-compressed.
         FileUtil.CompressFileToGzipFile( rawCkmon, rawCkmon + ".gz", false );
         File.ReadAllBytes( gzipCkmon ).SequenceEqual( File.ReadAllBytes( rawCkmon + ".gz" ) )
-            .Should().BeTrue( $"File '{gzipCkmon}' must be the same as raw '{rawCkmon}' re-compressed." );
+            .ShouldBeTrue( $"File '{gzipCkmon}' must be the same as raw '{rawCkmon}' re-compressed." );
 
 
         // Check that all entries can be read from the gzip file.
@@ -203,56 +202,56 @@ public class GrandOutputTests
         using( var rR = new MultiLogReader() )
         {
             rG.Add( gzipCkmon, out var newFileIndexG );
-            newFileIndexG.Should().BeTrue();
+            newFileIndexG.ShouldBeTrue();
             rR.Add( rawCkmon, out var newFileIndexR );
-            newFileIndexR.Should().BeTrue();
+            newFileIndexR.ShouldBeTrue();
             var mapG = rG.GetActivityMap();
             var mapR = rR.GetActivityMap();
 
-            mapG.Monitors.Count.Should().Be( mapR.Monitors.Count );
-            mapG.FirstEntryDate.Should().Be( mapR.FirstEntryDate );
-            mapG.LastEntryDate.Should().Be( mapR.LastEntryDate );
+            mapG.Monitors.Count.ShouldBe( mapR.Monitors.Count );
+            mapG.FirstEntryDate.ShouldBe( mapR.FirstEntryDate );
+            mapG.LastEntryDate.ShouldBe( mapR.LastEntryDate );
             for( var i = 1; i < mapG.Monitors.Count; ++i )
             {
                 var monitorG = mapG.Monitors[i];
                 var monitorR = mapR.Monitors[i];
                 var monitorId = monitorR.MonitorId;
-                monitorG.MonitorId.Should().Be( monitorId );
-                monitorG.FirstEntryTime.Should().Be( monitorR.FirstEntryTime );
-                monitorG.LastEntryTime.Should().Be( monitorR.LastEntryTime );
-                monitorG.FirstDepth.Should().Be( monitorR.FirstDepth );
-                monitorG.LastDepth.Should().Be( monitorR.LastDepth );
-                monitorG.AllTags.Should().BeEquivalentTo( monitorR.AllTags );
-                monitorG.Files.Should().HaveCount( 1 );
-                monitorR.Files.Should().HaveCount( 1 );
+                monitorG.MonitorId.ShouldBe( monitorId );
+                monitorG.FirstEntryTime.ShouldBe( monitorR.FirstEntryTime );
+                monitorG.LastEntryTime.ShouldBe( monitorR.LastEntryTime );
+                monitorG.FirstDepth.ShouldBe( monitorR.FirstDepth );
+                monitorG.LastDepth.ShouldBe( monitorR.LastDepth );
+                monitorG.AllTags.ShouldBe( monitorR.AllTags );
+                monitorG.Files.Count.ShouldBe( 1 );
+                monitorR.Files.Count.ShouldBe( 1 );
                 var firstOffset = monitorR.Files[0].FirstOffset;
                 var lastOffset = monitorR.Files[0].LastOffset;
-                monitorG.Files[0].FirstOffset.Should().Be( firstOffset );
-                monitorG.Files[0].LastOffset.Should().Be( lastOffset );
+                monitorG.Files[0].FirstOffset.ShouldBe( firstOffset );
+                monitorG.Files[0].LastOffset.ShouldBe( lastOffset );
 
                 using( var fR = monitorR.Files[0].CreateFilteredReaderAndMoveTo( firstOffset ) )
                 {
                     Debug.Assert( fR.CurrentMulticast != null );
-                    fR.CurrentMulticast.MonitorId.Should().Be( monitorId );
-                    fR.MoveNext().Should().BeTrue();
+                    fR.CurrentMulticast.MonitorId.ShouldBe( monitorId );
+                    fR.MoveNext().ShouldBeTrue();
                 }
                 using( var lR = monitorR.Files[0].CreateFilteredReaderAndMoveTo( lastOffset ) )
                 {
                     Debug.Assert( lR.CurrentMulticast != null );
-                    lR.CurrentMulticast.MonitorId.Should().Be( monitorId );
-                    FluentActions.Invoking( () => lR.MoveNext() ).Should().NotThrow();
+                    lR.CurrentMulticast.MonitorId.ShouldBe( monitorId );
+                    Util.Invokable( () => lR.MoveNext() ).ShouldNotThrow();
                 }
                 using( var fG = monitorG.Files[0].CreateFilteredReaderAndMoveTo( firstOffset ) )
                 {
                     Debug.Assert( fG.CurrentMulticast != null );
-                    fG.CurrentMulticast.MonitorId.Should().Be( monitorId );
-                    fG.MoveNext().Should().BeTrue();
+                    fG.CurrentMulticast.MonitorId.ShouldBe( monitorId );
+                    fG.MoveNext().ShouldBeTrue();
                 }
                 using( var lG = monitorG.Files[0].CreateFilteredReaderAndMoveTo( lastOffset ) )
                 {
                     Debug.Assert( lG.CurrentMulticast != null );
-                    lG.CurrentMulticast.MonitorId.Should().Be( monitorId );
-                    FluentActions.Invoking( () => lG.MoveNext() ).Should().NotThrow();
+                    lG.CurrentMulticast.MonitorId.ShouldBe( monitorId );
+                    Util.Invokable( () => lG.MoveNext() ).ShouldNotThrow();
                 }
             }
         }
@@ -260,14 +259,14 @@ public class GrandOutputTests
         using( var mlr = new MultiLogReader() )
         {
             var fileList = mlr.Add( new string[] { gzipCkmonFile.FullName, rawCkmonFile.FullName } );
-            fileList.Should().HaveCount( 2 );
+            fileList.Count.ShouldBe( 2 );
 
             var map = mlr.GetActivityMap();
 
-            map.Monitors.Count.Should().BeInRange( 4, 5 );
+            map.Monitors.Count.ShouldBeInRange( 4, 5 );
             if( map.Monitors.Count == 5 )
             {
-                map.Monitors.Any( m => m.MonitorId == ActivityMonitor.StaticLogMonitorUniqueId ).Should().BeTrue( "The 5th monitor is the §§§§ (static) monitor." );
+                map.Monitors.Any( m => m.MonitorId == ActivityMonitor.StaticLogMonitorUniqueId ).ShouldBeTrue( "The 5th monitor is the §§§§ (static) monitor." );
             }
             // The DispatcherSink monitor define its Topic: "CK.Monitoring.DispatcherSink"
             // Others do not have any topic.
@@ -275,15 +274,15 @@ public class GrandOutputTests
                                                                      && !m.AllTags.Any( t => t.Key == ActivityMonitor.Tags.TopicChanged ) ).ToList();
             using( var p = notDispatcherSinkMonitors.ElementAt( 0 ).ReadFirstPage( 6000 ) )
             {
-                p.Entries.Should().HaveCount( 5425 );
+                p.Entries.Count.ShouldBe( 5425 );
             }
             using( var p = notDispatcherSinkMonitors.ElementAt( 1 ).ReadFirstPage( 6000 ) )
             {
-                p.Entries.Should().HaveCount( 5425 );
+                p.Entries.Count.ShouldBe( 5425 );
             }
             using( var p = notDispatcherSinkMonitors.ElementAt( 2 ).ReadFirstPage( 6000 ) )
             {
-                p.Entries.Should().HaveCount( 5425 );
+                p.Entries.Count.ShouldBe( 5425 );
             }
         }
     }
@@ -295,19 +294,19 @@ public class GrandOutputTests
         ActivityMonitor.DefaultFilter = LogFilter.Trace;
         await using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
         {
-            g.ExternalLogLevelFilter.Should().Be( LogLevelFilter.None );
-            g.IsExternalLogEnabled( LogLevel.Debug ).Should().BeFalse();
-            g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeTrue();
-            g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
+            g.ExternalLogLevelFilter.ShouldBe( LogLevelFilter.None );
+            g.IsExternalLogEnabled( LogLevel.Debug ).ShouldBeFalse();
+            g.IsExternalLogEnabled( LogLevel.Trace ).ShouldBeTrue();
+            g.IsExternalLogEnabled( LogLevel.Info ).ShouldBeTrue();
             ActivityMonitor.DefaultFilter = LogFilter.Release;
-            g.IsExternalLogEnabled( LogLevel.Info ).Should().BeFalse();
-            g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeFalse();
-            g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
+            g.IsExternalLogEnabled( LogLevel.Info ).ShouldBeFalse();
+            g.IsExternalLogEnabled( LogLevel.Warn ).ShouldBeFalse();
+            g.IsExternalLogEnabled( LogLevel.Error ).ShouldBeTrue();
             g.ExternalLogLevelFilter = LogLevelFilter.Info;
-            g.IsExternalLogEnabled( LogLevel.Trace ).Should().BeFalse();
-            g.IsExternalLogEnabled( LogLevel.Info ).Should().BeTrue();
-            g.IsExternalLogEnabled( LogLevel.Warn ).Should().BeTrue();
-            g.IsExternalLogEnabled( LogLevel.Error ).Should().BeTrue();
+            g.IsExternalLogEnabled( LogLevel.Trace ).ShouldBeFalse();
+            g.IsExternalLogEnabled( LogLevel.Info ).ShouldBeTrue();
+            g.IsExternalLogEnabled( LogLevel.Warn ).ShouldBeTrue();
+            g.IsExternalLogEnabled( LogLevel.Error ).ShouldBeTrue();
         }
         ActivityMonitor.DefaultFilter = LogFilter.Trace;
     }
@@ -324,18 +323,18 @@ public class GrandOutputTests
     {
         await using GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
         var m = CreateMonitorAndRegisterGrandOutput( "Test.", go );
-        m.ActualFilter.Should().Be( LogFilter.Undefined );
+        m.ActualFilter.ShouldBe( LogFilter.Undefined );
         go.MinimalFilter = LogFilter.Release;
-        m.ActualFilter.Should().Be( LogFilter.Release );
+        m.ActualFilter.ShouldBe( LogFilter.Release );
     }
 
     [Test]
     public async Task GrandOutput_signals_its_disposing_via_a_CancellationToken_Async()
     {
         GrandOutput go = new GrandOutput( new GrandOutputConfiguration() );
-        go.StoppedToken.IsCancellationRequested.Should().BeFalse();
+        go.StoppedToken.IsCancellationRequested.ShouldBeFalse();
         await go.DisposeAsync();
-        go.StoppedToken.IsCancellationRequested.Should().BeTrue();
+        go.StoppedToken.IsCancellationRequested.ShouldBeTrue();
     }
 
     [TestCase( 1 )]
@@ -353,21 +352,21 @@ public class GrandOutputTests
             var m = new ActivityMonitor( ActivityMonitorOptions.SkipAutoConfiguration );
             g.EnsureGrandOutputClient( m );
             DumpMonitor1083Entries( m, loop );
-            inMemory.IsDisposed.Should().BeFalse();
+            inMemory.IsDisposed.ShouldBeFalse();
         }
-        inMemory.IsDisposed.Should().BeTrue();
+        inMemory.IsDisposed.ShouldBeTrue();
         // Some entries can be the identitycard.
-        inMemory.Count.Should().BeGreaterThanOrEqualTo( 1083 * loop );
+        inMemory.Count.ShouldBeGreaterThanOrEqualTo( 1083 * loop );
         // All temporary files have been closed.
         var fileNames = Directory.EnumerateFiles( logPath ).ToList();
-        fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
+        fileNames.ShouldNotContain( s => s.EndsWith( ".tmp" ) );
         // The {loop} "~~~~~FINAL TRACE~~~~~" appear in text logs.
         fileNames
             .Where( n => n.EndsWith( ".log" ) )
             .Select( n => File.ReadAllText( n ) )
             .Select( t => Regex.Matches( t, "~~~~~FINAL TRACE~~~~~" ).Count )
             .Sum()
-            .Should().Be( loop );
+            .ShouldBe( loop );
     }
 
     // Caution: In the first run one entry is the IdentityCard!

@@ -1,15 +1,10 @@
 using CK.AspNet.Tester;
 using CK.Core;
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring.Hosting.Tests;
@@ -40,20 +35,20 @@ public class LogSenderTests
 
         monitor.Info( "NOSHOW" );
         await Task.Delay( 50 );
-        FakeLogSender.ActivatedSender.Should().NotBeNull();
-        FakeLogSender.ActivatedSender.FakeSender.Should().BeNull();
+        FakeLogSender.ActivatedSender.ShouldNotBeNull();
+        FakeLogSender.ActivatedSender.FakeSender.ShouldBeNull();
         FakeLogSender.FakeSenderCanBeCreated = true;
         monitor.Info( "NOSHOW" );
         await Task.Delay( 50 );
         var sender = FakeLogSender.ActivatedSender.FakeSender;
         Debug.Assert( sender != null );
-        sender.Disposed.Should().BeFalse();
+        sender.Disposed.ShouldBeFalse();
 
-        FakeLogSender.LogSent.Should().BeEmpty( "FakeSenderIsActuallyConnected is false: no log can be sent." );
+        FakeLogSender.LogSent.ShouldBeEmpty( "FakeSenderIsActuallyConnected is false: no log can be sent." );
 
         await host.StopAsync();
-        sender.Disposed.Should().BeTrue();
-        grandOutput.StoppedToken.IsCancellationRequested.Should().BeTrue();
+        sender.Disposed.ShouldBeTrue();
+        grandOutput.StoppedToken.IsCancellationRequested.ShouldBeTrue();
     }
 
     [Test]
@@ -91,10 +86,11 @@ public class LogSenderTests
         var sender = FakeLogSender.ActivatedSender.FakeSender;
         Debug.Assert( sender != null, "The sender has been created." );
 
-        FakeLogSender.LogSent.Concatenate().Should().Contain( "n°1, n°2, n°3, n°4, n°5, n°6" ).And.NotContain( "NOSHOW" );
+        FakeLogSender.LogSent.Concatenate().ShouldContain( "n°1, n°2, n°3, n°4, n°5, n°6" )
+                                           .ShouldNotContain( "NOSHOW" );
 
         await host.StopAsync();
-        grandOutput.StoppedToken.IsCancellationRequested.Should().BeTrue();
+        grandOutput.StoppedToken.IsCancellationRequested.ShouldBeTrue();
     }
 
     [Test]
@@ -108,7 +104,7 @@ public class LogSenderTests
         Debug.Assert( FakeLogSender.ActivatedSender == null );
 
         await host.StopAsync();
-        grandOutput.StoppedToken.IsCancellationRequested.Should().BeTrue();
+        grandOutput.StoppedToken.IsCancellationRequested.ShouldBeTrue();
     }
 
     [Test]
@@ -121,7 +117,7 @@ public class LogSenderTests
 
         var (host, grandOutput) = await StartHostAsync();
         Debug.Assert( FakeLogSender.ActivatedSender != null );
-        FakeLogSender.ActivatedSender.FakeSender.Should().BeNull();
+        FakeLogSender.ActivatedSender.FakeSender.ShouldBeNull();
 
         // Conditions to create the sender becomes true.
         FakeLogSender.FakeSenderCanBeCreated = true;
@@ -134,7 +130,7 @@ public class LogSenderTests
         monitor.Info( "NOSHOW" );
         await Task.Delay( 50 );
 
-        FakeLogSender.ActivatedSender.Should().BeNull( "The handler has been deactivated and removed." );
+        FakeLogSender.ActivatedSender.ShouldBeNull( "The handler has been deactivated and removed." );
 
         await host.StopAsync();
     }
@@ -192,7 +188,8 @@ public class LogSenderTests
         monitor.Info( "n°9" );
         await Task.Delay( 50 );
 
-        FakeLogSender.LogSent.Concatenate().Should().Contain( "n°1, n°2, n°3, n°4, n°5, n°6, n°7, n°8, n°9" ).And.NotContain( "NOSHOW" );
+        FakeLogSender.LogSent.Concatenate().ShouldContain( "n°1, n°2, n°3, n°4, n°5, n°6, n°7, n°8, n°9" )
+                                           .ShouldNotContain( "NOSHOW" );
 
         await host.StopAsync();
     }

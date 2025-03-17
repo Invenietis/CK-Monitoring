@@ -1,8 +1,9 @@
 using NUnit.Framework;
 using CK.Core;
-using FluentAssertions;
+using Shouldly;
 using System.IO;
 using System.Diagnostics;
+using System.Linq;
 
 namespace CK.Monitoring.Tests;
 
@@ -33,12 +34,12 @@ public class CKMonWriterClientTests
         // the InternalMonitor: there is exactly 3 traces, so only one file
         // is created and closed (on the theirs log).
         var client = m.Output.RegisterClient( new CKMonWriterClient( "CKMonWriterClient", 3 ) );
-        client.IsOpened.Should().BeTrue();
+        client.IsOpened.ShouldBeTrue();
         m.Info( "Info n°1." );
         m.Info( "Info n°2." );
         m.Info( "Info n°3." );
 
-        Directory.EnumerateFiles( path ).Should().HaveCount( 1 );
+        Directory.EnumerateFiles( path ).Count().ShouldBe( 1 );
 
     }
 }

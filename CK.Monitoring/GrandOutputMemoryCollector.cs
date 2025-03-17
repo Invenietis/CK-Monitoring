@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Data;
-using System.Data.Common;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -97,7 +96,7 @@ public sealed class GrandOutputMemoryCollector : Handlers.IDynamicGrandOutputHan
             {
                 ILogEntry e = _buffer.Pop();
                 _cachedEntries.Add( e );
-                Throw.DebugAssert( "No cached text => Text is nerver null.", _cachedListText != null || e.Text != null );
+                Throw.DebugAssert( "No cached text => Text is never null.", _cachedListText != null || e.Text != null );
                 if( _cachedListText != null && e.Text != null )
                 {
                     _cachedListText.Add( e.Text );

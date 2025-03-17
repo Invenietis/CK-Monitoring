@@ -1,5 +1,3 @@
-using System;
-
 namespace CK.Monitoring.Handlers;
 
 /// <summary>
