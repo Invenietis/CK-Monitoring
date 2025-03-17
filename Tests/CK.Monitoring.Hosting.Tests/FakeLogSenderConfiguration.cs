@@ -1,5 +1,3 @@
-using CK.Core;
-
 namespace CK.Monitoring.Hosting.Tests;
 
 public sealed class FakeLogSenderConfiguration : Handlers.IBaseLogSenderConfiguration

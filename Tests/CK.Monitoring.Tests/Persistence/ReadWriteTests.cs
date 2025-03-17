@@ -2,9 +2,8 @@ using System;
 using System.IO;
 using CK.Core;
 using NUnit.Framework;
-using FluentAssertions;
+using Shouldly;
 using System.Diagnostics;
-using System.Reflection.PortableExecutable;
 
 namespace CK.Monitoring.Tests.Persistence;
 
@@ -37,35 +36,35 @@ public class ReadWriteTests
             byte[] versionBytes = new byte[4];
             mem.Position = 0;
             mem.Read( versionBytes, 0, 4 );
-            BitConverter.ToInt32( versionBytes, 0 ).Should().Be( LogReader.CurrentStreamVersion );
+            BitConverter.ToInt32( versionBytes, 0 ).ShouldBe( LogReader.CurrentStreamVersion );
 
             using( var reader = new LogReader( mem, LogReader.CurrentStreamVersion, 4 ) )
             {
-                reader.MoveNext().Should().BeTrue();
-                reader.Current.Text.Should().Be( e1.Text );
-                reader.Current.LogLevel.Should().Be( e1.LogLevel );
-                reader.Current.LogTime.Should().Be( e1.LogTime );
-                reader.Current.FileName.Should().Be( e1.FileName );
-                reader.Current.LineNumber.Should().Be( e1.LineNumber );
+                reader.MoveNext().ShouldBeTrue();
+                reader.Current.Text.ShouldBe( e1.Text );
+                reader.Current.LogLevel.ShouldBe( e1.LogLevel );
+                reader.Current.LogTime.ShouldBe( e1.LogTime );
+                reader.Current.FileName.ShouldBe( e1.FileName );
+                reader.Current.LineNumber.ShouldBe( e1.LineNumber );
                 Debug.Assert( reader.Current.Exception != null );
-                reader.Current.Exception.ExceptionTypeAssemblyQualifiedName.Should().Be( e1.Exception.ExceptionTypeAssemblyQualifiedName );
-                reader.Current.Exception.ToString().Should().Be( e1.Exception.ToString() );
+                reader.Current.Exception.ExceptionTypeAssemblyQualifiedName.ShouldBe( e1.Exception.ExceptionTypeAssemblyQualifiedName );
+                reader.Current.Exception.ToString().ShouldBe( e1.Exception.ToString() );
 
-                reader.MoveNext().Should().BeTrue();
+                reader.MoveNext().ShouldBeTrue();
                 Debug.Assert( reader.CurrentMulticast != null );
-                reader.CurrentMulticast.GrandOutputId.Should().Be( "GOId" );
-                reader.CurrentMulticast.MonitorId.Should().Be( "3712" );
-                reader.CurrentMulticast.PreviousEntryType.Should().Be( LogEntryType.Line );
-                reader.CurrentMulticast.PreviousLogTime.Should().Be( prevLog );
-                reader.Current.Text.Should().Be( e2.Text );
-                reader.Current.LogTime.Should().Be( e2.LogTime );
-                reader.Current.FileName.Should().BeNull();
-                reader.Current.LineNumber.Should().Be( 0, "Since no file name is set, line number is 0." );
-                reader.Current.Exception.ExceptionTypeAssemblyQualifiedName.Should().Be( e2.Exception.ExceptionTypeAssemblyQualifiedName );
-                reader.Current.Exception.ToString().Should().Be( e2.Exception.ToString() );
+                reader.CurrentMulticast.GrandOutputId.ShouldBe( "GOId" );
+                reader.CurrentMulticast.MonitorId.ShouldBe( "3712" );
+                reader.CurrentMulticast.PreviousEntryType.ShouldBe( LogEntryType.Line );
+                reader.CurrentMulticast.PreviousLogTime.ShouldBe( prevLog );
+                reader.Current.Text.ShouldBe( e2.Text );
+                reader.Current.LogTime.ShouldBe( e2.LogTime );
+                reader.Current.FileName.ShouldBeNull();
+                reader.Current.LineNumber.ShouldBe( 0, "Since no file name is set, line number is 0." );
+                reader.Current.Exception.ExceptionTypeAssemblyQualifiedName.ShouldBe( e2.Exception.ExceptionTypeAssemblyQualifiedName );
+                reader.Current.Exception.ToString().ShouldBe( e2.Exception.ToString() );
 
-                reader.MoveNext().Should().BeFalse();
-                reader.BadEndOfFileMarker.Should().BeFalse();
+                reader.MoveNext().ShouldBeFalse();
+                reader.BadEndOfFileMarker.ShouldBeFalse();
             }
         }
 

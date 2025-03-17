@@ -1,9 +1,8 @@
 using System;
 using System.IO;
-using System.Linq;
 using CK.Core;
 using NUnit.Framework;
-using FluentAssertions;
+using Shouldly;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests;
@@ -58,10 +57,10 @@ public class CriticalErrorsTests
             }
             catch( Exception ex )
             {
-                monitorTraceListenerFailFast.Should().BeFalse();
-                ex.Should().BeOfType<MonitoringFailFastException>();
+                monitorTraceListenerFailFast.ShouldBeFalse();
+                ex.ShouldBeOfType<MonitoringFailFastException>();
             }
-            monitorTraceListenerFailFast.Should().BeFalse();
+            monitorTraceListenerFailFast.ShouldBeFalse();
         }
     }
 

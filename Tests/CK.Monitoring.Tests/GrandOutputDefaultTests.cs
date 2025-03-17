@@ -1,5 +1,4 @@
-using CK.Core;
-using FluentAssertions;
+using Shouldly;
 using NUnit.Framework;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -16,7 +15,7 @@ public class GrandOutputDefaultTests
         GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
         Debug.Assert( GrandOutput.Default != null );
         await GrandOutput.Default.DisposeAsync();
-        GrandOutput.Default.Should().BeNull();
+        GrandOutput.Default.ShouldBeNull();
     }
 
 

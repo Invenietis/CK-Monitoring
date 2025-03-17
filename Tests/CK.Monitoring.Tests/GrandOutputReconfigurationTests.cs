@@ -1,11 +1,8 @@
 using CK.Core;
-using FluentAssertions;
+using Shouldly;
 using NUnit.Framework;
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -51,24 +48,26 @@ public class GrandOutputReconfigurationTests
         }
         // First file is NOT compressed, the second one is.
         var fileNamesFirst = Directory.EnumerateFiles( folder + @"\FirstPath" ).ToList();
-        fileNamesFirst.Should().BeInAscendingOrder().And.HaveCount( 2 ).And.NotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
-        File.ReadAllText( fileNamesFirst[0] ).Should().Contain( "No Compression." );
-        File.ReadAllText( fileNamesFirst[1] ).Should().NotContain( "With Compression.", "Cannot read it in clear text since it is compressed..." );
+        fileNamesFirst.Count.ShouldBe( 2 );
+        fileNamesFirst.ShouldBeInOrder().ShouldNotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
+        File.ReadAllText( fileNamesFirst[0] ).ShouldContain( "No Compression." );
+        File.ReadAllText( fileNamesFirst[1] ).ShouldNotContain( "With Compression.", "Cannot read it in clear text since it is compressed..." );
         using( var reader = LogReader.Open( fileNamesFirst[1] ) )
         {
-            reader.MoveNext().Should().BeTrue();
-            reader.Current.Text.Should().Be( "With Compression." );
+            reader.MoveNext().ShouldBeTrue();
+            reader.Current.Text.ShouldBe( "With Compression." );
         }
         // First file is compressed, not the second one.
         var fileNamesSecond = Directory.EnumerateFiles( folder + @"\SecondPath" ).ToList();
-        fileNamesSecond.Should().BeInAscendingOrder().And.HaveCount( 2 ).And.NotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
-        File.ReadAllText( fileNamesSecond[0] ).Should().NotContain( "With Compression (in second folder).", "The fist file is compressed..." );
+        fileNamesSecond.Count.ShouldBe( 2 );
+        fileNamesSecond.ShouldBeInOrder().ShouldNotContain( s => s.EndsWith( ".tmp" ), "Temporary files have been closed." );
+        File.ReadAllText( fileNamesSecond[0] ).ShouldNotContain( "With Compression (in second folder).", "The fist file is compressed..." );
         // We restrict the log entries to the one of our monitor: this filters out the logs from the DispatcherSink.
         using( var reader = LogReader.Open( fileNamesSecond[0], filter: new LogReader.BaseEntryFilter( m.UniqueId ) ) )
         {
-            reader.MoveNext().Should().BeTrue();
-            reader.Current.Text.Should().Be( "With Compression (in second folder)." );
+            reader.MoveNext().ShouldBeTrue();
+            reader.Current.Text.ShouldBe( "With Compression (in second folder)." );
         }
-        File.ReadAllText( fileNamesSecond[1] ).Should().Contain( "No Compression (in second folder)." );
+        File.ReadAllText( fileNamesSecond[1] ).ShouldContain( "No Compression (in second folder)." );
     }
 }

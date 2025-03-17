@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using CK.Core;
-using FluentAssertions;
 
 namespace CK.Monitoring.Tests;
 

@@ -2,7 +2,7 @@ using System.IO;
 using System.Linq;
 using CK.Core;
 using NUnit.Framework;
-using FluentAssertions;
+using Shouldly;
 
 namespace CK.Monitoring.Tests.Persistence;
 
@@ -35,17 +35,21 @@ public class PrevVersionsDataSupportTests
         for( int i = 0; i < files.Length; ++i )
         {
             var f = reader.Add( files[i], out newIndex );
-            newIndex.Should().BeTrue();
-            f.Error.Should().BeNull();
-            f.FileVersion.Should().Be( version );
+            newIndex.ShouldBeTrue();
+            f.Error.ShouldBeNull();
+            f.FileVersion.ShouldBe( version );
         }
         var allEntries = reader.GetActivityMap().Monitors.SelectMany( m => m.ReadAllEntries().Select( e => e.Entry ) ).ToList();
         // v5 and v6 did not have the Debug level.
         if( version <= 6 )
         {
             var allLevels = allEntries.Select( e => e.LogLevel & ~LogLevel.IsFiltered );
-            allLevels.Should().NotContain( LogLevel.Debug )
-                        .And.Contain( new[] { LogLevel.Trace, LogLevel.Info, LogLevel.Warn, LogLevel.Error, LogLevel.Fatal } );
+            allLevels.ShouldNotContain( LogLevel.Debug )
+                     .ShouldContain( LogLevel.Trace )
+                     .ShouldContain( LogLevel.Info )
+                     .ShouldContain( LogLevel.Warn )
+                     .ShouldContain( LogLevel.Error )
+                     .ShouldContain( LogLevel.Fatal );
         }
     }
 }

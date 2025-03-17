@@ -4,9 +4,7 @@ using System;
 using System.Linq;
 using System.IO;
 using System.Threading;
-using FluentAssertions;
 using CK.Monitoring.InterProcess;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace CK.Monitoring.Tests;
@@ -30,25 +28,25 @@ public class SimplePipeIntraProcessTests
             using( var r = SimpleLogPipeReceiver.Start( m, interProcess: false ) )
             {
                 RunClient( r.PipeName );
-                r.WaitEnd( false ).Should().Be( LogReceiverEndStatus.Normal );
+                r.WaitEnd( false ).ShouldBe( LogReceiverEndStatus.Normal );
             }
             var stupidLogs = txt.ToString();
-            stupidLogs.Should().Contain( "From client." )
-                               .And.Contain( "An Exception for the fun." )
-                               // StupidStringClient does not dump inner exception, only the top message.
-                               // .And.Contain( "With an inner exception!" )
-                               .And.Contain( "Info n°0" )
-                               .And.Contain( "Info n°19" );
+            stupidLogs.ShouldContain( "From client." )
+                      .ShouldContain( "An Exception for the fun." )
+                      // StupidStringClient does not dump inner exception, only the top message.
+                      // .And.Contain( "With an inner exception!" )
+                      .ShouldContain( "Info n°0" )
+                      .ShouldContain( "Info n°19" );
         }
         // All temporary files have been closed.
         var fileNames = Directory.EnumerateFiles( logPath ).ToList();
-        fileNames.Should().NotContain( s => s.EndsWith( ".tmp" ) );
+        fileNames.ShouldNotContain( s => s.EndsWith( ".tmp" ) );
         // Brutality here: opening the binary file as a text.
         // It is enough to check the serialized strings.
         var texts = fileNames.Select( n => File.ReadAllText( n ) );
         //foreach( var logs in texts )
         //{
-        //    logs.Should().Contain( Encoding.ASCII.GetBytes( "From client." ) )
+        //    logs.ShouldContain( Encoding.ASCII.GetBytes( "From client." ) )
         //                 .And.Contain( Encoding.ASCII.GetBytes( "An Exception for the fun." ) )
         //                 .And.Contain( Encoding.ASCII.GetBytes( "With an inner exception!" ) )
         //                 .And.Contain( Encoding.ASCII.GetBytes( "Info n°0" ) )

@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using CK.Core;
-using FluentAssertions;
+using Shouldly;
 
 namespace CK.Monitoring.Tests;
 
@@ -40,8 +40,8 @@ public sealed class SlowSinkHandler : IGrandOutputHandler
 
     public async ValueTask HandleAsync( IActivityMonitor m, InputLogEntry logEvent )
     {
-        _delay.Should().BeGreaterOrEqualTo( 0 );
-        _delay.Should().BeLessThan( 1000 );
+        _delay.ShouldBeGreaterThanOrEqualTo( 0 );
+        _delay.ShouldBeLessThan( 1000 );
         await Task.Delay( _delay );
     }
 

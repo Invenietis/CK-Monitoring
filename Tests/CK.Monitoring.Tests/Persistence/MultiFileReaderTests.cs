@@ -1,10 +1,9 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using CK.Core;
 using NUnit.Framework;
-using FluentAssertions;
+using Shouldly;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -74,7 +73,7 @@ public class MultiFileReaderTests
             Thread.Sleep( 100 );
             m.Output.UnregisterClient( direct );
         }
-        InputLogEntry.AliveCount.Should().Be( 0 );
+        InputLogEntry.AliveCount.ShouldBe( 0 );
 
         var files = TestHelper.WaitForCkmonFilesInDirectory( folder, 3 );
         for( int pageReadLength = 1; pageReadLength < 10; ++pageReadLength )
@@ -82,8 +81,8 @@ public class MultiFileReaderTests
             using MultiLogReader reader = new MultiLogReader();
             reader.Add( files );
             var map = reader.GetActivityMap();
-            map.ValidFiles.All( rawFile => rawFile.IsValidFile ).Should().BeTrue( "All files are correctly closed with the final 0 byte and no exception occurred while reading them." );
-            map.Monitors.Should().HaveCount( 2 );
+            map.ValidFiles.All( rawFile => rawFile.IsValidFile ).ShouldBeTrue( "All files are correctly closed with the final 0 byte and no exception occurred while reading them." );
+            map.Monitors.Count.ShouldBe( 2 );
 
             var allEntries1 = map.Monitors[0].ReadAllEntries().ToList();
             var allEntries2 = map.Monitors[1].ReadAllEntries().ToList();
@@ -93,14 +92,14 @@ public class MultiFileReaderTests
                                 : allEntries1;
 
             allEntries.Select( e => e.Entry.Text )
-                      .Should().Equal( "Trace 1",
-                                       "OpenTrace 1",
-                                       "Trace 1.1",
-                                       "Trace 1.2",
-                                       null, // CloseGroup
-                                       "<Missing log data>",
-                                       "<Missing log data>",
-                                       "Trace 2" );
+                      .ShouldBe( [ "Trace 1",
+                                   "OpenTrace 1",
+                                   "Trace 1.1",
+                                   "Trace 1.2",
+                                   null, // CloseGroup
+                                   "<Missing log data>",
+                                   "<Missing log data>",
+                                   "Trace 2" ] );
         }
     }
 

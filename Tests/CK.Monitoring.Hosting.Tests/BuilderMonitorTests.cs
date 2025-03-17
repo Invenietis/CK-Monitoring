@@ -1,7 +1,5 @@
 using CK.AspNet.Tester;
 using CK.Core;
-using FluentAssertions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using System.IO;
@@ -46,11 +44,11 @@ public class BuilderMonitorTests
         await GrandOutput.Default!.DisposeAsync();
 
         var text = TestHelper.FileReadAllText( Directory.EnumerateFiles( folder ).Single() );
-        text.Should().Contain( "This will eventually be logged!" )
-                 .And.Contain( "After configure." );
+        text.ShouldContain( "This will eventually be logged!" )
+            .ShouldContain( "After configure." );
 
         // Just make sure that the replay doesn't leak.
-        ActivityMonitorExternalLogData.AliveCount.Should().Be( 0 );
-        InputLogEntry.AliveCount.Should().Be( 0 );
+        ActivityMonitorExternalLogData.AliveCount.ShouldBe( 0 );
+        InputLogEntry.AliveCount.ShouldBe( 0 );
     }
 }
