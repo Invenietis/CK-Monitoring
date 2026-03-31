@@ -158,7 +158,7 @@ static class TestHelper
         {
             NormalizedPath path = AppContext.BaseDirectory;
             Debug.Assert( path.Parts[^3] == "bin" );
-            var root = path.PathsToFirstPart( null, new[] { "CK-Monitoring.sln" } ).FirstOrDefault( p => File.Exists( p ) );
+            var root = path.PathsToFirstPart( null, ["CK-Monitoring.slnx","CK-Monitoring.sln"] ).FirstOrDefault( p => File.Exists( p ) );
             if( root.IsEmptyPath ) Throw.InvalidOperationException( $"Unable to find CK-Monitoring.sln above '{AppContext.BaseDirectory}'." );
             _solutionFolder = root.RemoveLastPart();
             LogFile.RootLogPath = path.RemoveLastPart( 3 ).AppendPart( "Logs" );
