@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="appveyor.yml" />
+    <File Path="Directory.Build.props" />
+    <File Path="NuGet.config" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/CK.Monitoring.Hosting.Tests/CK.Monitoring.Hosting.Tests.csproj" />
+    <Project Path="Tests/CK.Monitoring.MailAlerterHandler/CK.Monitoring.MailAlerterHandler.csproj" />
+    <Project Path="Tests/CK.Monitoring.Tests/CK.Monitoring.Tests.csproj" />
+  </Folder>
+  <Project Path="CK.Monitoring.Hosting/CK.Monitoring.Hosting.csproj" />
+  <Project Path="CK.Monitoring/CK.Monitoring.csproj" />
+  <Properties Name="Performance">
+    <Property Name="HasPerformanceSessions" Value="true" />
+  </Properties>
+</Solution>
