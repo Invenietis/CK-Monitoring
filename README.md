@@ -12,8 +12,8 @@ CK-Monitoring is the log <a href="https://en.wikipedia.org/wiki/Sink_(computing)
 
 ## Packages produced by this repository
 
-| Package | Description | Release |
-|---------|-------------|---------|
+| Package | Description | Latest stable |
+|---------|-------------|---------------|
 | [CK.Monitoring](CK.Monitoring/README.md) | The `GrandOutput` sink itself, its handlers (Console, TextFile, BinaryFile) and the `.ckmon` persistence layer. | [![nuget](https://img.shields.io/nuget/v/CK.Monitoring.svg?label=CK.Monitoring)](https://www.nuget.org/packages/CK.Monitoring/) |
 | [CK.Monitoring.Hosting](CK.Monitoring.Hosting/README.md) | Wires the `GrandOutput.Default` into the .NET Generic Host from the "CK-Monitoring" configuration section. | [![nuget](https://img.shields.io/nuget/v/CK.Monitoring.Hosting.svg?label=CK.Monitoring.Hosting)](https://www.nuget.org/packages/CK.Monitoring.Hosting/) |
 
