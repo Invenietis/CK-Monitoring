@@ -42,8 +42,10 @@ builder.
 
 ## The "CK-Monitoring" section is the whole configuration surface.
 
-`UseCKMonitoring()` reads the configuration section named "CK-Monitoring". With the json
-configuration provider, a typical configuration is:
+`UseCKMonitoring()` reads the configuration section named "CK-Monitoring" - a section, not a file, so
+any of the standard
+[configuration providers](https://docs.microsoft.com/en-us/dotnet/core/extensions/configuration-providers)
+feeds it. With the json provider, a typical configuration is:
 
 ```json
 {
