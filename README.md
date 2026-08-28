@@ -23,5 +23,3 @@ it from `appsettings.json`. Start [there](CK.Monitoring.Hosting/README.md).
 [CK-Sample-Monitoring](https://github.com/signature-opensource/CK-Sample-Monitoring) is a sample
 repository that shows how an application is configured with `CK.Monitoring.Hosting` and how it
 dynamically reacts to changes of its appsettings.
-
-[![Build history](https://buildstats.info/appveyor/chart/Signature-OpenSource/ck-monitoring?buildCount=100)](https://ci.appveyor.com/project/Signature-OpenSource/ck-monitoring)
