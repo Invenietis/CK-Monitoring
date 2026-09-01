@@ -97,22 +97,24 @@ builder.AddAutoConfigure( ( monitor, b ) => { /* ... */ } );
 var host = builder.CKBuild();
 ```
 
-`ApplyAutoConfigure` is idempotent: only the first call applies the configurations. The
-`CK.AspNet` package exposes a similar `CKBuild` helper for `WebApplicationBuilder`.
+`ApplyAutoConfigure` is idempotent: only the first call applies the configurations.
 
 ## What is *not* registered for you.
 
-`UseCKMonitoring()` sets up the sink; it does **not** register `IActivityMonitor` in the DI
-container. For a `HostApplicationBuilder` the standard registration is:
+The two `UseCKMonitoring()` differ here, and this is the one place where it matters.
+
+On the obsolete `IHostBuilder`, the DI registration is done for you - the initializer takes for granted
+that it is the first to register these:
 
 ```csharp
-  // The ActivityMonitor is not mapped, only the IActivityMonitor must
-  // be exposed and the ParallelLogger is the one of the monitor.
   services.AddScoped<IActivityMonitor, ActivityMonitor>();
   services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
 ```
 
-For a `WebApplicationBuilder` this is unnecessary: `CKBuild` from the `CK.AspNet` package handles it.
+On the current `IHostApplicationBuilder`, it is **not**: that overload sets up the sink, the
+`ILoggerProvider` and, for an independent GrandOutput, an `IHostedService` - nothing else. The two lines
+above are yours to write, with the same shape: the `ActivityMonitor` implementation is not mapped, only
+`IActivityMonitor` is exposed, and the `IParallelLogger` is the one of the monitor.
 
 ## Microsoft.Extensions.Logging entries are captured too.
 
